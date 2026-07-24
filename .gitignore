@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+.next/
+.expo/
+out/
+
+# Variables de entorno (¡nunca subir secretos!)
+.env
+.env.local
+.env.*.local
+
+# Logs y cobertura
+*.log
+npm-debug.log*
+coverage/
+
+# Sistema
+.DS_Store
+Thumbs.db
