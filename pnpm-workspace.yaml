@@ -1,3 +1,11 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+allowBuilds:
+  unrs-resolver: true
+
+# Dependencias nativas autorizadas a ejecutar su script de compilación.
+# pnpm 10+ los bloquea por defecto (seguridad); aquí los habilitamos.
+onlyBuiltDependencies:
+  - unrs-resolver
