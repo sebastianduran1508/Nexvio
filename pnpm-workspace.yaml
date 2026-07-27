@@ -2,10 +2,14 @@ packages:
   - "apps/*"
   - "packages/*"
 
-allowBuilds:
-  unrs-resolver: true
-
 # Dependencias nativas autorizadas a ejecutar su script de compilación.
-# pnpm 10+ los bloquea por defecto (seguridad); aquí los habilitamos.
+# pnpm 10+ las bloquea por defecto (seguridad); aquí las habilitamos de una vez
+# para todo el stack (Next.js, Tailwind, NestJS, Expo, Prisma...).
 onlyBuiltDependencies:
   - unrs-resolver
+  - sharp
+  - esbuild
+  - "@tailwindcss/oxide"
+  - "@swc/core"
+  - "@prisma/engines"
+  - prisma

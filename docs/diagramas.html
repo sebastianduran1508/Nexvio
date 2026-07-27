@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<title>Nexvio - Diagramas de Arquitectura (Fase 2)</title>
+<style>
+ body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:0;background:#f6f8fa;color:#111}
+ header{background:#08427b;color:#fff;padding:16px 24px;position:sticky;top:0;z-index:10}
+ header h1{margin:0;font-size:18px}
+ nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+ nav a{color:#cfe3ff;text-decoration:none;font-size:13px;border:1px solid #2e6295;padding:3px 8px;border-radius:6px}
+ nav a:hover{background:#1168bd;color:#fff}
+ section{background:#fff;margin:24px auto;padding:20px;max-width:1200px;border:1px solid #e1e4e8;border-radius:10px}
+ h2{margin:0 0 12px;color:#08427b;font-size:16px;border-bottom:2px solid #eaeef2;padding-bottom:8px}
+ .mermaid{overflow:auto;text-align:center}
+ footer{text-align:center;color:#888;font-size:12px;padding:24px}
+</style></head>
+<body>
+<header><h1>Nexvio &mdash; Diagramas de Arquitectura (Fase 2)</h1><nav><a href="#0">C4 Nivel 1 - Contexto</a>
+<a href="#1">C4 Nivel 2 - Contenedores</a>
+<a href="#2">C4 Nivel 3 - Componentes API</a>
+<a href="#3">Modelo Entidad-Relacion (ERD)</a>
+<a href="#4">RLS - Propagacion de tenant (secuencia)</a></nav></header>
+<section id="0"><h2>C4 Nivel 1 - Contexto</h2><div class="mermaid">%% NEXVIO - C4 Nivel 1: Diagrama de Contexto (estilo C4 con flowchart estable)
+flowchart TB
+    admin["&lt;b&gt;Admin&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;&lt;br/&gt;Super-administrador de Grupo Studio Sebia.&lt;br/&gt;Gestiona organizaciones y metricas globales."]
+    organizador["&lt;b&gt;Organizador&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;&lt;br/&gt;Dueno de una organizacion cliente.&lt;br/&gt;Configura congresos, agenda y ponentes."]
+    coordinador["&lt;b&gt;Coordinador&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;&lt;br/&gt;Staff del evento en vivo. Modera preguntas,&lt;br/&gt;encuestas y bandeja unificada."]
+    participante["&lt;b&gt;Participante&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;&lt;br/&gt;Asistente al congreso. Agenda, preguntas,&lt;br/&gt;encuestas y networking desde la app movil."]
+
+    nexvio["&lt;b&gt;Nexvio&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema de Software]&lt;/i&gt;&lt;br/&gt;Plataforma SaaS multi-tenant para gestion de&lt;br/&gt;congresos. Aislamiento por organizacion con&lt;br/&gt;Row Level Security (RLS) de PostgreSQL."]
+
+    supabaseAuth["&lt;b&gt;Supabase Auth&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;&lt;br/&gt;Identidad gestionada. Emite JWT con&lt;br/&gt;claims de usuario y organizacion."]
+    meta["&lt;b&gt;Meta API&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;&lt;br/&gt;WhatsApp / Instagram / Facebook.&lt;br/&gt;Bandeja unificada y notificaciones."]
+    openai["&lt;b&gt;OpenAI API&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;&lt;br/&gt;LLM del asistente RAG: clasifica mensajes&lt;br/&gt;y responde preguntas frecuentes."]
+
+    admin --&gt;|"Administra y consulta metricas [HTTPS]"| nexvio
+    organizador --&gt;|"Configura congresos y equipo [HTTPS]"| nexvio
+    coordinador --&gt;|"Opera el evento en vivo [HTTPS/WebSocket]"| nexvio
+    participante --&gt;|"Participa y hace networking [HTTPS/WebSocket]"| nexvio
+
+    nexvio --&gt;|"Verifica JWT [HTTPS]"| supabaseAuth
+    nexvio --&gt;|"Envia/recibe mensajes [HTTPS/Webhook]"| meta
+    nexvio --&gt;|"Consulta asistente RAG [HTTPS/API]"| openai
+
+    classDef persona fill:#08427b,stroke:#052e56,color:#ffffff;
+    classDef sistema fill:#1168bd,stroke:#0b4884,color:#ffffff;
+    classDef externo fill:#999999,stroke:#6b6b6b,color:#ffffff;
+
+    class admin,organizador,coordinador,participante persona;
+    class nexvio sistema;
+    class supabaseAuth,meta,openai externo;</div></section>
+<section id="1"><h2>C4 Nivel 2 - Contenedores</h2><div class="mermaid">%% NEXVIO - C4 Nivel 2: Diagrama de Contenedores (estilo C4 con flowchart estable)
+flowchart TB
+    participante["&lt;b&gt;Participante&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;"]
+    staff["&lt;b&gt;Organizador / Coordinador / Admin&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Persona]&lt;/i&gt;"]
+
+    subgraph nexvio["Nexvio &amp;nbsp; [Sistema]"]
+        direction TB
+        appMovil["&lt;b&gt;App Movil&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[React Native / Expo]&lt;/i&gt;&lt;br/&gt;Agenda, preguntas en vivo, encuestas,&lt;br/&gt;networking y notificaciones."]
+        panelWeb["&lt;b&gt;Panel Web&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Next.js 14]&lt;/i&gt;&lt;br/&gt;Tres vistas por rol: admin global,&lt;br/&gt;gestion del congreso y operacion en vivo."]
+        api["&lt;b&gt;API Backend&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[NestJS]&lt;/i&gt;&lt;br/&gt;Logica de negocio, autorizacion por rol&lt;br/&gt;y propagacion del contexto de tenant."]
+        realtime["&lt;b&gt;Servidor Realtime&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Socket.io]&lt;/i&gt;&lt;br/&gt;Preguntas en vivo, resultados de&lt;br/&gt;encuestas y notificaciones push."]
+        ragService["&lt;b&gt;Servicio RAG&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[NestJS + OpenAI]&lt;/i&gt;&lt;br/&gt;Clasifica mensajes y responde FAQs.&lt;br/&gt;Escala a humano lo no resuelto."]
+        postgres[("&lt;b&gt;Base de Datos&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[PostgreSQL - Supabase]&lt;/i&gt;&lt;br/&gt;Esquema compartido. Aislamiento por&lt;br/&gt;RLS con organizacion_id.")]
+        redis[("&lt;b&gt;Cache / Colas&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Redis - Upstash]&lt;/i&gt;&lt;br/&gt;Sesiones, rate limiting y pub/sub.")]
+        storage[("&lt;b&gt;Almacenamiento&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[AWS S3]&lt;/i&gt;&lt;br/&gt;Logos, branding y archivos.")]
+    end
+
+    supabaseAuth["&lt;b&gt;Supabase Auth&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;"]
+    meta["&lt;b&gt;Meta API&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;"]
+    openai["&lt;b&gt;OpenAI API&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;"]
+
+    participante --&gt;|"Usa [HTTPS]"| appMovil
+    staff --&gt;|"Usa [HTTPS]"| panelWeb
+
+    appMovil --&gt;|"API REST [HTTPS/JSON]"| api
+    panelWeb --&gt;|"API REST [HTTPS/JSON]"| api
+    appMovil --&gt;|"Eventos en vivo [WebSocket]"| realtime
+    panelWeb --&gt;|"Eventos en vivo [WebSocket]"| realtime
+
+    appMovil --&gt;|"Login [HTTPS]"| supabaseAuth
+    panelWeb --&gt;|"Login [HTTPS]"| supabaseAuth
+    api --&gt;|"Verifica JWT / extrae org_id [HTTPS]"| supabaseAuth
+
+    api --&gt;|"SET LOCAL app.org_id + query (RLS) [Prisma]"| postgres
+    api --&gt;|"Cachea y publica [TCP]"| redis
+    api --&gt;|"Sube/recupera archivos [HTTPS]"| storage
+    realtime --&gt;|"Adaptador pub/sub [TCP]"| redis
+    api --&gt;|"Delega clasificacion [HTTPS]"| ragService
+    ragService --&gt;|"Genera respuestas [HTTPS]"| openai
+    api --&gt;|"Bandeja unificada [HTTPS/Webhook]"| meta
+
+    classDef persona fill:#08427b,stroke:#052e56,color:#ffffff;
+    classDef contenedor fill:#438dd5,stroke:#2e6295,color:#ffffff;
+    classDef db fill:#438dd5,stroke:#2e6295,color:#ffffff;
+    classDef externo fill:#999999,stroke:#6b6b6b,color:#ffffff;
+
+    class participante,staff persona;
+    class appMovil,panelWeb,api,realtime,ragService contenedor;
+    class postgres,redis,storage db;
+    class supabaseAuth,meta,openai externo;
+    style nexvio fill:#f2f7fc,stroke:#1168bd,stroke-dasharray:5 5,color:#08427b;</div></section>
+<section id="2"><h2>C4 Nivel 3 - Componentes API</h2><div class="mermaid">%% NEXVIO - C4 Nivel 3: Componentes del API Backend (estilo C4 con flowchart estable)
+flowchart TB
+    clientes["&lt;b&gt;App Movil / Panel Web&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Contenedor Externo]&lt;/i&gt;"]
+    supabaseAuth["&lt;b&gt;Supabase Auth&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Sistema Externo]&lt;/i&gt;"]
+    postgres[("&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Datos con RLS]&lt;/i&gt;")]
+    redis[("&lt;b&gt;Redis&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Cache / pub-sub]&lt;/i&gt;")]
+
+    subgraph api["API Backend (NestJS) &amp;nbsp; [Contenedor]"]
+        direction TB
+        authGuard["&lt;b&gt;AuthGuard&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Guard]&lt;/i&gt;&lt;br/&gt;Valida el JWT y adjunta el usuario."]
+        tenantMw["&lt;b&gt;TenantContext Middleware&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[AsyncLocalStorage]&lt;/i&gt;&lt;br/&gt;Extrae organizacion_id del JWT y lo&lt;br/&gt;guarda en el contexto de la peticion."]
+        rolesGuard["&lt;b&gt;RolesGuard&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Guard]&lt;/i&gt;&lt;br/&gt;Autoriza por rol (Admin, Organizador,&lt;br/&gt;Coordinador, Participante)."]
+        congresoMod["&lt;b&gt;Modulo Congresos&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Controller + Service]&lt;/i&gt;&lt;br/&gt;Congresos, agenda, sesiones, ponentes."]
+        inscripcionMod["&lt;b&gt;Modulo Inscripciones&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Controller + Service]&lt;/i&gt;&lt;br/&gt;Registro y acceso de asistentes."]
+        participacionMod["&lt;b&gt;Modulo Participacion&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Controller + Service]&lt;/i&gt;&lt;br/&gt;Preguntas en vivo y encuestas."]
+        networkingMod["&lt;b&gt;Modulo Networking&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Controller + Service]&lt;/i&gt;&lt;br/&gt;Intereses, matches y chat limitado."]
+        bandejaMod["&lt;b&gt;Modulo Bandeja&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Controller + Service]&lt;/i&gt;&lt;br/&gt;Bandeja Meta + orquestacion RAG."]
+        prismaService["&lt;b&gt;PrismaService&lt;/b&gt;&lt;br/&gt;&lt;i&gt;[Prisma Client]&lt;/i&gt;&lt;br/&gt;Middleware ejecuta SET LOCAL&lt;br/&gt;app.org_id por transaccion."]
+    end
+
+    clientes --&gt;|"REST + Bearer JWT [HTTPS]"| authGuard
+    authGuard --&gt;|"Verifica firma/expiracion [HTTPS]"| supabaseAuth
+    authGuard --&gt;|"Usuario autenticado"| tenantMw
+    tenantMw --&gt;|"Contexto de tenant listo"| rolesGuard
+
+    rolesGuard --&gt; congresoMod
+    rolesGuard --&gt; inscripcionMod
+    rolesGuard --&gt; participacionMod
+    rolesGuard --&gt; networkingMod
+    rolesGuard --&gt; bandejaMod
+
+    congresoMod --&gt; prismaService
+    inscripcionMod --&gt; prismaService
+    participacionMod --&gt; prismaService
+    networkingMod --&gt; prismaService
+    bandejaMod --&gt; prismaService
+
+    prismaService --&gt;|"SET LOCAL app.org_id + query (RLS filtra) [TCP]"| postgres
+    participacionMod --&gt;|"Publica eventos en vivo [TCP]"| redis
+
+    classDef comp fill:#85bbf0,stroke:#5d82a8,color:#000000;
+    classDef tenant fill:#f2a900,stroke:#b37d00,color:#000000;
+    classDef externo fill:#999999,stroke:#6b6b6b,color:#ffffff;
+    classDef db fill:#438dd5,stroke:#2e6295,color:#ffffff;
+
+    class congresoMod,inscripcionMod,participacionMod,networkingMod,bandejaMod,prismaService comp;
+    class authGuard,tenantMw,rolesGuard tenant;
+    class clientes,supabaseAuth externo;
+    class postgres,redis db;
+    style api fill:#f2f7fc,stroke:#1168bd,stroke-dasharray:5 5,color:#08427b;</div></section>
+<section id="3"><h2>Modelo Entidad-Relacion (ERD)</h2><div class="mermaid">%% =====================================================================
+%% NEXVIO - Modelo Entidad-Relacion (ERD) completo
+%% Regla multi-tenant: TODA tabla de negocio incluye organizacion_id (FK)
+%% que es la columna sobre la que actuan las politicas RLS.
+%% "organizacion" es la raiz del tenant. Requiere Mermaid &gt;= 8.
+%% =====================================================================
+erDiagram
+    ORGANIZACION ||--o{ USUARIO : "tiene"
+    ORGANIZACION ||--o{ CONGRESO : "posee"
+    ORGANIZACION ||--o{ SESION : "scope"
+    ORGANIZACION ||--o{ PONENTE : "scope"
+    ORGANIZACION ||--o{ INSCRIPCION : "scope"
+    ORGANIZACION ||--o{ PREGUNTA : "scope"
+    ORGANIZACION ||--o{ ENCUESTA : "scope"
+    ORGANIZACION ||--o{ RESPUESTA_ENCUESTA : "scope"
+    ORGANIZACION ||--o{ INTERES_NETWORKING : "scope"
+    ORGANIZACION ||--o{ CONEXION : "scope"
+    ORGANIZACION ||--o{ MENSAJE_CHAT : "scope"
+    ORGANIZACION ||--o{ NOTIFICACION : "scope"
+    ORGANIZACION ||--o{ MENSAJE_BANDEJA : "scope"
+    ORGANIZACION ||--o{ PERSONALIZACION : "scope"
+
+    CONGRESO ||--o{ SESION : "contiene"
+    CONGRESO ||--o{ PONENTE : "registra"
+    CONGRESO ||--o{ INSCRIPCION : "recibe"
+    CONGRESO ||--o{ INTERES_NETWORKING : "habilita"
+    CONGRESO ||--|| PERSONALIZACION : "personaliza"
+    CONGRESO ||--o{ MENSAJE_BANDEJA : "genera"
+
+    SESION ||--o{ PREGUNTA : "recibe"
+    SESION ||--o{ ENCUESTA : "lanza"
+    SESION }o--o{ PONENTE : "expone"
+
+    ENCUESTA ||--o{ OPCION_ENCUESTA : "define"
+    OPCION_ENCUESTA ||--o{ RESPUESTA_ENCUESTA : "elegida_en"
+
+    USUARIO ||--o{ INSCRIPCION : "se_inscribe"
+    USUARIO ||--o{ PREGUNTA : "formula"
+    USUARIO ||--o{ RESPUESTA_ENCUESTA : "responde"
+    USUARIO ||--o{ NOTIFICACION : "recibe"
+    USUARIO ||--o{ INTERES_NETWORKING : "emite"
+
+    INTERES_NETWORKING ||--o| CONEXION : "puede_formar"
+    CONEXION ||--o{ MENSAJE_CHAT : "contiene"
+
+    ORGANIZACION {
+        uuid id PK
+        string nombre
+        string slug UK
+        string estado
+        timestamp creado_en
+    }
+    USUARIO {
+        uuid id PK
+        uuid organizacion_id FK "NULL solo para Admin global"
+        string email UK
+        string nombre
+        enum rol "admin|organizador|coordinador|participante"
+        timestamp creado_en
+    }
+    CONGRESO {
+        uuid id PK
+        uuid organizacion_id FK
+        string nombre
+        date fecha_inicio
+        date fecha_fin
+        string estado
+    }
+    SESION {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        string titulo
+        timestamp inicio
+        timestamp fin
+        string sala
+    }
+    PONENTE {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        string nombre
+        string bio
+        string foto_url
+    }
+    INSCRIPCION {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        uuid usuario_id FK
+        string estado
+        timestamp registrado_en
+    }
+    PREGUNTA {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid sesion_id FK
+        uuid usuario_id FK
+        string texto
+        enum estado "pendiente|aprobada|rechazada|respondida"
+        timestamp creado_en
+    }
+    ENCUESTA {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid sesion_id FK
+        string pregunta
+        boolean activa
+    }
+    OPCION_ENCUESTA {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid encuesta_id FK
+        string texto
+    }
+    RESPUESTA_ENCUESTA {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid opcion_id FK
+        uuid usuario_id FK
+        timestamp respondido_en
+    }
+    INTERES_NETWORKING {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        uuid emisor_id FK
+        uuid receptor_id FK
+        enum estado "pendiente|correspondido|rechazado"
+    }
+    CONEXION {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid interes_id FK
+        int limite_mensajes
+        timestamp creado_en
+    }
+    MENSAJE_CHAT {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid conexion_id FK
+        uuid autor_id FK
+        string texto
+        timestamp enviado_en
+    }
+    NOTIFICACION {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid usuario_id FK
+        string titulo
+        string cuerpo
+        boolean leida
+    }
+    MENSAJE_BANDEJA {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        enum canal "whatsapp|instagram|facebook"
+        string contenido
+        string clasificacion_ia
+        boolean resuelto_por_ia
+        enum estado "nuevo|escalado|resuelto"
+    }
+    PERSONALIZACION {
+        uuid id PK
+        uuid organizacion_id FK
+        uuid congreso_id FK
+        string color_primario
+        string color_secundario
+        string logo_url
+    }</div></section>
+<section id="4"><h2>RLS - Propagacion de tenant (secuencia)</h2><div class="mermaid">%% =====================================================================
+%% NEXVIO - Propagacion del contexto de tenant (RLS) - Diagrama de secuencia
+%% Muestra como una peticion viaja desde el cliente hasta PostgreSQL
+%% aplicando el filtro organizacion_id via RLS, sin que el codigo de
+%% negocio tenga que anadir WHERE organizacion_id = ... manualmente.
+%% Requiere Mermaid &gt;= 8.
+%% =====================================================================
+sequenceDiagram
+    autonumber
+    actor U as Usuario (rol X)
+    participant C as Cliente (Expo / Next.js)
+    participant G as AuthGuard (NestJS)
+    participant SA as Supabase Auth
+    participant T as TenantContext (AsyncLocalStorage)
+    participant S as Service de dominio
+    participant P as PrismaService (middleware tx)
+    participant DB as PostgreSQL (RLS)
+
+    U-&gt;&gt;C: Accion (ej. ver agenda del congreso)
+    C-&gt;&gt;G: HTTP + Authorization Bearer JWT
+    G-&gt;&gt;SA: Verifica firma y expiracion del JWT
+    SA--&gt;&gt;G: JWT valido (claims: user_id, organizacion_id, rol)
+    G-&gt;&gt;T: Guarda { organizacion_id, rol } en el contexto de la peticion
+    G-&gt;&gt;S: Continua hacia el handler autorizado
+
+    S-&gt;&gt;P: prisma.$transaction(...) para leer/escribir
+    Note over P,DB: El middleware de Prisma abre la transaccion y ejecuta primero:
+    P-&gt;&gt;DB: SET LOCAL app.org_id = '&lt;organizacion_id&gt;'
+    P-&gt;&gt;DB: SELECT * FROM sesion WHERE congreso_id = $1
+    Note over DB: La politica RLS anade implicitamente:&lt;br/&gt;USING (organizacion_id = current_setting('app.org_id')::uuid)
+    DB--&gt;&gt;P: Solo filas de la organizacion del tenant
+    P--&gt;&gt;S: Datos ya aislados
+    S--&gt;&gt;C: Respuesta JSON
+    C--&gt;&gt;U: Render de la agenda (solo su organizacion)
+
+    rect rgb(240, 220, 220)
+    Note over G,DB: Si falta el JWT o el org_id, la variable app.org_id queda vacia&lt;br/&gt;y RLS no devuelve ninguna fila -&gt; denegar por defecto (fail-closed).
+    end</div></section>
+
+<footer>Generado para la tesis Nexvio. Abrir este archivo con doble clic en cualquier navegador.</footer>
+<script type="module">
+ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+ mermaid.initialize({startOnLoad:true, securityLevel:'loose', theme:'default'});
+</script>
+</body></html>
