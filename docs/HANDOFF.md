@@ -50,15 +50,20 @@ nexvio/
 
 pnpm bloquea por seguridad los scripts de compilación de dependencias nativas (`unrs-resolver`, `sharp`, `esbuild`, `@tailwindcss/oxide`, etc.) y **aborta la instalación** si no están autorizados. Ya están listados en `pnpm-workspace.yaml` bajo `onlyBuiltDependencies`. Si aparece un `ERR_PNPM_IGNORED_BUILDS` con una dependencia nueva, agregarla a esa lista o correr `pnpm approve-builds`.
 
-## Estado actual (Fase 0 — Fundaciones)
+## Estado actual (Fase 0 — Fundaciones) ✅ COMPLETA
 
 - [x] Herramientas instaladas en el PC original: Node v24, pnpm 11, Git, VS Code.
 - [x] Cuentas creadas: GitHub, Supabase, Upstash.
 - [x] Monorepo inicializado y en GitHub.
-- [x] Backend NestJS creado y corriendo (Hello World verificado).
-- [~] Panel web Next.js creado; falta terminar `pnpm install` y verificar arranque.
-- [ ] App móvil Expo: pendiente de crear.
-- [ ] Cerrar Fase 0.
+- [x] Backend NestJS creado y corriendo (Hello World verificado) en localhost:3000.
+- [x] Panel web Next.js verificado y corriendo en localhost:3001 (ver nota de puertos).
+- [x] App móvil Expo (SDK 54) creada y corriendo en Expo Go.
+- [x] Fase 0 cerrada y commiteada.
+
+### Notas de Fase 0 (para no repetir dolores)
+- **Puertos en local:** backend usa 3000 y web usa 3001 (`next dev -p 3001`) para no chocar. En la nube cada servicio tiene su propio host, así que esto es solo para desarrollo local.
+- **Expo + pnpm:** Expo Go de la Play Store solo soporta hasta SDK 54, no SDK 57 → la app se creó con SDK 54. Además Metro no resuelve las dependencias symlinked de pnpm por defecto; se solucionó con `apps/mobile/metro.config.js` (watchFolders al monorepo, nodeModulesPaths y `unstable_enableSymlinks = true`). NO usar `disableHierarchicalLookup` con pnpm.
+- **Pendiente menor (no urgente):** los archivos aparecen como "modificados" en git por diferencias de fin de línea (CRLF/LF) al mezclar Windows y otras herramientas. Conviene añadir un `.gitattributes` con `* text=auto eol=lf` y renormalizar en una sesión futura.
 
 ## Próximos pasos inmediatos
 
