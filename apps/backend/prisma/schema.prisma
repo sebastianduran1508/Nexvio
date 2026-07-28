@@ -1,0 +1,16 @@
+// ==========================================================================
+// Esquema de Prisma — Nexvio
+// Los modelos (organizaciones, usuarios, eventos...) se agregan en el
+// siguiente bloque de Fase 1. Por ahora solo dejamos la conexión configurada.
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // En Prisma 7 las URLs ya NO van aquí:
+  //  - Migraciones -> prisma.config.ts (usa DIRECT_URL)
+  //  - Runtime      -> driver adapter en PrismaService (usa DATABASE_URL)
+}
