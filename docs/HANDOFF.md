@@ -67,9 +67,14 @@ pnpm bloquea por seguridad los scripts de compilación de dependencias nativas (
 
 ## Próximos pasos inmediatos
 
-1. Terminar Fase 0: verificar que el web arranca (`pnpm dev` en `apps/web` → localhost:3000), y crear la app móvil con Expo.
-2. Commit final de Fase 0.
-3. Pasar a **Fase 1 — Base de datos y multi-tenancy con RLS** (el corazón de la tesis): modelar el ERD en Prisma, migrar a Supabase, configurar políticas RLS y probar aislamiento entre dos organizaciones.
+**Fase 0 COMPLETA.** Arrancamos **Fase 1 — Base de datos y multi-tenancy con RLS** (el corazón de la tesis). Bloques:
+
+1. **Conectar el backend a Supabase** e instalar Prisma en `apps/backend` (connection string + API keys en un `.env`). Requiere que Sebastián tenga listo el proyecto en Supabase y comparta las credenciales.
+2. **Modelar el ERD en Prisma** — traducir el diagrama de la tesis a modelos (organizaciones, usuarios, eventos…), todos con `organizacion_id`.
+3. **Migrar a Supabase** — `prisma migrate` crea las tablas reales.
+4. **Escribir y probar políticas RLS** — reglas que filtran por organización + prueba de aislamiento entre dos organizaciones (una no ve los datos de la otra).
+
+Luego (Fase 1b): Supabase Auth + guards de NestJS (AuthGuard, TenantContext con AsyncLocalStorage, RolesGuard) y PrismaService que hace `SET LOCAL app.org_id`.
 
 ## Modo de trabajo acordado
 
