@@ -1,7 +1,13 @@
 // ==========================================================================
 // Esquema de Prisma — Nexvio
-// Los modelos (organizaciones, usuarios, eventos...) se agregan en el
-// siguiente bloque de Fase 1. Por ahora solo dejamos la conexión configurada.
+// FASE 1 · Bloque 2 — Núcleo del ERD (4 tablas). El resto se agrega luego.
+//
+// Convenciones:
+//  - PK uuid en todas las tablas.
+//  - Nombres de tabla y columna en snake_case (@@map / campos snake_case)
+//    para que coincidan 1:1 con las políticas RLS en SQL.
+//  - TODA tabla de negocio lleva organizacion_id (la columna sobre la que
+//    después construimos el Row Level Security).
 // ==========================================================================
 
 generator client {
@@ -13,4 +19,74 @@ datasource db {
   // En Prisma 7 las URLs ya NO van aquí:
   //  - Migraciones -> prisma.config.ts (usa DIRECT_URL)
   //  - Runtime      -> driver adapter en PrismaService (usa DATABASE_URL)
+}
+
+// Roles del sistema (coincide con el RolesGuard del backend)
+enum Rol {
+  admin
+  organizador
+  coordinador
+  participante
+}
+
+// Raíz del tenant: cada organización es un cliente aislado de los demás.
+model Organizacion {
+  id        String   @id @default(uuid()) @db.Uuid
+  nombre    String
+  slug      String   @unique
+  estado    String   @default("activa")
+  creado_en DateTime @default(now())
+
+  // Relaciones inversas
+  usuarios  Usuario[]
+  congresos Congreso[]
+  sesiones  Sesion[]
+
+  @@map("organizacion")
+}
+
+model Usuario {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String?  @db.Uuid // NULL solo para el Admin global
+  email           String   @unique
+  nombre          String
+  rol             Rol
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion? @relation(fields: [organizacion_id], references: [id])
+
+  @@index([organizacion_id])
+  @@map("usuario")
+}
+
+model Congreso {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  nombre          String
+  fecha_inicio    DateTime @db.Date
+  fecha_fin       DateTime @db.Date
+  estado          String   @default("borrador")
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  sesiones     Sesion[]
+
+  @@index([organizacion_id])
+  @@map("congreso")
+}
+
+model Sesion {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  congreso_id     String   @db.Uuid
+  titulo          String
+  inicio          DateTime
+  fin             DateTime
+  sala            String?
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@map("sesion")
 }
