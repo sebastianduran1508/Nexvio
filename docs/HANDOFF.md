@@ -94,12 +94,21 @@ Bloques cerrados con el **núcleo de 4 tablas** (Organizacion, Usuario, Congreso
 - `.env` nuevas: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. El backend carga `.env` con `import 'dotenv/config'` en `main.ts`.
 - El hook es `SECURITY DEFINER` (corre como postgres) para poder leer `usuario` pese al RLS durante el login.
 
-## Próximos pasos inmediatos
+## Próximos pasos inmediatos — FASE 3: Módulo Congresos
 
-1. **Expandir el ERD** a las 12 entidades restantes (mismo patrón: `organizacion_id` + política RLS + índice). Sesiones, ponentes, inscripciones, preguntas, encuestas, networking, bandeja, etc.
-2. **Endpoint de registro de organizaciones** (crear organización + su primer usuario admin) y flujo de alta de usuarios (crear en Auth + fila en `usuario`).
-3. **Módulos de negocio** sobre el patrón de `congresos` (controller + service + `runInTenant`).
-4. **Arreglar la suite de Jest** (choque de versiones `clearMocksOnScope`) para tener tests unitarios/e2e formales, o migrar los scripts de prueba a Jest cuando se resuelva.
+> Nota de numeración: el `PLAN_DE_RUTA_NEXVIO.md` tiene 10 fases (0–9). Lo que en
+> sesiones previas se llamó "Fase 1b" es la **Fase 2 del plan** (Autenticación).
+> Fases 0, 1 y 2 ✅ completas. Ahora arranca la **Fase 3 — Módulo Congresos**.
+
+La tabla `Congreso` y `Sesion` ya existen (núcleo). Para Fase 3:
+
+1. **Agregar la tabla `Ponente`** (con `organizacion_id` + índice + política RLS, mismo patrón que las demás — ver migración `rls_policies` como plantilla).
+2. **CRUD de Congresos:** endpoints para que un `organizador` cree un congreso, arme la agenda (sesiones) y registre ponentes. Usar el patrón del módulo `congresos` ya existente (controller + service + `runInTenant`) y proteger con `AuthGuard` + `RolesGuard`.
+3. **Prueba de cierre:** el organizador de Medicina crea un congreso con sesiones y ponentes, y solo su organización los ve (extender `prisma/tests/e2e_congresos.js`).
+
+Pendientes de fondo (no urgentes): registro de organizaciones + alta de usuarios (crear en Auth + fila en `usuario`); arreglar la suite de Jest (`clearMocksOnScope`).
+
+**Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 
 ## Modo de trabajo acordado
 
