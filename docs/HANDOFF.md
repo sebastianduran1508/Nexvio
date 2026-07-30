@@ -81,14 +81,25 @@ Bloques cerrados con el **núcleo de 4 tablas** (Organizacion, Usuario, Congreso
 - **⚠️ HALLAZGO CRÍTICO — el rol `postgres` se salta el RLS.** El usuario del connection string (`postgres`) tiene privilegios de admin y **bypassa RLS** (el SQL Editor de Supabase también). La app NUNCA debe conectarse como `postgres`. Se creó un rol dedicado **`nexvio_app`** (sin superuser ni bypassrls) — ver `apps/backend/prisma/setup/01_app_role.sql`. La contraseña de `nexvio_app` la tiene Sebastián (guardada aparte, no está en git). Las políticas RLS solo aplican a este rol.
 - Prueba de aislamiento reproducible en `apps/backend/prisma/tests/rls_isolation_test.sql` (usa `SET ROLE nexvio_app` para validar dentro del SQL Editor).
 
+## Estado actual (Fase 1b — Autenticación y autorización) ✅ COMPLETA
+
+- [x] **Conexión de runtime como `nexvio_app`** (`DATABASE_URL`); migraciones siguen como `postgres` (`DIRECT_URL`).
+- [x] **PrismaService con driver adapter** + `runInTenant` que hace `set_config('app.org_id', …)` por transacción. Contexto de tenant vía `AsyncLocalStorage` (`src/tenant/`).
+- [x] **Supabase Auth** (firma ES256/JWKS) + **Custom Access Token Hook** (`custom_access_token_hook`, migración `auth_token_hook`) que inyecta `organizacion_id` y `rol` en el JWT.
+- [x] **Guards NestJS**: `TenantContextMiddleware` (verifica JWT con `jose`+JWKS y fija el contexto, registrado en `main.ts`), `AuthGuard`, `RolesGuard` + `@Roles`.
+- [x] **Módulo demo `congresos`** (`GET /congresos`) y **prueba e2e** (`prisma/tests/e2e_congresos.js`): sin token → 401; con token de Org A → solo datos de Org A. Pasa.
+
+### Notas de Fase 1b
+- Enlace: `usuario.id` == `sub` del JWT (el uid de Supabase Auth). Usuario de prueba: `test.medicina@nexvio.dev` (uid `f12cd771-…`), rol `organizador`, Org A (Medicina).
+- `.env` nuevas: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. El backend carga `.env` con `import 'dotenv/config'` en `main.ts`.
+- El hook es `SECURITY DEFINER` (corre como postgres) para poder leer `usuario` pese al RLS durante el login.
+
 ## Próximos pasos inmediatos
 
-**Fase 1b:**
-
-1. **Cambiar la conexión de runtime a `nexvio_app`.** El `DATABASE_URL` del backend debe usar el rol `nexvio_app` (vía pooler: usuario `nexvio_app.<projectref>`), NO `postgres`. `DIRECT_URL` (migraciones) sí sigue como `postgres`.
-2. **PrismaService con driver adapter** (`@prisma/adapter-pg` + `pg`) que en cada transacción haga `SET LOCAL app.org_id = '<organizacion_id>'`.
-3. **Supabase Auth + guards de NestJS** (AuthGuard, TenantContext con AsyncLocalStorage, RolesGuard).
-4. **Expandir el ERD** a las 12 entidades restantes (mismo patrón: `organizacion_id` + política RLS).
+1. **Expandir el ERD** a las 12 entidades restantes (mismo patrón: `organizacion_id` + política RLS + índice). Sesiones, ponentes, inscripciones, preguntas, encuestas, networking, bandeja, etc.
+2. **Endpoint de registro de organizaciones** (crear organización + su primer usuario admin) y flujo de alta de usuarios (crear en Auth + fila en `usuario`).
+3. **Módulos de negocio** sobre el patrón de `congresos` (controller + service + `runInTenant`).
+4. **Arreglar la suite de Jest** (choque de versiones `clearMocksOnScope`) para tener tests unitarios/e2e formales, o migrar los scripts de prueba a Jest cuando se resuelva.
 
 ## Modo de trabajo acordado
 
