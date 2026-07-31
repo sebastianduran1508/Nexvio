@@ -38,9 +38,11 @@ model Organizacion {
   creado_en DateTime @default(now())
 
   // Relaciones inversas
-  usuarios  Usuario[]
-  congresos Congreso[]
-  sesiones  Sesion[]
+  usuarios         Usuario[]
+  congresos        Congreso[]
+  sesiones         Sesion[]
+  ponentes         Ponente[]
+  sesion_ponentes  SesionPonente[]
 
   @@map("organizacion")
 }
@@ -69,6 +71,7 @@ model Congreso {
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
   sesiones     Sesion[]
+  ponentes     Ponente[]
 
   @@index([organizacion_id])
   @@map("congreso")
@@ -85,8 +88,53 @@ model Sesion {
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+  ponentes     SesionPonente[]
 
   @@index([organizacion_id])
   @@index([congreso_id])
   @@map("sesion")
+}
+
+// ---------------------------------------------------------------------------
+// FASE 3 — Módulo Congresos: Ponentes
+// ---------------------------------------------------------------------------
+
+// Un ponente pertenece a un congreso (ERD: CONGRESO ||--o{ PONENTE "registra").
+// Lleva organizacion_id como toda tabla de negocio (para el RLS).
+model Ponente {
+  id              String  @id @default(uuid()) @db.Uuid
+  organizacion_id String  @db.Uuid
+  congreso_id     String  @db.Uuid
+  nombre          String
+  bio             String?
+  foto_url        String?
+
+  organizacion Organizacion    @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso        @relation(fields: [congreso_id], references: [id])
+  sesiones     SesionPonente[]
+
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@map("ponente")
+}
+
+// Tabla intermedia de la relación muchos-a-muchos Sesion <-> Ponente
+// (ERD: SESION }o--o{ PONENTE "expone"). La hacemos EXPLÍCITA (en vez de la
+// M:N implícita de Prisma) por dos razones:
+//   1) para poder ponerle organizacion_id y así aplicarle RLS como al resto;
+//   2) para controlar el nombre real de la tabla (sesion_ponente) y sus índices.
+// La pareja (sesion_id, ponente_id) es única: un ponente no se repite en una sesión.
+model SesionPonente {
+  id              String @id @default(uuid()) @db.Uuid
+  organizacion_id String @db.Uuid
+  sesion_id       String @db.Uuid
+  ponente_id      String @db.Uuid
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  sesion       Sesion       @relation(fields: [sesion_id], references: [id])
+  ponente      Ponente      @relation(fields: [ponente_id], references: [id])
+
+  @@unique([sesion_id, ponente_id])
+  @@index([organizacion_id])
+  @@map("sesion_ponente")
 }

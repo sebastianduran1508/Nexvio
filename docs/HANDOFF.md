@@ -94,19 +94,87 @@ Bloques cerrados con el **núcleo de 4 tablas** (Organizacion, Usuario, Congreso
 - `.env` nuevas: `SUPABASE_URL`, `SUPABASE_ANON_KEY`. El backend carga `.env` con `import 'dotenv/config'` en `main.ts`.
 - El hook es `SECURITY DEFINER` (corre como postgres) para poder leer `usuario` pese al RLS durante el login.
 
-## Próximos pasos inmediatos — FASE 3: Módulo Congresos
+## Estado actual (Fase 3 — Módulo Congresos) ✅ COMPLETA
 
 > Nota de numeración: el `PLAN_DE_RUTA_NEXVIO.md` tiene 10 fases (0–9). Lo que en
 > sesiones previas se llamó "Fase 1b" es la **Fase 2 del plan** (Autenticación).
-> Fases 0, 1 y 2 ✅ completas. Ahora arranca la **Fase 3 — Módulo Congresos**.
+> Fases 0, 1, 2 y **3** ✅ completas.
 
-La tabla `Congreso` y `Sesion` ya existen (núcleo). Para Fase 3:
+- [x] **Tablas nuevas** `ponente` y `sesion_ponente` (relación M:N explícita entre
+  sesiones y ponentes, según el ERD de la tesis). Migración `fase3_ponentes`.
+- [x] **RLS** de ambas tablas (migración `rls_ponentes`; SQL de referencia en
+  `prisma/setup/02_rls_ponentes.sql`). Los GRANTs los hereda `nexvio_app` vía los
+  `default privileges` que ya dejó `01_app_role.sql` — no hubo que tocar nada.
+- [x] **CRUD completo** en `src/congresos/` (tres pares controller/service:
+  congresos, sesiones, ponentes + asignar/quitar ponentes de sesiones). Escribir
+  requiere rol `admin`/`organizador`; leer, cualquier rol del tenant.
+- [x] **Validación de entrada** con `class-validator` + `class-transformer` y
+  `ValidationPipe` global en `main.ts` (DTOs en `src/congresos/dto/`). UUIDs de la
+  URL validados con `ParseUUIDPipe`.
+- [x] **Decorador `@OrgId()`** (`src/auth/org-id.decorator.ts`) para estampar el
+  tenant al crear filas (lo exige el RLS `WITH CHECK`).
+- [x] **Prueba de cierre e2e** `prisma/tests/e2e_fase3_crud.js`: crea congreso +
+  2 sesiones + 1 ponente, asigna ponente a sesión, lee el detalle, valida el 400
+  de un cuerpo malo y limpia con DELETE. **Pasa (todo verde).**
 
-1. **Agregar la tabla `Ponente`** (con `organizacion_id` + índice + política RLS, mismo patrón que las demás — ver migración `rls_policies` como plantilla).
-2. **CRUD de Congresos:** endpoints para que un `organizador` cree un congreso, arme la agenda (sesiones) y registre ponentes. Usar el patrón del módulo `congresos` ya existente (controller + service + `runInTenant`) y proteger con `AuthGuard` + `RolesGuard`.
-3. **Prueba de cierre:** el organizador de Medicina crea un congreso con sesiones y ponentes, y solo su organización los ve (extender `prisma/tests/e2e_congresos.js`).
+### Notas y gotchas de Fase 3
 
-Pendientes de fondo (no urgentes): registro de organizaciones + alta de usuarios (crear en Auth + fila en `usuario`); arreglar la suite de Jest (`clearMocksOnScope`).
+- **Flujo de la migración RLS:** las tablas las genera Prisma (`migrate dev`), pero
+  el RLS no vive en el schema → migración `--create-only` (vacía) + pegar el SQL a
+  mano. Mismo patrón de dos pasos que el núcleo.
+- **⚠️ Gotcha de Windows:** si `start:dev` está corriendo, bloquea el cliente de
+  Prisma y `migrate dev` NO lo regenera (falla en silencio). Síntoma: no compila con
+  *"Property 'ponente' does not exist on type 'TransactionClient'"*. Solución:
+  detener `start:dev` → `npx prisma generate` → arrancar de nuevo.
+- **Aislamiento en el e2e:** el test acepta credenciales de una 2.ª organización
+  (args 3 y 4) para probar el aislamiento entre tenants (Org B → 404). Se omite si
+  no se dan. El aislamiento ya está probado a nivel BD en Fase 1
+  (`rls_isolation_test.sql`).
+
+## Estado actual (Bloque Puente — Alta de organizaciones) ✅ COMPLETO
+
+Antes de la Fase 4 se hizo un bloque puente para tener **tenants y usuarios
+reales** (hasta ahora se creaban a mano). Modelo elegido: **admin-provisioned**
+(solo el admin global crea organizaciones) + alcance mínimo (organización + su
+primer organizador). Diseñado para migrar a auto-registro sin reescribir.
+
+- [x] **`SupabaseAdminService`** (`src/auth/supabase-admin.service.ts`) — usa la
+  Admin API de Supabase (clave `service_role`) para crear/borrar cuentas de login.
+- [x] **`OnboardingService`** (`src/onboarding/`) — pieza **reutilizable**: crea la
+  cuenta de Auth, genera el UUID de la org y guarda organización + primer
+  organizador en una transacción bajo RLS. Si el guardado falla, borra la cuenta de
+  Auth (compensación, para no dejar huérfanos).
+- [x] **`POST /organizaciones`** protegido con `@Roles('admin')`. (Para auto-registro
+  futuro: añadir otro endpoint público que llame al mismo service.)
+- [x] **Seed del admin global** `prisma/setup/03_seed_admin.js` — crea la cuenta y la
+  fila `usuario` (org NULL, rol admin) por conexión directa `postgres` (el RLS no
+  admite filas sin tenant). Se corre una vez.
+- [x] **Prueba de cierre** `prisma/tests/e2e_onboarding_aislamiento.js`: el admin
+  crea 2 orgs; un organizador NO puede crear orgs (403); y el congreso de la Org A
+  es **invisible** para la Org B (404 + ausente en su lista). **Pasa (verde).**
+
+### Decisiones y gotchas del bloque puente
+
+- **`.env` nueva:** `SUPABASE_SERVICE_ROLE_KEY` (clave secreta `service_role`, de
+  Supabase → Settings → API). SOLO backend, nunca frontend, no va a git.
+- **⚠️ Reiniciar tras tocar `.env`:** un proceso `start:dev` ya en marcha NO relee
+  el `.env`. Si falta una variable nueva, da 500 aunque esté en el archivo →
+  reiniciar el backend.
+- **Truco RLS sin bypass:** crear una org parece chocar con el RLS (no hay tenant
+  aún), pero se genera el UUID de la org en código y se usa como `app.org_id`; así
+  los INSERT de org y usuario pasan el `WITH CHECK` sin conexión privilegiada. Solo
+  el seed del admin (fila con org NULL) necesita la conexión directa `postgres`.
+- **Admin global:** `admin@nexvio.dev`, rol `admin`, `organizacion_id` NULL. Su
+  token trae `rol: admin` y `organizacion_id` ausente (verificado con `get_token.js`).
+
+## Próximos pasos sugeridos — Rebanada vertical web y luego FASE 4
+
+Plan acordado con Sebastián: (1) ✅ bloque puente (hecho); (2) **rebanada vertical
+web** — login en el panel Next.js + una pantalla que liste los congresos de la API
+(para tender temprano el cable frontend↔backend y descubrir gotchas de CORS/token
+con poca superficie); (3) **Fase 4 — Inscripciones + app móvil base** según el plan
+de ruta. Pendiente menor arrastrado: arreglar la suite de Jest (`clearMocksOnScope`);
+y la vista web del organizador de Fase 3 (o se cubre en la rebanada / Fase 8).
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 
