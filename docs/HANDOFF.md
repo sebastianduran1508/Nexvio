@@ -207,6 +207,11 @@ agenda + inscribirse) es la segunda mitad, en construcción.
   quién se inscribe sale del `sub` del JWT, nunca del cuerpo.
 - [x] **Ajuste en `congresos.service.borrar`**: ahora arrastra también las
   inscripciones del congreso (no hay `ON DELETE CASCADE`).
+- [x] **Gestión de usuarios** (`src/usuarios/`): `POST /usuarios` y `GET /usuarios`
+  (admin/organizador) para dar de alta y listar asistentes. Reutiliza el
+  `SupabaseAdminService` con la misma compensación. Solo crea `participante` o
+  `coordinador` (sin escalar privilegios). Prueba `e2e_gestion_usuarios.js` (verde);
+  deja el asistente fijo `test.asistente@nexvio.dev` / `asistente123` para el móvil.
 - [x] **Prueba de cierre** `prisma/tests/e2e_fase4_inscripciones.js`: inscribir,
   duplicado→409, `mias`, lista staff, cancelar/reactivar y aislamiento opcional
   Org B. **Pasa (verde).**
@@ -217,14 +222,10 @@ agenda + inscribirse) es la segunda mitad, en construcción.
   exist on type 'TransactionClient'"*. Solución: parar `start:dev` →
   `npx prisma generate` → arrancar de nuevo.
 
-### ⚠️ Decisión pendiente antes del móvil: cuentas de asistente
-La app es para asistentes (rol `participante`), pero **hoy no existe forma de crear
-cuentas de participante** (el onboarding solo crea la organización + su primer
-organizador). Hay que decidir cómo consigue su cuenta el asistente antes/junto con
-las pantallas móviles. Opciones sobre la mesa: (1) script de *seed* de
-participantes; (2) endpoint de gestión de usuarios para el staff; (3) auto-registro
-público. La prueba e2e del backend usa el organizador porque el endpoint se comporta
-igual para cualquier rol.
+### ✅ Decisión tomada: cuentas de asistente — Opción 1 (staff las crea)
+El asistente NO se auto-registra (por ahora): el staff lo da de alta con
+`POST /usuarios`. Así la app móvil solo necesita **login**. El auto-registro público
+(código de evento) queda para la etapa de "producto a mercado".
 
 ## Próximos pasos sugeridos — FASE 4
 

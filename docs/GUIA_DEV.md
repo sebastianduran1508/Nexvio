@@ -519,6 +519,10 @@ node prisma/tests/e2e_fase3_crud.js <emailA> <passA> [emailB] [passB]
 # End-to-end del Módulo Inscripciones (Fase 4). Mismo patrón: Org B opcional.
 node prisma/tests/e2e_fase4_inscripciones.js <emailA> <passA> [emailB] [passB]
 
+# Gestión de usuarios (Fase 4): el staff da de alta un asistente y se valida
+# que los permisos por rol se respeten. Deja creado test.asistente@nexvio.dev.
+node prisma/tests/e2e_gestion_usuarios.js <emailOrganizador> <passOrganizador>
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -639,9 +643,43 @@ staff ve 1 inscrito con su email; cancelar → `mias` ya no lo trae; reinscribir
 reactiva; y (opcional) Org B no puede inscribirse ni ver inscritos de Org A (404).
 Limpia borrando el congreso. **Pasa (todo verde).**
 
-> **Pendiente para el móvil:** la app es para asistentes (rol `participante`), pero
-> aún no existe forma de crear cuentas de participante (el onboarding solo crea el
-> primer organizador). Se resolverá al montar los bloques móviles (4.3–4.4).
+> **Cómo consigue su cuenta el asistente (resuelto — Opción 1):** el staff da de
+> alta a los asistentes con el endpoint `POST /usuarios` (ver sección 15). Así la
+> app móvil solo necesita **login**, no registro.
+
+## 15. Gestión de usuarios (alta de asistentes — Fase 4)
+
+La app móvil es para asistentes (rol `participante`), pero hasta ahora solo existía
+el organizador. Este bloque añade el **alta de usuarios** para que el staff cree las
+cuentas de sus asistentes. Es el pendiente de "gestión de usuarios" del plan.
+
+### 15.1. Los endpoints (`src/usuarios/`)
+
+| Ruta | Rol | Qué hace |
+|---|---|---|
+| `POST /usuarios` | admin / organizador | Crea un **asistente** (o coordinador) en la organización del que pide |
+| `GET /usuarios` | admin / organizador | Lista los usuarios de la organización |
+
+### 15.2. Decisiones clave
+
+- **Reutiliza el patrón del alta de organizaciones.** El `UsuariosService` usa el
+  mismo `SupabaseAdminService`: (1) crea la cuenta de login en Supabase Auth, (2)
+  guarda la fila `usuario` bajo RLS con el mismo id (== `sub` del JWT), y (3) si el
+  guardado falla, **borra la cuenta** de Auth (compensación, sin huérfanos).
+- **La organización sale del token** (`@OrgId()`), nunca del cuerpo: imposible crear
+  usuarios en otra organización.
+- **No se puede escalar privilegios.** El DTO solo acepta `rol` `participante` o
+  `coordinador`. Un organizador no puede fabricar otro organizador ni un admin.
+- **Sin cambio de BD.** La tabla `usuario` ya existía, así que este bloque no
+  necesitó migración ni regenerar Prisma; solo reiniciar el backend.
+
+### 15.3. Prueba de cierre
+
+`prisma/tests/e2e_gestion_usuarios.js`: el organizador crea un asistente (201, o 409
+si ya existía → test idempotente); el asistente puede loguearse y ver `/congresos`;
+NO puede crear usuarios ni congresos (403 en ambos); y el organizador lo ve en
+`GET /usuarios`. Deja creado un asistente fijo para el login del móvil:
+**`test.asistente@nexvio.dev` / `asistente123`**. **Pasa (verde).**
 
 ## 13. Glosario rápido
 
