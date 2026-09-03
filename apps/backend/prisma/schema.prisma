@@ -42,8 +42,12 @@ model Organizacion {
   congresos        Congreso[]
   sesiones         Sesion[]
   ponentes         Ponente[]
-  sesion_ponentes  SesionPonente[]
-  inscripciones    Inscripcion[]
+  sesion_ponentes     SesionPonente[]
+  inscripciones       Inscripcion[]
+  preguntas           Pregunta[]
+  encuestas           Encuesta[]
+  opciones_encuesta   OpcionEncuesta[]
+  respuestas_encuesta RespuestaEncuesta[]
 
   @@map("organizacion")
 }
@@ -57,7 +61,9 @@ model Usuario {
   creado_en       DateTime @default(now())
 
   organizacion Organizacion? @relation(fields: [organizacion_id], references: [id])
-  inscripciones Inscripcion[]
+  inscripciones       Inscripcion[]
+  preguntas           Pregunta[]
+  respuestas_encuesta RespuestaEncuesta[]
 
   @@index([organizacion_id])
   @@map("usuario")
@@ -92,6 +98,8 @@ model Sesion {
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso     @relation(fields: [congreso_id], references: [id])
   ponentes     SesionPonente[]
+  preguntas    Pregunta[]
+  encuestas    Encuesta[]
 
   @@index([organizacion_id])
   @@index([congreso_id])
@@ -168,4 +176,87 @@ model Inscripcion {
   @@index([congreso_id])
   @@index([usuario_id])
   @@map("inscripcion")
+}
+
+
+// ---------------------------------------------------------------------------
+// FASE 5 — Participacion en vivo (preguntas y encuestas)
+// ---------------------------------------------------------------------------
+
+// Pregunta que un asistente formula en una sesion (ERD: SESION ||--o{ PREGUNTA,
+// USUARIO ||--o{ PREGUNTA). El coordinador la modera (estado).
+model Pregunta {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  sesion_id       String   @db.Uuid
+  usuario_id      String   @db.Uuid
+  texto           String
+  estado          String   @default("pendiente") // pendiente|aprobada|rechazada|respondida
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  sesion       Sesion       @relation(fields: [sesion_id], references: [id])
+  usuario      Usuario      @relation(fields: [usuario_id], references: [id])
+
+  @@index([organizacion_id])
+  @@index([sesion_id])
+  @@map("pregunta")
+}
+
+// Encuesta lanzada en una sesion (ERD: SESION ||--o{ ENCUESTA). Tiene opciones y
+// se activa/cierra (activa) para votar en vivo.
+model Encuesta {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  sesion_id       String   @db.Uuid
+  pregunta        String
+  activa          Boolean  @default(false)
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion     @relation(fields: [organizacion_id], references: [id])
+  sesion       Sesion           @relation(fields: [sesion_id], references: [id])
+  opciones     OpcionEncuesta[]
+  respuestas   RespuestaEncuesta[]
+
+  @@index([organizacion_id])
+  @@index([sesion_id])
+  @@map("encuesta")
+}
+
+// Una opcion de respuesta de una encuesta (ERD: ENCUESTA ||--o{ OPCION_ENCUESTA).
+model OpcionEncuesta {
+  id              String @id @default(uuid()) @db.Uuid
+  organizacion_id String @db.Uuid
+  encuesta_id     String @db.Uuid
+  texto           String
+
+  organizacion Organizacion        @relation(fields: [organizacion_id], references: [id])
+  encuesta     Encuesta            @relation(fields: [encuesta_id], references: [id])
+  respuestas   RespuestaEncuesta[]
+
+  @@index([organizacion_id])
+  @@index([encuesta_id])
+  @@map("opcion_encuesta")
+}
+
+// El voto de un usuario a una opcion (ERD: OPCION_ENCUESTA ||--o{ RESPUESTA_ENCUESTA,
+// USUARIO ||--o{ RESPUESTA_ENCUESTA). Mejora sobre el ERD: guardamos tambien
+// encuesta_id para garantizar UN voto por encuesta por persona (@@unique).
+model RespuestaEncuesta {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  encuesta_id     String   @db.Uuid
+  opcion_id       String   @db.Uuid
+  usuario_id      String   @db.Uuid
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion   @relation(fields: [organizacion_id], references: [id])
+  encuesta     Encuesta       @relation(fields: [encuesta_id], references: [id])
+  opcion       OpcionEncuesta @relation(fields: [opcion_id], references: [id])
+  usuario      Usuario        @relation(fields: [usuario_id], references: [id])
+
+  @@unique([encuesta_id, usuario_id])
+  @@index([organizacion_id])
+  @@index([opcion_id])
+  @@map("respuesta_encuesta")
 }

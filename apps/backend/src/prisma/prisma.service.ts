@@ -18,6 +18,9 @@ export class PrismaService
   constructor() {
     const adapter = new PrismaPg({
       connectionString: process.env.DATABASE_URL,
+      // Un pool algo mas grande: en el tiempo real (Fase 5) llegan rafagas de
+      // consultas (el socket dispara refrescos en movil y panel a la vez).
+      max: 15,
     });
     super({ adapter });
   }
@@ -47,9 +50,18 @@ export class PrismaService
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     const org = orgId ?? tenantStorage.getStore()?.orgId ?? '';
-    return this.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.org_id', ${org}, true)`;
-      return fn(tx);
-    });
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.org_id', ${org}, true)`;
+        return fn(tx);
+      },
+      {
+        // maxWait: cuanto esperar para CONSEGUIR una conexion e iniciar la
+        // transaccion (por defecto 2s -> daba P2028 en rafagas). timeout: la
+        // duracion maxima de la transaccion. Nuestras tx son cortas.
+        maxWait: 15000,
+        timeout: 20000,
+      },
+    );
   }
 }

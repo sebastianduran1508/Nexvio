@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase, API_URL } from '@/lib/supabase';
 
 // Forma de un congreso tal como lo devuelve la API.
@@ -83,18 +84,21 @@ export default function CongresosPage() {
 
       <ul className="space-y-3">
         {congresos.map((c) => (
-          <li
-            key={c.id}
-            className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-zinc-900">{c.nombre}</span>
-              {c.estado && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
-                  {c.estado}
-                </span>
-              )}
-            </div>
+          <li key={c.id}>
+            <Link
+              href={`/congresos/${c.id}`}
+              className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-zinc-900">{c.nombre}</span>
+                {c.estado && (
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+                    {c.estado}
+                  </span>
+                )}
+              </div>
+              <span className="mt-1 block text-sm text-indigo-600">Moderar sesiones ›</span>
+            </Link>
           </li>
         ))}
       </ul>

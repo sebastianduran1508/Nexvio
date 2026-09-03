@@ -22,7 +22,7 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
  * inscripcion. Para saber si el asistente YA esta inscrito, ademas del detalle
  * pedimos "/inscripciones/mias" y buscamos este congreso.
  */
-export default function CongresoDetalleScreen({ route }: Props) {
+export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const { id } = route.params;
   const [detalle, setDetalle] = useState<CongresoDetalle | null>(null);
   const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
@@ -123,13 +123,20 @@ export default function CongresoDetalleScreen({ route }: Props) {
         <Text style={styles.vacio}>Este congreso aun no tiene sesiones.</Text>
       ) : (
         detalle.sesiones.map((s) => (
-          <View key={s.id} style={styles.sesion}>
+          <TouchableOpacity
+            key={s.id}
+            style={styles.sesion}
+            onPress={() =>
+              navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo })
+            }
+          >
             <Text style={styles.sesionHora}>
               {hora(s.inicio)} - {hora(s.fin)}
               {s.sala ? `  ·  ${s.sala}` : ''}
             </Text>
             <Text style={styles.sesionTitulo}>{s.titulo}</Text>
-          </View>
+            <Text style={styles.sesionLink}>Preguntas y encuestas ›</Text>
+          </TouchableOpacity>
         ))
       )}
 
@@ -183,6 +190,7 @@ const styles = StyleSheet.create({
   },
   sesionHora: { fontSize: 13, color: '#4f46e5', fontWeight: '600' },
   sesionTitulo: { fontSize: 15, color: '#0f172a', marginTop: 2 },
+  sesionLink: { fontSize: 13, color: '#4f46e5', fontWeight: '600', marginTop: 6 },
   ponente: {
     backgroundColor: '#fff',
     borderRadius: 12,

@@ -245,15 +245,45 @@ público de auto-registro que reutilice `OnboardingService` + inscripciones, y u
 pantalla móvil de "unirme con código". Se abordaría como bloque nuevo cuando la
 empresa responda.
 
+## Estado actual (Fase 5 — Participación en vivo con Socket.io) ✅ COMPLETA
+
+Preguntas moderadas y encuestas en tiempo real, móvil↔panel. Lo técnicamente nuevo:
+Socket.io.
+
+- [x] **4 tablas** (`pregunta`, `encuesta`, `opcion_encuesta`, `respuesta_encuesta`)
+  con RLS. `respuesta_encuesta` con `@@unique(encuesta_id, usuario_id)` = 1 voto.
+  Migraciones `fase5_participacion` + `rls_participacion`.
+- [x] **REST `src/participacion/`**: preguntas (enviar/listar/moderar) y encuestas
+  (crear/listar/abrir-cerrar/votar/resultados). Vista por rol con `@RolActual()`.
+- [x] **Socket.io** (`realtime.gateway.ts`): auth en middleware `server.use`, salas
+  `sesion:<id>` validadas por tenant, patrón "avisar y refrescar"
+  (`preguntas:cambio` / `encuestas:cambio`; los clientes refrescan por REST).
+- [x] **Móvil**: `SesionScreen` (enviar preguntas, votar, resultados en vivo);
+  sesiones tocables. Dep nueva: `socket.io-client`.
+- [x] **Panel web**: navegación congreso→sesión + moderación en vivo (moderar
+  preguntas, crear/abrir/cerrar encuestas, resultados). Dep nueva: `socket.io-client`.
+- [x] **3 pruebas e2e** (preguntas, encuestas, realtime) — verdes.
+
+### Gotchas de Fase 5
+- **P2028 (Prisma) bajo ráfagas del tiempo real.** El socket dispara muchos refrescos
+  simultáneos; como cada query corre en transacción, el pool se saturaba un instante y
+  Prisma daba *"Unable to start a transaction in the given time"*. Fix en
+  `PrismaService`: `maxWait: 15000`, `timeout: 20000` y pool `max: 15`.
+- **Auth del socket en middleware, no en `handleConnection`.** `handleConnection` es
+  asíncrono y el `join_sesion` podía llegar antes de terminar la verificación
+  (condición de carrera). Se movió a `server.use` (corre antes de la conexión).
+- **`@nestjs/websockets` + `@nestjs/platform-socket.io` + `socket.io`** en el backend;
+  `socket.io-client` en móvil y web.
+- **Zona horaria:** sigue pendiente pulir (las sesiones se guardan en UTC).
+
 ## Próximos pasos sugeridos — FASE 4
 
-La Fase 4 quedó **completa** (backend de inscripciones + gestión de usuarios + app
-móvil del asistente con el primer flujo de punta a punta). Sigue la **Fase 5 —
-Participación en vivo (Socket.io)**: preguntas en vivo moderadas por el coordinador y
-encuestas en tiempo real; entregable una demo en vivo móvil↔panel. Pendientes menores:
-pulir la zona horaria de las sesiones en el móvil (se guardan en UTC), la suite de Jest
-(`clearMocksOnScope`), ampliar el panel web (Fase 8) y confirmar con los dueños el
-modelo de registro de asistentes (ver decisión pendiente arriba).
+Las Fases 4 y 5 quedaron **completas**. Sigue la **Fase 6 — Networking**: interés
+mutuo entre asistentes → match → chat con límite de mensajes; entregable dos
+asistentes que se conectan y chatean en la app. Reaprovecha el mismo Socket.io de la
+Fase 5. Pendientes menores: pulir la zona horaria de las sesiones (se guardan en UTC),
+la suite de Jest (`clearMocksOnScope`), ampliar el panel web (Fase 8) y confirmar con
+los dueños el modelo de registro de asistentes (ver decisión pendiente arriba).
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 

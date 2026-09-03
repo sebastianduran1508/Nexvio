@@ -13,7 +13,7 @@
 > inscribe a un congreso, consulta sus inscripciones y las cancela; el staff ve la
 > lista de inscritos. Y está lista una **rebanada vertical del panel web** (login + lista de
 > congresos conectada a la API real). Los módulos restantes se documentarán aquí a
-> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción).
+> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción). Y está la **participación en vivo (Fase 5)**: preguntas moderadas y encuestas en tiempo real con Socket.io, entre el móvil y el panel del coordinador.
 
 ---
 
@@ -527,6 +527,11 @@ node prisma/tests/e2e_gestion_usuarios.js <emailOrganizador> <passOrganizador>
 # el movil (2 sesiones + 1 ponente). Idempotente.
 node prisma/setup/06_seed_agenda_demo.js <emailOrganizador> <passOrganizador> ["Nombre del congreso"]
 
+# Fase 5 — participacion en vivo (requieren organizador Y asistente):
+node prisma/tests/e2e_fase5_preguntas.js  <emailOrg> <passOrg> <emailAsis> <passAsis>
+node prisma/tests/e2e_fase5_encuestas.js  <emailOrg> <passOrg> <emailAsis> <passAsis>
+node prisma/tests/e2e_fase5_realtime.js   <emailOrg> <passOrg> <emailAsis> <passAsis>
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -750,6 +755,76 @@ src/
 npx expo start          # escanear el QR con Expo Go (mismo WiFi)
 # Login de asistente de prueba: test.asistente@nexvio.dev / asistente123
 ```
+
+## 17. Participación en vivo (Fase 5)
+
+Preguntas moderadas y encuestas en tiempo real. Es la primera vez que el **móvil y
+el panel se hablan en vivo**: lo que hace el asistente aparece al instante en el
+panel del coordinador, y al revés.
+
+### 17.1. El modelo (4 tablas nuevas)
+
+`pregunta`, `encuesta`, `opcion_encuesta` y `respuesta_encuesta` — todas con
+`organizacion_id` y RLS, como el resto. `respuesta_encuesta` lleva `encuesta_id` y
+`@@unique(encuesta_id, usuario_id)`: **un voto por persona por encuesta**.
+
+### 17.2. La API REST (`src/participacion/`)
+
+| Recurso | Rutas | Quién |
+|---|---|---|
+| Preguntas | `POST/GET /sesiones/:id/preguntas`, `PATCH /preguntas/:id` | enviar: todos · moderar: staff |
+| Encuestas | `POST/GET /sesiones/:id/encuestas`, `PATCH /encuestas/:id`, `POST /encuestas/:id/votar`, `GET /encuestas/:id/resultados` | crear/abrir: staff · votar: todos |
+
+**Vista según rol** (decorador `@RolActual()`): el staff ve TODAS las preguntas
+(para moderar) y todas las encuestas; el asistente ve solo las preguntas
+**aprobadas/respondidas** y las encuestas **activas**. El REST es el que manda quién
+ve qué, siempre.
+
+### 17.3. El tiempo real (Socket.io) — patrón "avisar y refrescar"
+
+El gateway (`realtime.gateway.ts`) es la capa nueva. Idea clave: por el socket NO
+se mandan datos, solo **avisos**; al oír un aviso, cada cliente vuelve a pedir la
+lista por REST (que ya filtra por rol y RLS). Así el tiempo real no puede filtrar
+nada. Piezas:
+
+- **Autenticación en un middleware** (`server.use`), que corre ANTES de dar por
+  conectado al cliente: verifica el JWT (igual que en HTTP) y guarda la identidad en
+  `socket.data`. Se hace aquí y no en `handleConnection` (asíncrono) para evitar una
+  **condición de carrera**: si el cliente manda `join_sesion` antes de terminar la
+  verificación, su identidad ya estaría lista de todos modos.
+- **Salas por sesión.** Al unirse (`join_sesion`), se valida que la sesión sea del
+  tenant (vía RLS) antes de meter al cliente a la sala `sesion:<id>`.
+- **Los services avisan.** Tras crear/moderar una pregunta o crear/abrir/votar una
+  encuesta, el service llama a `preguntasCambiaron` / `encuestasCambiaron`, que emiten
+  `preguntas:cambio` / `encuestas:cambio` a la sala.
+
+### 17.4. Gotcha resuelto: P2028 (transacciones bajo ráfagas)
+
+En la demo, el socket dispara muchos refrescos a la vez (móvil + panel). Como cada
+consulta corre en una transacción (para el RLS), por un instante se ocupaban todas
+las conexiones y Prisma daba `P2028: Unable to start a transaction in the given time`
+(esperaba solo 2s). Solución en `PrismaService`: `maxWait: 15000` y `timeout: 20000`
+en `$transaction`, y `max: 15` en el pool del adapter.
+
+### 17.5. El móvil (`SesionScreen`)
+
+Las sesiones del congreso ahora son tocables y abren su pantalla: el asistente
+**envía preguntas**, ve el **muro de aprobadas**, y **vota** la encuesta activa con
+**resultados en barras**. Se une a la sala por socket (`lib/socket.ts`) y refresca al
+oír los avisos; sale de la sala al abandonar la pantalla.
+
+### 17.6. El panel del coordinador (`app/sesiones/[id]`)
+
+Navegación Congresos → congreso → sesión. En la sesión, el staff **modera** las
+preguntas (aprobar/rechazar/respondida) y **crea/abre/cierra encuestas** con
+resultados en vivo. Mismo socket y patrón que el móvil. Los botones están blindados:
+un fallo muestra un aviso **solo en desarrollo**, no rompe la pantalla.
+
+### 17.7. Pruebas de cierre
+
+`e2e_fase5_preguntas.js` (enviar, moderar, vistas por rol), `e2e_fase5_encuestas.js`
+(crear, abrir, votar 1-vez, resultados) y `e2e_fase5_realtime.js` (el socket recibe
+los avisos en vivo). **Las tres pasan.**
 
 ## 13. Glosario rápido
 

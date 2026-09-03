@@ -96,6 +96,20 @@ export class CongresosService {
         await tx.sesionPonente.deleteMany({ where: { sesion_id: { in: sesionIds } } });
       }
       await tx.sesionPonente.deleteMany({ where: { ponente: { congreso_id: id } } });
+      // Fase 5: la participacion (preguntas y encuestas) cuelga de las sesiones.
+      if (sesionIds.length > 0) {
+        const encuestas = await tx.encuesta.findMany({
+          where: { sesion_id: { in: sesionIds } },
+          select: { id: true },
+        });
+        const encuestaIds = encuestas.map((e) => e.id);
+        if (encuestaIds.length > 0) {
+          await tx.respuestaEncuesta.deleteMany({ where: { encuesta_id: { in: encuestaIds } } });
+          await tx.opcionEncuesta.deleteMany({ where: { encuesta_id: { in: encuestaIds } } });
+        }
+        await tx.encuesta.deleteMany({ where: { sesion_id: { in: sesionIds } } });
+        await tx.pregunta.deleteMany({ where: { sesion_id: { in: sesionIds } } });
+      }
       await tx.sesion.deleteMany({ where: { congreso_id: id } });
       await tx.ponente.deleteMany({ where: { congreso_id: id } });
       // Fase 4: tambien las inscripciones cuelgan del congreso.
