@@ -9,7 +9,9 @@
 > Congresos** completa (CRUD de congresos, agenda/sesiones y ponentes, con
 > validación de entrada) y **Bloque Puente** completo (**alta de organizaciones +
 > primer organizador**, con aislamiento entre tenants probado con usuarios reales).
-> Los módulos restantes se documentarán aquí a medida que se construyan.
+> También está lista una **rebanada vertical del panel web** (login + lista de
+> congresos conectada a la API real). Los módulos restantes se documentarán aquí a
+> medida que se construyan.
 
 ---
 
@@ -534,7 +536,60 @@ node prisma/tests/e2e_onboarding_aislamiento.js <adminEmail> <adminPass>
 
 ---
 
-## 12. Glosario rápido
+## 12. El panel web (rebanada vertical)
+
+Primer "cable" entre el frontend (Next.js) y el backend. Es pequeño a propósito:
+su objetivo fue probar de punta a punta que el navegador puede autenticarse y
+consumir la API protegida, y descubrir temprano los gotchas (CORS, token).
+
+### 12.1. Estructura (`apps/web/src/`)
+
+```
+apps/web/
+├── .env.local                 ← claves PÚBLICAS (NEXT_PUBLIC_*): URL Supabase, anon, API
+└── src/
+    ├── lib/supabase.ts        ← cliente de Supabase para el navegador + API_URL
+    └── app/
+        ├── page.tsx           ← raíz: redirige a /congresos
+        ├── login/page.tsx     ← formulario de login (usa supabase-js)
+        └── congresos/page.tsx ← lista los congresos llamando a la API con el token
+```
+
+### 12.2. El flujo del panel
+
+1. El usuario entra a `/login` y mete correo/contraseña.
+2. `supabase.auth.signInWithPassword` autentica y **guarda la sesión** en el
+   navegador (localStorage). Redirige a `/congresos`.
+3. `/congresos` pide el token de la sesión (`supabase.auth.getSession`) y llama a
+   `GET {API_URL}/congresos` con la cabecera `Authorization: Bearer <token>`.
+4. El backend verifica el token, fija el tenant y el **RLS filtra**: el navegador
+   solo recibe (y pinta) los congresos de esa organización.
+
+Es la misma cadena de seguridad de siempre, ahora disparada desde el navegador.
+
+### 12.3. CORS (el gotcha esperado)
+
+Por seguridad, el navegador no deja que una página en `localhost:3001` llame a
+otra dirección (`localhost:3000`) salvo que el servidor lo autorice. Por eso en
+`apps/backend/src/main.ts` se añadió `app.enableCors({ origin: 'http://localhost:3001' })`.
+Sin esto, la petición a la API fallaría con un error de CORS en el navegador.
+
+### 12.4. Decisión: sesión en el navegador (por ahora)
+
+La sesión se maneja del lado del **navegador** (supabase-js + localStorage), que es
+lo más simple para esta rebanada. Para producción se puede migrar a sesión por
+**cookies del lado del servidor** (`@supabase/ssr`) sin tocar la API — solo cambia
+cómo el frontend guarda y envía el token.
+
+### 12.5. Cómo correr el panel
+
+Necesitas **dos terminales**: una con el backend (`apps/backend` → `npm run start:dev`)
+y otra con el web (`apps/web` → `npm run dev`, sirve en `localhost:3001`). Login de
+prueba: `test.medicina@nexvio.dev`. Debe verse solo "Congreso de Medicina".
+
+---
+
+## 13. Glosario rápido
 
 - **Tenant:** un cliente/organización. Nexvio es multi-tenant = sirve a varios.
 - **RLS (Row Level Security):** filtrado de filas dentro de PostgreSQL.

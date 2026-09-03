@@ -167,14 +167,35 @@ primer organizador). Diseñado para migrar a auto-registro sin reescribir.
 - **Admin global:** `admin@nexvio.dev`, rol `admin`, `organizacion_id` NULL. Su
   token trae `rol: admin` y `organizacion_id` ausente (verificado con `get_token.js`).
 
-## Próximos pasos sugeridos — Rebanada vertical web y luego FASE 4
+## Estado actual (Rebanada vertical web) ✅ COMPLETA
 
-Plan acordado con Sebastián: (1) ✅ bloque puente (hecho); (2) **rebanada vertical
-web** — login en el panel Next.js + una pantalla que liste los congresos de la API
-(para tender temprano el cable frontend↔backend y descubrir gotchas de CORS/token
-con poca superficie); (3) **Fase 4 — Inscripciones + app móvil base** según el plan
-de ruta. Pendiente menor arrastrado: arreglar la suite de Jest (`clearMocksOnScope`);
-y la vista web del organizador de Fase 3 (o se cubre en la rebanada / Fase 8).
+Primer cable frontend↔backend, hecho pequeño a propósito para validar el wiring.
+
+- [x] **Cliente Supabase en el navegador** (`apps/web/src/lib/supabase.ts`) +
+  `apps/web/.env.local` con las claves públicas (`NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL=http://localhost:3000`).
+- [x] **Login** (`/login`) con `supabase.auth.signInWithPassword` y **lista de
+  congresos** (`/congresos`) que llama a la API con `Authorization: Bearer <token>`.
+  Raíz redirige a `/congresos`; sin sesión → `/login`.
+- [x] **CORS habilitado** en el backend (`main.ts`, `enableCors` para el origen
+  `http://localhost:3001`, configurable con `WEB_ORIGIN`).
+- [x] **Prueba visual OK:** login como `test.medicina@nexvio.dev` → se ve solo
+  "Congreso de Medicina" (RLS filtrando de punta a punta desde el navegador).
+
+### Notas de la rebanada web
+- **Dos terminales:** backend (`apps/backend` → `npm run start:dev`) y web
+  (`apps/web` → `npm run dev`, en `localhost:3001`). Cada comando en SU carpeta.
+- **Sesión del lado del navegador** (supabase-js + localStorage). Para producción se
+  puede migrar a cookies con `@supabase/ssr` sin tocar la API.
+- Dependencia nueva en el web: `@supabase/supabase-js`.
+
+## Próximos pasos sugeridos — FASE 4
+
+Con el cable frontend↔backend ya tendido, sigue la **Fase 4 — Inscripciones + app
+móvil base** (tabla `Inscripcion` + app Expo donde el asistente se loguea y ve la
+agenda; primer flujo completo desde el móvil). Pendientes menores arrastrados:
+gestión de usuarios (ampliar el onboarding), la suite de Jest (`clearMocksOnScope`),
+y ampliar el panel web (más pantallas) cuando toque la Fase 8.
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 

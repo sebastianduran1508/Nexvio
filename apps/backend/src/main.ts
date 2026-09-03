@@ -7,6 +7,13 @@ import { TenantContextMiddleware } from './auth/tenant-context.middleware';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS: por seguridad, el navegador bloquea que una página (localhost:3001)
+  // llame a otra dirección (localhost:3000) salvo que el servidor lo autorice.
+  // Aquí autorizamos explícitamente el origen del panel web.
+  app.enableCors({
+    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001',
+  });
+
   // Validación global de TODOS los cuerpos de petición contra sus DTOs.
   //  - whitelist: elimina campos que el DTO no declara (limpia datos basura).
   //  - forbidNonWhitelisted: si mandan un campo de más, responde 400.
