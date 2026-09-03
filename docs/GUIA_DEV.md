@@ -13,7 +13,7 @@
 > inscribe a un congreso, consulta sus inscripciones y las cancela; el staff ve la
 > lista de inscritos. Y está lista una **rebanada vertical del panel web** (login + lista de
 > congresos conectada a la API real). Los módulos restantes se documentarán aquí a
-> medida que se construyan.
+> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción).
 
 ---
 
@@ -523,6 +523,10 @@ node prisma/tests/e2e_fase4_inscripciones.js <emailA> <passA> [emailB] [passB]
 # que los permisos por rol se respeten. Deja creado test.asistente@nexvio.dev.
 node prisma/tests/e2e_gestion_usuarios.js <emailOrganizador> <passOrganizador>
 
+# (Opcional, demo) Cargar una agenda de ejemplo a un congreso para que se vea en
+# el movil (2 sesiones + 1 ponente). Idempotente.
+node prisma/setup/06_seed_agenda_demo.js <emailOrganizador> <passOrganizador> ["Nombre del congreso"]
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -680,6 +684,72 @@ si ya existía → test idempotente); el asistente puede loguearse y ver `/congr
 NO puede crear usuarios ni congresos (403 en ambos); y el organizador lo ve en
 `GET /usuarios`. Deja creado un asistente fijo para el login del móvil:
 **`test.asistente@nexvio.dev` / `asistente123`**. **Pasa (verde).**
+
+## 16. La app móvil del asistente (Fase 4)
+
+Primera pieza del asistente: una app **Expo (React Native)** donde inicia sesión, ve
+los congresos de su organización, entra al detalle con la **agenda** y **se inscribe**.
+Cierra el entregable de la Fase 4: el primer flujo completo desde el móvil.
+
+### 16.1. Estructura (`apps/mobile/src/`)
+
+```
+src/
+├── lib/
+│   ├── config.ts       ← calcula la URL del backend (IP del PC, no localhost)
+│   ├── supabase.ts     ← cliente de Supabase (sesión guardada en el teléfono)
+│   ├── api.ts          ← fetch al backend con el token (Authorization: Bearer)
+│   ├── formato.ts      ← formatea fechas y horas
+│   └── tipos.ts        ← tipos TS de lo que devuelve la API
+├── context/
+│   └── AuthContext.tsx ← "memoria de sesión" compartida (useAuth)
+├── navigation/
+│   ├── RootNavigator.tsx ← decide Login vs App según haya sesión
+│   ├── AppTabs.tsx       ← pestañas: Congresos / Mis congresos
+│   └── CongresosStack.tsx← lista → detalle
+├── screens/
+│   ├── LoginScreen.tsx
+│   ├── CongresosScreen.tsx
+│   ├── CongresoDetalleScreen.tsx  ← agenda + botón Inscribirme/Cancelar
+│   └── MisCongresosScreen.tsx
+└── components/
+    └── BotonSalir.tsx  ← cierra sesión desde la cabecera
+```
+
+### 16.2. Piezas clave
+
+- **Navegación guiada por la sesión.** `RootNavigator` lee `useAuth()`: sin sesión
+  muestra Login; con sesión, las pestañas. Al loguearse o salir, cambia **solo** —
+  ninguna pantalla navega a mano. La sesión se guarda en `AsyncStorage`, así el
+  usuario sigue logueado tras cerrar la app.
+- **Misma cadena de seguridad que la web.** `api.ts` adjunta el token de Supabase;
+  el backend verifica, fija el tenant y el **RLS filtra**. El asistente solo ve datos
+  de su organización — ahora desde el móvil.
+- **La identidad manda.** Al inscribirse, el `usuario_id` sale del token en el
+  backend (`@UserId()`), no del móvil. La app solo dice "inscríbeme a este congreso".
+
+### 16.3. Gotchas del móvil
+
+- **`localhost` no sirve en el teléfono.** En Expo Go, `localhost` es el teléfono,
+  no el PC. `config.ts` deriva la IP del PC desde `Constants.expoConfig.hostUri`
+  (la misma que usa Metro) y le pone el puerto 3000. Requisito: teléfono y PC en el
+  **mismo WiFi** y el backend corriendo.
+- **Variables de entorno del móvil.** Expo solo expone al app las que empiezan por
+  `EXPO_PUBLIC_`. Están en `apps/mobile/.env` (no va a git). Tras cambiarlas, reinicia
+  Expo.
+- **Zona horaria.** Las sesiones se guardan en UTC (`...Z`). La app las muestra en la
+  hora local del teléfono, así que una sesión guardada a las 09:00 UTC se ve a las
+  04:00 en Colombia (UTC-5). Es correcto; para la demo conviene guardar las horas ya
+  pensadas en local (o formatear con una zona fija).
+
+### 16.4. Cómo correrla
+
+```bash
+# 1) backend corriendo (apps/backend -> npm run start:dev)
+# 2) desde apps/mobile:
+npx expo start          # escanear el QR con Expo Go (mismo WiFi)
+# Login de asistente de prueba: test.asistente@nexvio.dev / asistente123
+```
 
 ## 13. Glosario rápido
 

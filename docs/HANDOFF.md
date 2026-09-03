@@ -189,10 +189,10 @@ Primer cable frontend↔backend, hecho pequeño a propósito para validar el wir
   puede migrar a cookies con `@supabase/ssr` sin tocar la API.
 - Dependencia nueva en el web: `@supabase/supabase-js`.
 
-## Estado actual (Fase 4 — Inscripciones + app móvil base) 🚧 BACKEND COMPLETO
+## Estado actual (Fase 4 — Inscripciones + app móvil base) ✅ COMPLETA
 
-Primera mitad de la Fase 4: el **backend de inscripciones**. La app móvil (login +
-agenda + inscribirse) es la segunda mitad, en construcción.
+Fase 4 completa: el **backend de inscripciones + gestión de usuarios** y la **app
+móvil del asistente** (login, congresos, agenda e inscripción).
 
 - [x] **Tabla `inscripcion`** (ERD: usuario ↔ congreso). Campos: `estado`
   (`confirmada`|`cancelada`) y `registrado_en`. Única `(congreso_id, usuario_id)`.
@@ -212,6 +212,12 @@ agenda + inscribirse) es la segunda mitad, en construcción.
   `SupabaseAdminService` con la misma compensación. Solo crea `participante` o
   `coordinador` (sin escalar privilegios). Prueba `e2e_gestion_usuarios.js` (verde);
   deja el asistente fijo `test.asistente@nexvio.dev` / `asistente123` para el móvil.
+- [x] **App móvil (Expo/React Native)** en `apps/mobile/`: cliente de Supabase con
+  sesión en `AsyncStorage`, navegación guiada por la sesión, pestañas Congresos /
+  Mis congresos, detalle con **agenda** y botón **Inscribirme/Cancelar**. La URL del
+  backend se deriva de la IP del PC (Expo `hostUri`), no de `localhost`.
+- [x] **Seed de demo** `prisma/setup/06_seed_agenda_demo.js`: carga 2 sesiones + 1
+  ponente a un congreso (idempotente) para que la agenda se vea en la sustentación.
 - [x] **Prueba de cierre** `prisma/tests/e2e_fase4_inscripciones.js`: inscribir,
   duplicado→409, `mias`, lista staff, cancelar/reactivar y aislamiento opcional
   Org B. **Pasa (verde).**
@@ -227,14 +233,27 @@ El asistente NO se auto-registra (por ahora): el staff lo da de alta con
 `POST /usuarios`. Así la app móvil solo necesita **login**. El auto-registro público
 (código de evento) queda para la etapa de "producto a mercado".
 
+### ⏳ Pendiente de confirmar con los dueños: modelo de registro/enrolamiento
+Sebastián notó (sesión Fase 4) que el flujo previsto podría ser que cada persona se
+registre a UN congreso específico (p. ej. con un código de evento), en vez de ver la
+lista completa de congresos de su organización. **Pendiente de confirmar con los
+dueños del proyecto (Grupo Studio Sebia).** Impacto si se cambia: es un cambio
+ACOTADO — el login (Supabase Auth), el multi-tenant/RLS, la tabla `inscripcion` y las
+pantallas de detalle/agenda/inscribirse NO cambian; solo la "puerta de entrada" (cómo
+llega la persona a su primer congreso): añadir un código al congreso, un endpoint
+público de auto-registro que reutilice `OnboardingService` + inscripciones, y una
+pantalla móvil de "unirme con código". Se abordaría como bloque nuevo cuando la
+empresa responda.
+
 ## Próximos pasos sugeridos — FASE 4
 
-El **backend de inscripciones ya está** (ver sección anterior). Falta la **app
-móvil base**: app Expo donde el asistente se loguea, ve la lista de congresos, entra
-al detalle con la agenda y **se inscribe** — el primer flujo completo desde el móvil.
-Antes de las pantallas hay que resolver la **decisión de cuentas de asistente** (ver
-arriba). Pendientes menores arrastrados: la suite de Jest (`clearMocksOnScope`) y
-ampliar el panel web (más pantallas) cuando toque la Fase 8.
+La Fase 4 quedó **completa** (backend de inscripciones + gestión de usuarios + app
+móvil del asistente con el primer flujo de punta a punta). Sigue la **Fase 5 —
+Participación en vivo (Socket.io)**: preguntas en vivo moderadas por el coordinador y
+encuestas en tiempo real; entregable una demo en vivo móvil↔panel. Pendientes menores:
+pulir la zona horaria de las sesiones en el móvil (se guardan en UTC), la suite de Jest
+(`clearMocksOnScope`), ampliar el panel web (Fase 8) y confirmar con los dueños el
+modelo de registro de asistentes (ver decisión pendiente arriba).
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 
