@@ -10,23 +10,21 @@ import { Server, Socket } from 'socket.io';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { PrismaService } from '../prisma/prisma.service';
 
-// Misma fuente de claves publicas (JWKS) que el middleware HTTP.
 const JWKS = createRemoteJWKSet(
   new URL(`${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`),
 );
 
 /**
- * Gateway de Socket.io para la participacion en vivo (Fase 5).
+ * Gateway de Socket.io compartido (Fases 5 y 6).
  *
- * Autenticacion: se hace en un MIDDLEWARE de Socket.io (server.use), que corre
- * ANTES de dar por establecida la conexion. Asi, cuando el cliente ya puede
- * mandar mensajes, su identidad (socket.data.user) SIEMPRE esta lista. (Si lo
- * hicieramos en handleConnection, que es asincrono, un join_sesion podria llegar
- * antes de terminar la verificacion -> condicion de carrera.)
+ * Auth en middleware (server.use), antes de dar por conectado al cliente, para
+ * evitar la condicion de carrera. Salas:
+ *  - sesion:<id>   -> participacion en vivo (preguntas/encuestas) [Fase 5]
+ *  - conexion:<id> -> chat de una conexion de networking            [Fase 6]
+ * En ambos casos se valida que el recurso sea del usuario antes de unirse.
  *
- * Salas: al unirse a la sala de una sesion, verificamos que sea del tenant del
- * usuario (via RLS). Se emiten "avisos" (no datos); las pantallas refrescan por
- * REST al oirlos.
+ * Patron "avisar y refrescar": se emiten avisos (no datos) y los clientes piden
+ * la lista por REST.
  */
 @WebSocketGateway({
   cors: { origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001' },
@@ -36,63 +34,79 @@ export class RealtimeGateway implements OnGatewayInit {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Se ejecuta al iniciar el gateway: registramos el middleware de auth. */
   afterInit(server: Server) {
     server.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth?.token as string | undefined;
         if (!token) throw new Error('sin token');
-
         const { payload } = await jwtVerify(token, JWKS, {
           issuer: `${process.env.SUPABASE_URL}/auth/v1`,
           audience: 'authenticated',
         });
-
         socket.data.user = {
           sub: payload.sub as string,
           orgId: payload.organizacion_id as string | undefined,
           rol: payload.rol as string | undefined,
         };
-        next(); // token valido -> se permite la conexion
+        next();
       } catch {
-        next(new Error('no autorizado')); // el cliente recibira connect_error
+        next(new Error('no autorizado'));
       }
     });
   }
 
-  /** El cliente pide unirse a la sala de una sesion (para oir sus cambios). */
+  // ---- Salas de SESION (Fase 5) ----
   @SubscribeMessage('join_sesion')
-  async joinSesion(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() sesionId: string,
-  ) {
+  async joinSesion(@ConnectedSocket() client: Socket, @MessageBody() sesionId: string) {
     const user = client.data.user;
     if (!user?.orgId) return { ok: false, error: 'no autorizado' };
-
-    // La sesion debe ser del tenant del usuario (el RLS la oculta si no lo es).
     const sesion = await this.prisma.runInTenant(user.orgId, (tx) =>
       tx.sesion.findFirst({ where: { id: sesionId } }),
     );
     if (!sesion) return { ok: false, error: 'sesion no encontrada' };
-
     client.join(`sesion:${sesionId}`);
     return { ok: true };
   }
 
-  /** El cliente sale de la sala (al salir de la pantalla de la sesion). */
   @SubscribeMessage('leave_sesion')
   leaveSesion(@ConnectedSocket() client: Socket, @MessageBody() sesionId: string) {
     client.leave(`sesion:${sesionId}`);
     return { ok: true };
   }
 
-  // ----- Helpers que usan los services para avisar a la sala de una sesion -----
+  // ---- Salas de CONEXION / chat (Fase 6) ----
+  @SubscribeMessage('join_conexion')
+  async joinConexion(@ConnectedSocket() client: Socket, @MessageBody() conexionId: string) {
+    const user = client.data.user;
+    if (!user?.orgId) return { ok: false, error: 'no autorizado' };
+    // Solo los DOS de la conexion pueden unirse a su sala.
+    const conexion = await this.prisma.runInTenant(user.orgId, (tx) =>
+      tx.conexion.findFirst({
+        where: {
+          id: conexionId,
+          interes: { OR: [{ emisor_id: user.sub }, { receptor_id: user.sub }] },
+        },
+      }),
+    );
+    if (!conexion) return { ok: false, error: 'no autorizado' };
+    client.join(`conexion:${conexionId}`);
+    return { ok: true };
+  }
 
+  @SubscribeMessage('leave_conexion')
+  leaveConexion(@ConnectedSocket() client: Socket, @MessageBody() conexionId: string) {
+    client.leave(`conexion:${conexionId}`);
+    return { ok: true };
+  }
+
+  // ---- Avisos que emiten los services ----
   preguntasCambiaron(sesionId: string) {
     this.server?.to(`sesion:${sesionId}`).emit('preguntas:cambio', { sesionId });
   }
-
   encuestasCambiaron(sesionId: string) {
     this.server?.to(`sesion:${sesionId}`).emit('encuestas:cambio', { sesionId });
+  }
+  mensajesCambiaron(conexionId: string) {
+    this.server?.to(`conexion:${conexionId}`).emit('mensajes:cambio', { conexionId });
   }
 }

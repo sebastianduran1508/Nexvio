@@ -276,14 +276,40 @@ Socket.io.
   `socket.io-client` en móvil y web.
 - **Zona horaria:** sigue pendiente pulir (las sesiones se guardan en UTC).
 
+## Estado actual (Fase 6 — Networking) ✅ COMPLETA
+
+Interés mutuo → match → chat con límite, entre asistentes. Reusa el Socket.io de la
+Fase 5 (gateway movido a `src/realtime/`, módulo compartido).
+
+- [x] **3 tablas** (`interes_networking`, `conexion`, `mensaje_chat`) con RLS.
+  `interes` único por dirección y congreso; `conexion.interes_id` único.
+  Migraciones `fase6_networking` + `rls_networking`.
+- [x] **REST `src/networking/`**: directorio (con estado por persona), marcar interés
+  (detecta match y crea conexión), mis conexiones, y **chat** (enviar/listar con
+  límite de 20, solo los dos integrantes).
+- [x] **Socket.io**: sala `conexion:<id>` (validada por RLS) + aviso
+  `mensajes:cambio`. Gateway extraído a `RealtimeModule` (usado por participación y
+  networking).
+- [x] **Móvil**: botón Networking en el congreso → directorio → chat (burbujas,
+  contador de restantes, se cierra al límite).
+- [x] **2 pruebas e2e** (networking, chat) — verdes. El chat crea/usa un 2do
+  asistente fijo: `test.asistente2@nexvio.dev` / `asistente123`.
+
+### Gotchas de Fase 6
+- **Relaciones dobles a `Usuario`** (emisor/receptor en interés; autor en mensaje):
+  requieren `@relation("nombre")` en Prisma para desambiguar.
+- **Gateway compartido:** se movió de `participacion/` a `realtime/` y se exporta vía
+  `RealtimeModule`; participación y networking lo importan.
+- **`congresos.borrar`** ahora también arrastra el networking (interés→conexión→mensajes).
+
 ## Próximos pasos sugeridos — FASE 4
 
-Las Fases 4 y 5 quedaron **completas**. Sigue la **Fase 6 — Networking**: interés
-mutuo entre asistentes → match → chat con límite de mensajes; entregable dos
-asistentes que se conectan y chatean en la app. Reaprovecha el mismo Socket.io de la
-Fase 5. Pendientes menores: pulir la zona horaria de las sesiones (se guardan en UTC),
-la suite de Jest (`clearMocksOnScope`), ampliar el panel web (Fase 8) y confirmar con
-los dueños el modelo de registro de asistentes (ver decisión pendiente arriba).
+Las Fases 4, 5 y 6 quedaron **completas**. Sigue la **Fase 7 — Bandeja omnicanal +
+agente IA (WhatsApp)**: WhatsApp Cloud API + bandeja unificada + RAG (OpenAI +
+pgvector) que clasifica, responde FAQs y escala a humano. Es la más impresionante y
+la más riesgosa (por eso va tarde). Pendientes menores: pulir la zona horaria de las
+sesiones (UTC), la suite de Jest (`clearMocksOnScope`), ampliar el panel web (Fase 8)
+y confirmar con los dueños el modelo de registro de asistentes (decisión pendiente).
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 

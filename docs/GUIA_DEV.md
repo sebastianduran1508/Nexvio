@@ -13,7 +13,7 @@
 > inscribe a un congreso, consulta sus inscripciones y las cancela; el staff ve la
 > lista de inscritos. Y está lista una **rebanada vertical del panel web** (login + lista de
 > congresos conectada a la API real). Los módulos restantes se documentarán aquí a
-> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción). Y está la **participación en vivo (Fase 5)**: preguntas moderadas y encuestas en tiempo real con Socket.io, entre el móvil y el panel del coordinador.
+> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción). Y está la **participación en vivo (Fase 5)**: networking (interés mutuo, match y **chat** con límite) — Fase 6 — y la participación en vivo (preguntas moderadas y encuestas en tiempo real con Socket.io), entre el móvil y el panel del coordinador.
 
 ---
 
@@ -532,6 +532,10 @@ node prisma/tests/e2e_fase5_preguntas.js  <emailOrg> <passOrg> <emailAsis> <pass
 node prisma/tests/e2e_fase5_encuestas.js  <emailOrg> <passOrg> <emailAsis> <passAsis>
 node prisma/tests/e2e_fase5_realtime.js   <emailOrg> <passOrg> <emailAsis> <passAsis>
 
+# Fase 6 — networking y chat (organizador + asistente; crea el 2do asistente):
+node prisma/tests/e2e_fase6_networking.js <emailOrg> <passOrg> <emailAsis1> <passAsis1>
+node prisma/tests/e2e_fase6_chat.js       <emailOrg> <passOrg> <emailAsis1> <passAsis1>
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -825,6 +829,52 @@ un fallo muestra un aviso **solo en desarrollo**, no rompe la pantalla.
 `e2e_fase5_preguntas.js` (enviar, moderar, vistas por rol), `e2e_fase5_encuestas.js`
 (crear, abrir, votar 1-vez, resultados) y `e2e_fase5_realtime.js` (el socket recibe
 los avisos en vivo). **Las tres pasan.**
+
+## 18. Networking (Fase 6)
+
+Interés mutuo entre asistentes → **match** → **chat** con límite de mensajes.
+Reaprovecha el Socket.io de la Fase 5 (por eso se sacó el gateway a un módulo
+compartido, `src/realtime/`).
+
+### 18.1. El modelo (3 tablas)
+
+- `interes_networking` — interés **direccional** de A en B en un congreso (A→B es
+  distinto de B→A). `estado`: `pendiente`/`correspondido`/`rechazado`. Único por
+  dirección y congreso.
+- `conexion` — nace con el match; apunta al interés que lo completó y lleva
+  `limite_mensajes` (20 por defecto).
+- `mensaje_chat` — cada mensaje del chat de una conexión.
+
+### 18.2. La API REST (`src/networking/`)
+
+| Ruta | Qué |
+|---|---|
+| `GET /congresos/:id/networking` | Directorio: otros inscritos + tu estado con cada uno (`ninguno`/`enviado`/`recibido`/`correspondido`) |
+| `POST /congresos/:id/intereses` | Marcar interés; detecta match y crea la conexión |
+| `GET /conexiones` | Tus matches |
+| `GET/POST /conexiones/:id/mensajes` | Chat de una conexión (solo sus dos integrantes; respeta el límite) |
+
+**El match:** cuando A marca interés en B y ya existía el de B en A, ambos pasan a
+`correspondido` y se crea la conexión. **El chat es acotado:** al llegar a
+`limite_mensajes`, enviar responde 400.
+
+### 18.3. El tiempo real del chat
+
+El gateway compartido añadió la sala `conexion:<id>` (solo los dos integrantes
+pueden unirse, validado por RLS) y el aviso `mensajes:cambio`. Mismo patrón "avisar
+y refrescar".
+
+### 18.4. El móvil
+
+Desde el detalle del congreso, botón **Networking** → directorio (Conectar /
+Aceptar / Chatear) → **ChatScreen** (burbujas, contador de mensajes restantes, se
+cierra al llegar al límite). Usa `useAuth()` para alinear tus mensajes a la derecha.
+
+### 18.5. Pruebas de cierre
+
+`e2e_fase6_networking.js` (interés → match → conexión, con directorio) y
+`e2e_fase6_chat.js` (mensajes en vivo, aislamiento de terceros y el límite de 20).
+**Las dos pasan.**
 
 ## 13. Glosario rápido
 

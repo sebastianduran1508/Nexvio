@@ -118,6 +118,15 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         )}
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.networking}
+        onPress={() =>
+          navigation.navigate('Networking', { congresoId: id, nombre: detalle.nombre })
+        }
+      >
+        <Text style={styles.networkingTexto}>Conectar con asistentes (Networking) ›</Text>
+      </TouchableOpacity>
+
       <Text style={styles.seccion}>Agenda</Text>
       {detalle.sesiones.length === 0 ? (
         <Text style={styles.vacio}>Este congreso aun no tiene sesiones.</Text>
@@ -173,6 +182,15 @@ const styles = StyleSheet.create({
   botonTexto: { fontSize: 16, fontWeight: '700' },
   botonTextoInscribir: { color: '#fff' },
   botonTextoCancelar: { color: '#dc2626' },
+  networking: {
+    marginTop: 16,
+    backgroundColor: '#eef2ff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  networkingTexto: { color: '#4f46e5', fontWeight: '700', fontSize: 15 },
   seccion: {
     fontSize: 18,
     fontWeight: '700',

@@ -48,6 +48,9 @@ model Organizacion {
   encuestas           Encuesta[]
   opciones_encuesta   OpcionEncuesta[]
   respuestas_encuesta RespuestaEncuesta[]
+  intereses_networking InteresNetworking[]
+  conexiones           Conexion[]
+  mensajes_chat        MensajeChat[]
 
   @@map("organizacion")
 }
@@ -64,6 +67,9 @@ model Usuario {
   inscripciones       Inscripcion[]
   preguntas           Pregunta[]
   respuestas_encuesta RespuestaEncuesta[]
+  intereses_emitidos  InteresNetworking[] @relation("intereses_emitidos")
+  intereses_recibidos InteresNetworking[] @relation("intereses_recibidos")
+  mensajes_chat       MensajeChat[]       @relation("mensajes_chat")
 
   @@index([organizacion_id])
   @@map("usuario")
@@ -81,6 +87,7 @@ model Congreso {
   sesiones      Sesion[]
   ponentes      Ponente[]
   inscripciones Inscripcion[]
+  intereses_networking InteresNetworking[]
 
   @@index([organizacion_id])
   @@map("congreso")
@@ -259,4 +266,68 @@ model RespuestaEncuesta {
   @@index([organizacion_id])
   @@index([opcion_id])
   @@map("respuesta_encuesta")
+}
+
+
+// ---------------------------------------------------------------------------
+// FASE 6 — Networking (interes mutuo -> match -> chat limitado)
+// ---------------------------------------------------------------------------
+
+// Interes de un asistente (emisor) en otro (receptor) dentro de un congreso.
+// Es DIRECCIONAL: A->B es una fila distinta de B->A. Cuando existen las dos,
+// hay "match" (ambas pasan a 'correspondido' y se crea una Conexion).
+model InteresNetworking {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  congreso_id     String   @db.Uuid
+  emisor_id       String   @db.Uuid
+  receptor_id     String   @db.Uuid
+  estado          String   @default("pendiente") // pendiente|correspondido|rechazado
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+  emisor       Usuario      @relation("intereses_emitidos", fields: [emisor_id], references: [id])
+  receptor     Usuario      @relation("intereses_recibidos", fields: [receptor_id], references: [id])
+  conexion     Conexion?
+
+  @@unique([congreso_id, emisor_id, receptor_id]) // un interes por direccion y congreso
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@map("interes_networking")
+}
+
+// Conexion: nace cuando hay match. Apunta al interes que completo el match y
+// lleva el limite de mensajes del chat (regla de negocio: networking acotado).
+model Conexion {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  interes_id      String   @unique @db.Uuid
+  limite_mensajes Int      @default(20)
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion      @relation(fields: [organizacion_id], references: [id])
+  interes      InteresNetworking @relation(fields: [interes_id], references: [id])
+  mensajes     MensajeChat[]
+
+  @@index([organizacion_id])
+  @@map("conexion")
+}
+
+// Un mensaje del chat de una conexion (ERD: CONEXION ||--o{ MENSAJE_CHAT).
+model MensajeChat {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  conexion_id     String   @db.Uuid
+  autor_id        String   @db.Uuid
+  texto           String
+  enviado_en      DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  conexion     Conexion     @relation(fields: [conexion_id], references: [id])
+  autor        Usuario      @relation("mensajes_chat", fields: [autor_id], references: [id])
+
+  @@index([organizacion_id])
+  @@index([conexion_id])
+  @@map("mensaje_chat")
 }

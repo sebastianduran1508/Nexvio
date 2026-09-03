@@ -114,6 +114,24 @@ export class CongresosService {
       await tx.ponente.deleteMany({ where: { congreso_id: id } });
       // Fase 4: tambien las inscripciones cuelgan del congreso.
       await tx.inscripcion.deleteMany({ where: { congreso_id: id } });
+      // Fase 6: el networking (intereses/conexiones/mensajes) cuelga del congreso.
+      const intereses = await tx.interesNetworking.findMany({
+        where: { congreso_id: id },
+        select: { id: true },
+      });
+      const interesIds = intereses.map((i) => i.id);
+      if (interesIds.length > 0) {
+        const conexiones = await tx.conexion.findMany({
+          where: { interes_id: { in: interesIds } },
+          select: { id: true },
+        });
+        const conexionIds = conexiones.map((c) => c.id);
+        if (conexionIds.length > 0) {
+          await tx.mensajeChat.deleteMany({ where: { conexion_id: { in: conexionIds } } });
+          await tx.conexion.deleteMany({ where: { id: { in: conexionIds } } });
+        }
+      }
+      await tx.interesNetworking.deleteMany({ where: { congreso_id: id } });
       await tx.congreso.delete({ where: { id } });
       return { borrado: true };
     });

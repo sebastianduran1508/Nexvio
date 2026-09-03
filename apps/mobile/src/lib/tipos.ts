@@ -52,3 +52,23 @@ export type EncuestaResultado = {
   total: number;
   miVoto: string | null;
 };
+
+// --- Fase 6: networking y chat ---
+export type DirectorioItem = {
+  usuario: { id: string; nombre: string };
+  estado: string; // ninguno | enviado | recibido | correspondido
+  conexionId: string | null;
+};
+
+export type MensajeChat = {
+  id: string;
+  texto: string;
+  autor: { id: string; nombre: string };
+  enviado_en: string;
+};
+
+export type MensajesResp = {
+  limite_mensajes: number;
+  usados: number;
+  mensajes: MensajeChat[];
+};

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CrearEncuestaDto } from './dto/crear-encuesta.dto';
 
 const ROLES_STAFF = ['admin', 'organizador', 'coordinador'];
