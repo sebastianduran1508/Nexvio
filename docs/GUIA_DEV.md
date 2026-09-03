@@ -9,7 +9,9 @@
 > Congresos** completa (CRUD de congresos, agenda/sesiones y ponentes, con
 > validación de entrada) y **Bloque Puente** completo (**alta de organizaciones +
 > primer organizador**, con aislamiento entre tenants probado con usuarios reales).
-> También está lista una **rebanada vertical del panel web** (login + lista de
+> También está el **Módulo Inscripciones (Fase 4 — backend)**: el asistente se
+> inscribe a un congreso, consulta sus inscripciones y las cancela; el staff ve la
+> lista de inscritos. Y está lista una **rebanada vertical del panel web** (login + lista de
 > congresos conectada a la API real). Los módulos restantes se documentarán aquí a
 > medida que se construyan.
 
@@ -514,6 +516,9 @@ node prisma/tests/e2e_congresos.js <email> <password>
 # opcionales: si se dan, prueba también el aislamiento entre organizaciones.
 node prisma/tests/e2e_fase3_crud.js <emailA> <passA> [emailB] [passB]
 
+# End-to-end del Módulo Inscripciones (Fase 4). Mismo patrón: Org B opcional.
+node prisma/tests/e2e_fase4_inscripciones.js <emailA> <passA> [emailB] [passB]
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -588,6 +593,55 @@ y otra con el web (`apps/web` → `npm run dev`, sirve en `localhost:3001`). Log
 prueba: `test.medicina@nexvio.dev`. Debe verse solo "Congreso de Medicina".
 
 ---
+
+## 14. El Módulo Inscripciones (Fase 4 — backend)
+
+Es el módulo que conecta a un **asistente** con un **congreso**. Es la base del
+primer flujo desde el móvil: el asistente se loguea, ve la agenda y **se inscribe**.
+
+### 14.1. La tabla `inscripcion`
+
+Sigue la regla de oro (lleva `organizacion_id` para el RLS) y modela el ERD de la
+tesis: enlaza un `usuario_id` con un `congreso_id`, más `estado` (`confirmada` |
+`cancelada`) y `registrado_en`. La pareja `(congreso_id, usuario_id)` es **única**:
+nadie se inscribe dos veces al mismo congreso (lo garantiza la BD, no el código).
+Su RLS se aplicó con el mismo patrón de dos pasos (migración vacía + SQL a mano;
+copia en `prisma/setup/04_rls_inscripcion.sql`).
+
+### 14.2. Los endpoints
+
+| Ruta | Quién | Qué hace |
+|---|---|---|
+| `POST /congresos/:congresoId/inscripciones` | cualquier rol del tenant | El usuario se inscribe **a sí mismo** |
+| `GET /inscripciones/mias` | cualquier rol | Sus inscripciones **activas**, con el congreso |
+| `DELETE /inscripciones/:id` | cualquier rol | Cancela **la propia** (soft: `cancelada`) |
+| `GET /congresos/:congresoId/inscripciones` | staff (admin/organizador/coordinador) | Lista de **inscritos** de un congreso |
+
+### 14.3. Decisiones clave
+
+- **La identidad sale del token, no del cuerpo.** El decorador nuevo `@UserId()`
+  (`src/auth/user-id.decorator.ts`) saca el id del usuario del claim `sub` del JWT.
+  Así es imposible inscribir a otra persona mandando un `usuario_id` falso en el body.
+- **Cancelación "soft".** Cancelar no borra la fila: la deja en `estado: 'cancelada'`.
+  Conserva el historial y respeta la unicidad. Si el asistente se **reinscribe**, se
+  **reactiva** esa misma fila (vuelve a `confirmada`) en vez de crear otra.
+- **Solo la propia.** Al cancelar, si el id de la inscripción no es del usuario
+  autenticado, se responde **404** (ni se confirma que existe). Sin fugas.
+- **Borrado de congreso en cascada (manual).** Como no hay `ON DELETE CASCADE`, el
+  `borrar` de congresos ahora también elimina las inscripciones del congreso, además
+  de sesiones, ponentes y vínculos, todo en la misma transacción.
+
+### 14.4. Prueba de cierre
+
+`prisma/tests/e2e_fase4_inscripciones.js`: sin token → 401; crea un congreso; el
+usuario se inscribe (201, `confirmada`); reinscribirse → 409; `mias` lo trae; el
+staff ve 1 inscrito con su email; cancelar → `mias` ya no lo trae; reinscribirse
+reactiva; y (opcional) Org B no puede inscribirse ni ver inscritos de Org A (404).
+Limpia borrando el congreso. **Pasa (todo verde).**
+
+> **Pendiente para el móvil:** la app es para asistentes (rol `participante`), pero
+> aún no existe forma de crear cuentas de participante (el onboarding solo crea el
+> primer organizador). Se resolverá al montar los bloques móviles (4.3–4.4).
 
 ## 13. Glosario rápido
 

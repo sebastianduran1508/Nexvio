@@ -189,13 +189,51 @@ Primer cable frontend↔backend, hecho pequeño a propósito para validar el wir
   puede migrar a cookies con `@supabase/ssr` sin tocar la API.
 - Dependencia nueva en el web: `@supabase/supabase-js`.
 
+## Estado actual (Fase 4 — Inscripciones + app móvil base) 🚧 BACKEND COMPLETO
+
+Primera mitad de la Fase 4: el **backend de inscripciones**. La app móvil (login +
+agenda + inscribirse) es la segunda mitad, en construcción.
+
+- [x] **Tabla `inscripcion`** (ERD: usuario ↔ congreso). Campos: `estado`
+  (`confirmada`|`cancelada`) y `registrado_en`. Única `(congreso_id, usuario_id)`.
+  Migración `fase4_inscripciones` + su RLS `rls_inscripcion` (SQL de referencia en
+  `prisma/setup/04_rls_inscripcion.sql`).
+- [x] **Módulo `inscripciones`** (`src/inscripciones/`): el asistente se inscribe a
+  sí mismo (`POST /congresos/:id/inscripciones`), ve sus inscripciones
+  (`GET /inscripciones/mias`) y las cancela (`DELETE /inscripciones/:id`, soft →
+  `cancelada`, solo la propia). El staff ve los inscritos
+  (`GET /congresos/:id/inscripciones`).
+- [x] **Decorador `@UserId()`** (`src/auth/user-id.decorator.ts`): la identidad de
+  quién se inscribe sale del `sub` del JWT, nunca del cuerpo.
+- [x] **Ajuste en `congresos.service.borrar`**: ahora arrastra también las
+  inscripciones del congreso (no hay `ON DELETE CASCADE`).
+- [x] **Prueba de cierre** `prisma/tests/e2e_fase4_inscripciones.js`: inscribir,
+  duplicado→409, `mias`, lista staff, cancelar/reactivar y aislamiento opcional
+  Org B. **Pasa (verde).**
+
+### Gotchas de Fase 4 (backend)
+- **Se repitió el gotcha de Windows:** tras la migración, el cliente de Prisma no se
+  regeneró porque `start:dev` estaba corriendo → *"Property 'inscripcion' does not
+  exist on type 'TransactionClient'"*. Solución: parar `start:dev` →
+  `npx prisma generate` → arrancar de nuevo.
+
+### ⚠️ Decisión pendiente antes del móvil: cuentas de asistente
+La app es para asistentes (rol `participante`), pero **hoy no existe forma de crear
+cuentas de participante** (el onboarding solo crea la organización + su primer
+organizador). Hay que decidir cómo consigue su cuenta el asistente antes/junto con
+las pantallas móviles. Opciones sobre la mesa: (1) script de *seed* de
+participantes; (2) endpoint de gestión de usuarios para el staff; (3) auto-registro
+público. La prueba e2e del backend usa el organizador porque el endpoint se comporta
+igual para cualquier rol.
+
 ## Próximos pasos sugeridos — FASE 4
 
-Con el cable frontend↔backend ya tendido, sigue la **Fase 4 — Inscripciones + app
-móvil base** (tabla `Inscripcion` + app Expo donde el asistente se loguea y ve la
-agenda; primer flujo completo desde el móvil). Pendientes menores arrastrados:
-gestión de usuarios (ampliar el onboarding), la suite de Jest (`clearMocksOnScope`),
-y ampliar el panel web (más pantallas) cuando toque la Fase 8.
+El **backend de inscripciones ya está** (ver sección anterior). Falta la **app
+móvil base**: app Expo donde el asistente se loguea, ve la lista de congresos, entra
+al detalle con la agenda y **se inscribe** — el primer flujo completo desde el móvil.
+Antes de las pantallas hay que resolver la **decisión de cuentas de asistente** (ver
+arriba). Pendientes menores arrastrados: la suite de Jest (`clearMocksOnScope`) y
+ampliar el panel web (más pantallas) cuando toque la Fase 8.
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 

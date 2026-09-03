@@ -43,6 +43,7 @@ model Organizacion {
   sesiones         Sesion[]
   ponentes         Ponente[]
   sesion_ponentes  SesionPonente[]
+  inscripciones    Inscripcion[]
 
   @@map("organizacion")
 }
@@ -56,6 +57,7 @@ model Usuario {
   creado_en       DateTime @default(now())
 
   organizacion Organizacion? @relation(fields: [organizacion_id], references: [id])
+  inscripciones Inscripcion[]
 
   @@index([organizacion_id])
   @@map("usuario")
@@ -70,8 +72,9 @@ model Congreso {
   estado          String   @default("borrador")
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
-  sesiones     Sesion[]
-  ponentes     Ponente[]
+  sesiones      Sesion[]
+  ponentes      Ponente[]
+  inscripciones Inscripcion[]
 
   @@index([organizacion_id])
   @@map("congreso")
@@ -137,4 +140,32 @@ model SesionPonente {
   @@unique([sesion_id, ponente_id])
   @@index([organizacion_id])
   @@map("sesion_ponente")
+}
+
+// ---------------------------------------------------------------------------
+// FASE 4 — Modulo Inscripciones
+// ---------------------------------------------------------------------------
+
+// La inscripcion enlaza a un USUARIO (rol participante) con un CONGRESO dentro
+// de un tenant (ERD: USUARIO ||--o{ INSCRIPCION, CONGRESO ||--o{ INSCRIPCION).
+// Lleva organizacion_id como toda tabla de negocio (para el RLS).
+// La pareja (congreso_id, usuario_id) es unica: nadie se inscribe dos veces al
+// mismo congreso.
+model Inscripcion {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  congreso_id     String   @db.Uuid
+  usuario_id      String   @db.Uuid
+  estado          String   @default("confirmada") // confirmada | cancelada
+  registrado_en   DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+  usuario      Usuario      @relation(fields: [usuario_id], references: [id])
+
+  @@unique([congreso_id, usuario_id])
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@index([usuario_id])
+  @@map("inscripcion")
 }

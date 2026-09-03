@@ -98,6 +98,8 @@ export class CongresosService {
       await tx.sesionPonente.deleteMany({ where: { ponente: { congreso_id: id } } });
       await tx.sesion.deleteMany({ where: { congreso_id: id } });
       await tx.ponente.deleteMany({ where: { congreso_id: id } });
+      // Fase 4: tambien las inscripciones cuelgan del congreso.
+      await tx.inscripcion.deleteMany({ where: { congreso_id: id } });
       await tx.congreso.delete({ where: { id } });
       return { borrado: true };
     });
