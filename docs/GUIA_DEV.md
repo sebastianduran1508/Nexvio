@@ -1,5 +1,10 @@
 # Guía de desarrollo — Nexvio
 
+> **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
+> **Fase 8** (identidad visual + panel del administrador + producto completo).
+> Las decisiones y el nuevo plan están en `HANDOFF.md`. Esta guía documenta el
+> **código ya construido**; se ampliará al cerrar cada bloque nuevo.
+
 > Guía viva. Se amplía al cerrar cada bloque de desarrollo. Su objetivo es que
 > cualquiera (en especial Sebastián) entienda **cómo funciona la aplicación y el
 > código**, sin dar nada por supuesto. Escrita en lenguaje accesible.

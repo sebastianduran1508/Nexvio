@@ -79,9 +79,19 @@ Interés mutuo → match → chat con límite de mensajes.
 WhatsApp Cloud API + bandeja unificada + RAG que clasifica, responde FAQs y escala a humano.
 **Entregable:** llega un WhatsApp, la IA lo responde o lo escala. Lo más impresionante y lo más riesgoso — por eso va tarde, cuando todo lo demás ya funciona.
 
-### Fase 8 — Panel web completo (3 roles, métricas, personalización)
-Las tres vistas por rol, métricas de participación, y personalización visual por congreso.
-**Entregable:** panel administrativo completo.
+> **Reordenada (reunión con el cliente, sep-2026): esta fase va al FINAL, después de las Fases 8 y 9,** cuando el cliente ya aprobó el sistema.
+
+### Fase 8 — Identidad visual + Panel del administrador + producto completo
+> **Ampliada tras la reunión con el cliente (sep-2026) — es ahora la siguiente fase.**
+
+- **Identidad visual:** Opción A (violeta #5A46F0 + coral #FF7A59), modo claro/oscuro con tokens, logo (red de nodos); montar shadcn (web) + NativeWind (móvil).
+- **Nuevo modelo de registro:** import de Excel de inscritos; login por **usuario + contraseña temporal**; el asistente ve **solo su congreso**. Nexvio no maneja pagos ni inscripciones.
+- **Roles:** superadmin (crea organizaciones y **congresos**) y **admin de congreso** (rol organizador).
+- **Panel del admin (menú lateral):** Usuarios (CRUD + import Excel), Agenda (días, breaks, asignar speaker), Speakers (cargo, empresa, foto, país), Sponsors, Notificaciones push (Expo), Información/ayuda, y **personalización por congreso** (logo/colores/imágenes → reflejada en la app).
+- **Integraciones nuevas:** Supabase Storage, Expo Push, lectura de Excel.
+- **App móvil:** aplicar el diseño final + perfil de asistente + networking mejorado.
+
+**Entregable:** panel del administrador completo y app pulida con la identidad final.
 
 ### Fase 9 — Pruebas, seguridad y verificación final
 Unitarias (70%), integración, e2e, carga (120+ usuarios) y seguridad (aislamiento, cifrado, Ley 1581).

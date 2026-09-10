@@ -302,14 +302,77 @@ Fase 5 (gateway movido a `src/realtime/`, módulo compartido).
   `RealtimeModule`; participación y networking lo importan.
 - **`congresos.borrar`** ahora también arrastra el networking (interés→conexión→mensajes).
 
-## Próximos pasos sugeridos — FASE 4
+## Reunión con el cliente (sep-2026) — decisiones clave y nueva Fase 8
 
-Las Fases 4, 5 y 6 quedaron **completas**. Sigue la **Fase 7 — Bandeja omnicanal +
-agente IA (WhatsApp)**: WhatsApp Cloud API + bandeja unificada + RAG (OpenAI +
-pgvector) que clasifica, responde FAQs y escala a humano. Es la más impresionante y
-la más riesgosa (por eso va tarde). Pendientes menores: pulir la zona horaria de las
-sesiones (UTC), la suite de Jest (`clearMocksOnScope`), ampliar el panel web (Fase 8)
-y confirmar con los dueños el modelo de registro de asistentes (decisión pendiente).
+Con las Fases 0–6 completas, se hizo una reunión con el cliente (Grupo Studio Sebia /
+AMCPER). Estas decisiones REORDENAN y AMPLÍAN el plan.
+
+### Identidad visual (aprobada)
+- **Opción A**: violeta **#5A46F0** + coral **#FF7A59**, con **modo claro y oscuro**
+  (se construirá con **tokens de tema**), estructura/organización de la app A.
+- **Logo**: concepto **red de nodos** (símbolo + wordmark en Space Grotesk). Borrador
+  entregado (SVG/PNG, claro/oscuro, ícono); se afina con el cliente.
+
+### Modelo de registro (RESUELVE la decisión que estaba pendiente)
+Nexvio **NO** maneja pagos ni inscripciones. La persona se inscribe y paga
+directamente con la organización; la organización envía un **Excel** con los
+registrados y el **admin del congreso lo importa** desde el panel.
+- **Plantilla Excel**: nombres, apellidos, tipo+número de documento, tipo de
+  suscripción, congreso, fecha de inscripción; opcionales: cargo, empresa, país,
+  teléfono (correo opcional).
+- **Credenciales**: el asistente entra con **usuario** tipo `JPGarcia` (iniciales del
+  nombre + apellido; sufijo si colisiona) + **contraseña temporal** que cambia al
+  primer ingreso. Internamente el usuario se guarda como **correo sintético** (Supabase
+  Auth trabaja con correo); el asistente nunca lo ve.
+- El asistente ve **SOLO el congreso** al que está inscrito.
+
+### Roles
+- **Superadmin** = rol `admin` global → crea organizaciones y **congresos** (esto último falta).
+- **Admin del congreso** = rol `organizador` → gestiona su congreso desde el panel (menú lateral).
+  No hace falta un rol nuevo, solo construir sus pantallas.
+- `coordinador` (moderación) y `participante` (asistente) siguen igual.
+
+### Panel del admin (menú lateral) — el grueso de la Fase 8
+1. **Usuarios**: CRUD de los inscritos a SU congreso + **importar Excel**.
+2. **Agenda**: agenda por día (charlas y breaks), asignar speaker a cada charla.
+3. **Speakers**: nombre, cargo, empresa, foto, país (bandera); enlazados con la agenda.
+4. **Sponsors**: subir imágenes de sponsors para mostrarlas en la app.
+5. **Notificaciones push**: enviar mensajes push a los asistentes (Expo Push).
+6. **Información/ayuda**: guía de uso del panel para admins no técnicos.
+- Además, **personalización por congreso** (logo, colores, imágenes) reflejada en la app.
+
+### Integraciones nuevas (a montar en la Fase 8)
+- **Supabase Storage** (imágenes: logos, fotos de speakers, sponsors, portadas).
+- **Expo Push Notifications** (token por dispositivo + envío desde el backend).
+- **Lectura de Excel** (`.xlsx`) en el backend para la importación.
+
+### Ideas sugeridas (opcionales, a confirmar con el cliente)
+Favoritos de agenda + recordatorios push; mini-dashboard de métricas para el admin;
+certificado de asistencia (PDF); check-in con QR; y un texto de tratamiento de datos
+(**Ley 1581**) al primer ingreso, ya que importamos datos personales.
+
+### Reordenamiento del plan
+La **Fase 7 (WhatsApp + IA)** se mueve al **FINAL** (cuando el cliente apruebe el
+sistema). Antes van la **Fase 8 (identidad visual + panel admin + producto completo)**
+y la **Fase 9 (verificación final)**.
+
+## Próximos pasos — FASE 8 (reestructurada)
+
+Tras la reunión con el cliente (ver sección anterior), el orden es
+**Fase 8 → Fase 9 → Fase 7**. La Fase 8 se aborda en bloques (cada uno cierra con prueba):
+
+- **8.0** Identidad visual: tokens de la Opción A (claro/oscuro), logo, montar shadcn (web) + NativeWind (móvil).
+- **8.1** Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
+- **8.2** Superadmin: crear congresos (+ asignar admin).
+- **8.3** Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
+- **8.4** Admin · Agenda + Speakers.
+- **8.5** Admin · Sponsors + Personalización (reflejada en la app).
+- **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
+- **8.7** App móvil: diseño final + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
+
+Luego **Fase 9** (pruebas, carga, seguridad, Ley 1581) y por último **Fase 7**
+(WhatsApp + IA). Pendientes menores arrastrados: zona horaria de sesiones (UTC) y la
+suite de Jest (`clearMocksOnScope`).
 
 **Al cerrar cada bloque: actualizar `docs/GUIA_DEV.md` (guía viva) y este HANDOFF.**
 
