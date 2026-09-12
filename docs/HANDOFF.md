@@ -361,7 +361,7 @@ y la **Fase 9 (verificación final)**.
 Tras la reunión con el cliente (ver sección anterior), el orden es
 **Fase 8 → Fase 9 → Fase 7**. La Fase 8 se aborda en bloques (cada uno cierra con prueba):
 
-- **8.0** Identidad visual: tokens de la Opción A (claro/oscuro), logo, montar shadcn (web) + NativeWind (móvil).
+- **8.0** ✅ Identidad visual: tokens de la Opción A (claro/oscuro), logo, montar shadcn (web) + NativeWind (móvil).
 - **8.1** Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
 - **8.2** Superadmin: crear congresos (+ asignar admin).
 - **8.3** Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
@@ -381,3 +381,62 @@ suite de Jest (`clearMocksOnScope`).
 Nivel: intermedio. El asistente da el paso a paso y el autor lo ejecuta. Ir en grupos grandes de trabajo pero detenerse si surge un problema. Cada fase cierra con una prueba. Commits frecuentes (Conventional Commits). Explicaciones amigables con ejemplos.
 
 **Entendimiento del código (importante para Sebastián):** como el asistente escribe el código, Sebastián necesita ir entendiéndolo. Por eso: (1) en cada bloque el asistente explica qué hace el código nuevo y por qué; (2) se mantiene una **guía viva `docs/GUIA_DEV.md`** que se amplía al cerrar cada bloque (estructura de carpetas, qué hace cada archivo, flujo de una petición, decisiones clave). Al final del desarrollo debe existir una documentación detallada y fiel de cómo funciona la app y el código.
+
+## Estado actual (Fase 8 · Bloque 8.0 — Identidad visual) ✅ COMPLETO
+
+Primer bloque de la Fase 8 reestructurada. Monta la identidad de marca, el logo y
+las herramientas de UI en web y móvil. **No** rediseña pantallas aún (eso llega con
+el panel del admin y el rediseño del móvil); deja el sistema listo.
+
+- **Fuente de verdad**: `docs/IDENTIDAD_VISUAL.md` (tokens Opción A, claro/oscuro).
+  Documento del logo para la sustentación: `docs/logo-nexvio.html`.
+- **Web (shadcn)**: init `base-nova` (Base UI + Lucide) sobre Next 16 + Tailwind v4 +
+  React 19; tokens de marca en `globals.css` (`:root`/`.dark` + `@theme inline`, con
+  `--coral`); tema claro/oscuro con `next-themes` (`theme-provider` + `mode-toggle`
+  flotante temporal); Space Grotesk para titulares/wordmark; componentes `button/card/
+  input/label`; logo (`components/logo.tsx`) + favicon (`app/icon.svg`); las 4 pantallas
+  de staff (login, congresos, detalle, moderación) convertidas a tokens.
+- **Móvil (NativeWind)**: NativeWind 4.2.6 + Tailwind 3.4.17 (babel, metro fusionado con
+  el monorepo, `global.css` con tokens RGB, `darkMode: 'media'`, `userInterfaceStyle:
+  automatic`); logo con `react-native-svg` (`src/components/Logo.tsx`); íconos de app
+  regenerados; login convertido.
+- **Logo**: concepto **red de nodos** — la N de Nexvio dibujada como 5 nodos enlazados,
+  con un **nodo coral** de acento (la conexión que se enciende). Símbolo + wordmark en
+  Space Grotesk; variantes claro/oscuro/ícono. Artefacto publicado (además del HTML en docs).
+
+### Gotchas nuevos del Bloque 8.0 (¡clave!)
+
+- **shadcn en Tailwind v4** NO usa `tailwind.config.js`: config en `components.json`,
+  tokens en `globals.css`. El proyecto web es **Next 16 + React 19** (no Next 14 como
+  decía una nota vieja).
+- **Expo Go se autoactualizó a SDK 57** y el proyecto es **SDK 54** → "Project is
+  incompatible with this version of Expo Go". Solución usada: instalar la Expo Go de
+  **SDK 54** (link `https://expo.dev/go?sdkVersion=54&platform=android&device=true`) y,
+  opcional, desactivar su auto-update en Play Store. Alternativa (aplazada, bloque
+  aparte): subir el proyecto a **SDK 57** (trae **React Native 0.86**, salto grande).
+- **pnpm + NativeWind**: Metro no resolvía `react-native-css-interop/jsx-runtime` porque
+  pnpm lo aísla dentro de `nativewind`. Fix: agregarlo como dependencia **directa** del
+  móvil, fijada a la que espera NativeWind: `pnpm add react-native-css-interop@0.2.6`.
+- **Ícono de app**: NO se ve en Expo Go (siempre muestra el ícono de Expo Go); solo
+  aparece en una **build real** (EAS). Los assets ya quedaron correctos.
+
+### Pendientes arrastrados del 8.0 (para el momento que corresponda)
+
+- **Toggle de tema claro/oscuro en el MÓVIL** (hoy sigue al SO automáticamente). Para un
+  botón manual: pasar NativeWind a `colorScheme`/`darkMode: 'class'`. → encaja en **8.7**.
+- **Space Grotesk en el móvil** (hoy el wordmark usa la fuente del sistema) — requiere
+  `expo-font`. → 8.7.
+- **Mover el `ModeToggle`** del web de flotante a la **cabecera real** del panel. → al
+  construir el layout del admin (8.2+).
+- **Animaciones de marca** (intro con los nodos apareciendo, cargas con nodos): viable
+  con SVG/Reanimated; se hará en la capa de pulido (8.7 / Fase 9).
+
+### Método / commits (importante)
+
+- **Un solo commit al final del Módulo 8** (decisión de Sebastián): TODO el Bloque 8.0
+  está **sin commitear** aún. Lo pendiente por incluir: `docs/IDENTIDAD_VISUAL.md`,
+  `docs/logo-nexvio.html`, la ampliación de `docs/GUIA_DEV.md` y este `HANDOFF.md`, y
+  todo `apps/web` y `apps/mobile` (init shadcn, tokens, tema, logo, íconos, pantallas
+  convertidas) + dependencias nuevas.
+- Flujo actualizado: los archivos se **escriben directo en la carpeta** (no se pasan por
+  el chat); Sebastián revisa y hará el commit.

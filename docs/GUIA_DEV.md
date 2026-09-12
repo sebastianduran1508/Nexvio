@@ -955,3 +955,83 @@ cierra al llegar al límite). Usa `useAuth()` para alinear tus mensajes a la der
   `organizacion_id` NULL (no pertenece a ningún tenant). Es el único que crea
   organizaciones. Se siembra una vez con `prisma/setup/03_seed_admin.js`.
 ```
+
+
+---
+
+## 19. Identidad visual (Bloque 8.0)
+
+Primer bloque de la Fase 8. Monta la **identidad de marca** (Opción A: violeta
+`#5A46F0` + coral `#FF7A59`, claro/oscuro), el **logo** (red de nodos) y las
+**herramientas de UI** en las dos apps: shadcn en el web y NativeWind en el móvil.
+No rediseña pantallas todavía (eso llega con el panel del admin y el rediseño del
+móvil); deja el sistema listo para construir sobre él.
+
+### 19.1. La fuente de verdad de la marca
+
+`docs/IDENTIDAD_VISUAL.md` es el **único** sitio donde viven los colores, tipografías
+y tokens. Si un valor cambia, se cambia ahí primero y luego se refleja en cada app.
+Idea central: un **token de tema** es un *nombre con significado* (`primary`,
+`coral`, `muted-foreground`) en vez de un color suelto. En claro y en oscuro el
+**nombre no cambia, solo su valor** — por eso el modo oscuro funciona sin repintar
+pantallas. Regla de oro: en una pantalla **nunca** un color a mano; siempre el token
+(`bg-primary`, `bg-coral`, `text-muted-foreground`). El documento del **logo** con su
+concepto y variantes está en `docs/logo-nexvio.html` (abrir en el navegador; sirve
+para la sustentación).
+
+### 19.2. Web — shadcn + tokens + tema claro/oscuro
+
+- **shadcn** inicializado sobre **Next 16 + React 19 + Tailwind v4** (estilo
+  `base-nova`, primitivos **Base UI**, íconos **Lucide**). En Tailwind v4 shadcn NO usa
+  `tailwind.config.js`: la config vive en `components.json` y los tokens en
+  `src/app/globals.css` (variables CSS bajo `:root` = claro y `.dark` = oscuro,
+  expuestas a Tailwind con `@theme inline`). Ahí se añadió el token propio `--coral`.
+- **Modo claro/oscuro** con `next-themes`: pone la clase `.dark` en `<html>`, recuerda
+  la preferencia y respeta la del sistema. Piezas nuevas: `src/components/theme-provider.tsx`
+  y `src/components/mode-toggle.tsx` (botón sol/luna, hoy flotante abajo-derecha; se
+  moverá a la cabecera real del panel más adelante).
+- **Tipografía**: cuerpo en Geist (ya existente); titulares/wordmark en **Space Grotesk**
+  (`--font-heading`, cargada en `layout.tsx`).
+- **Componentes base** traídos: `button`, `card`, `input`, `label` (en `src/components/ui/`).
+- **Logo**: `src/components/logo.tsx` (`<Logo />` = símbolo + wordmark; `<NexvioMark />`
+  = solo el símbolo, con `var(--primary)`/`var(--coral)`). Favicon en `src/app/icon.svg`
+  (Next lo toma solo).
+- **Pantallas convertidas a tokens** (de colores a mano → tokens/componentes): `login`,
+  `congresos`, `congresos/[id]` y `sesiones/[id]` (moderación en vivo). Patrón de
+  traducción: `bg-white`→`bg-card`, `text-zinc-900`→`text-foreground`,
+  `text-zinc-500`→`text-muted-foreground`, `border-zinc-200`→`border-border`,
+  `text-indigo-600`→`text-primary`, `bg-red-50/text-red-700`→`bg-destructive/10 text-destructive`.
+
+Dependencias nuevas del web: `next-themes`, y las que trae shadcn (`class-variance-authority`,
+`cn`, `tw-animate-css`, `lucide-react`, `@base-ui/react`).
+
+### 19.3. Móvil — NativeWind + tokens
+
+- **NativeWind v4** (`^4.2.6`) + **Tailwind 3.4.17** sobre Expo SDK 54. Archivos:
+  `tailwind.config.js` (colores de marca por token, en canales RGB), `global.css` (los
+  valores: `:root` claro + `@media (prefers-color-scheme: dark)` oscuro), `babel.config.js`
+  (`jsxImportSource: nativewind` + preset `nativewind/babel`), `metro.config.js`
+  (se **fusionó** `withNativeWind` con la config del monorepo pnpm), `nativewind-env.d.ts`,
+  y `import './global.css'` en `App.tsx`.
+- **Modo oscuro automático**: `darkMode: 'media'` + `"userInterfaceStyle": "automatic"`
+  en `app.json` → sigue el tema del teléfono. (Un **toggle manual** en el móvil queda
+  pendiente para el 8.7: implica pasar a `colorScheme`/`darkMode: 'class'`.)
+- **Logo**: `src/components/Logo.tsx` con **react-native-svg** (símbolo + wordmark).
+  **Íconos de la app** (`assets/icon.png`, `adaptive-icon.png`, `splash-icon.png`,
+  `favicon.png`) generados desde el símbolo; fondo del ícono adaptativo (Android) en
+  violeta. Nota: el ícono de la app solo se ve en una **build real**, no en Expo Go.
+- **Login** convertido a `className` + tokens (antes usaba `StyleSheet` con colores a mano).
+
+Dependencias nuevas del móvil: `nativewind`, `react-native-css-interop@0.2.6` (ver
+gotcha en el HANDOFF), `react-native-svg`, y `tailwindcss@3.4.17` (dev).
+
+### 19.4. Cómo pedir un color (regla práctica)
+
+- Fondo de página: `bg-background` · texto principal: `text-foreground`.
+- Tarjeta/panel: `bg-card` + `text-card-foreground` + `border-border`.
+- Acción principal (violeta): `bg-primary text-primary-foreground`.
+- CTA destacado (1 por pantalla): `bg-coral text-coral-foreground`.
+- Texto tenue/ayudas: `text-muted-foreground`. Error/borrar: `*-destructive`.
+
+Funciona igual en web y móvil porque los **nombres** de token son los mismos; solo
+cambia dónde se definen (globals.css en web, tailwind.config + global.css en móvil).

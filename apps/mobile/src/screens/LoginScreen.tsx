@@ -3,18 +3,21 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from '../components/Logo';
 
 /**
  * Pantalla de inicio de sesion del asistente. Pide correo y contrasena y llama
  * a signIn() del contexto. Si el login funciona, la navegacion cambia sola a la
  * app (porque el contexto pasa a tener sesion).
+ *
+ * Diseño: usa el <Logo /> de marca (símbolo de nodos + wordmark) y tokens
+ * NativeWind. El modo oscuro lo aplica el sistema operativo automáticamente.
  */
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -37,84 +40,49 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 justify-center bg-background p-6"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.card}>
-        <Text style={styles.logo}>Nexvio</Text>
-        <Text style={styles.subtitulo}>Accede a tus congresos</Text>
+      <View className="rounded-2xl border border-border bg-card p-6">
+        <View className="mb-6 items-center">
+          <Logo />
+          <Text className="mt-2 text-[15px] text-muted-foreground">
+            Accede a tus congresos
+          </Text>
+        </View>
 
         <TextInput
-          style={styles.input}
+          className="mb-3 rounded-xl border border-input bg-card px-3.5 py-3 text-base text-foreground"
           placeholder="Correo"
+          placeholderTextColor="#9ca3af"
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
         />
         <TextInput
-          style={styles.input}
+          className="mb-3 rounded-xl border border-input bg-card px-3.5 py-3 text-base text-foreground"
           placeholder="Contrasena"
+          placeholderTextColor="#9ca3af"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text className="mb-3 text-destructive">{error}</Text>}
 
         <TouchableOpacity
-          style={[styles.boton, cargando && styles.botonDisabled]}
+          className={`mt-1 items-center rounded-xl bg-primary py-3.5 ${cargando ? 'opacity-60' : ''}`}
           onPress={onSubmit}
           disabled={cargando}
         >
           {cargando ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.botonTexto}>Entrar</Text>
+            <Text className="text-base font-bold text-primary-foreground">Entrar</Text>
           )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-  },
-  logo: { fontSize: 32, fontWeight: '800', color: '#4f46e5', textAlign: 'center' },
-  subtitulo: {
-    fontSize: 15,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  error: { color: '#dc2626', marginBottom: 12 },
-  boton: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  botonDisabled: { opacity: 0.6 },
-  botonTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});

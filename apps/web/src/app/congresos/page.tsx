@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase, API_URL } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
 
 // Forma de un congreso tal como lo devuelve la API.
 type Congreso = {
@@ -64,22 +65,21 @@ export default function CongresosPage() {
   return (
     <div className="mx-auto w-full max-w-2xl p-8">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-zinc-900">Congresos</h1>
-        <button
-          onClick={cerrarSesion}
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100"
-        >
+        <h1 className="text-2xl font-semibold text-foreground">Congresos</h1>
+        <Button variant="outline" size="sm" onClick={cerrarSesion}>
           Cerrar sesión
-        </button>
+        </Button>
       </header>
 
-      {cargando && <p className="text-zinc-500">Cargando…</p>}
+      {cargando && <p className="text-muted-foreground">Cargando…</p>}
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </p>
       )}
 
       {!cargando && !error && congresos.length === 0 && (
-        <p className="text-zinc-500">Tu organización aún no tiene congresos.</p>
+        <p className="text-muted-foreground">Tu organización aún no tiene congresos.</p>
       )}
 
       <ul className="space-y-3">
@@ -87,17 +87,17 @@ export default function CongresosPage() {
           <li key={c.id}>
             <Link
               href={`/congresos/${c.id}`}
-              className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
+              className="block rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow"
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium text-zinc-900">{c.nombre}</span>
+                <span className="font-medium text-card-foreground">{c.nombre}</span>
                 {c.estado && (
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     {c.estado}
                   </span>
                 )}
               </div>
-              <span className="mt-1 block text-sm text-indigo-600">Moderar sesiones ›</span>
+              <span className="mt-1 block text-sm text-primary">Moderar sesiones ›</span>
             </Link>
           </li>
         ))}

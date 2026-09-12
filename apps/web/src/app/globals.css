@@ -1,20 +1,192 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-/* Panel de staff: tema claro y consistente (sin auto-oscuro por ahora). */
+/* El modo oscuro se activa cuando un ancestro tiene la clase .dark
+   (la pone next-themes en <html>). */
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   TOKENS DE MARCA NEXVIO — MODO CLARO
+   Fuente de verdad: docs/IDENTIDAD_VISUAL.md (Opción A).
+   Regla de oro: en las pantallas nunca uses un color a mano,
+   usa el token (bg-primary, bg-coral, text-muted-foreground...).
+   ============================================================ */
 :root {
-  --background: #fafafa; /* zinc-50 */
-  --foreground: #18181b; /* zinc-900 */
+  /* Superficies y texto */
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+
+  /* Marca (violeta) — botón principal, enlaces */
+  --primary: #5a46f0;
+  --primary-foreground: #ffffff;
+
+  /* Secundario / apagados */
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+
+  /* Acento de marca (coral) — 1 CTA destacado por pantalla.
+     OJO: el texto encima va oscuro, no blanco (contraste). */
+  --coral: #ff7a59;
+  --coral-foreground: #2a1206;
+
+  /* Estados */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* Bordes y foco */
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #5a46f0;
+
+  /* Gráficas (mini-dashboard, más adelante) */
+  --chart-1: #5a46f0;
+  --chart-2: #ff7a59;
+  --chart-3: #22c55e;
+  --chart-4: #f59e0b;
+  --chart-5: #06b6d4;
+
+  --radius: 0.625rem;
+
+  /* Menú lateral del panel de admin (se usará en bloques 8.3+) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #5a46f0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #5a46f0;
 }
 
+/* ============================================================
+   TOKENS DE MARCA NEXVIO — MODO OSCURO
+   Mismos NOMBRES, distinto VALOR. Eso es un token de tema.
+   ============================================================ */
+.dark {
+  --background: #0b0a12;
+  --foreground: #fafafa;
+  --card: #16151f;
+  --card-foreground: #fafafa;
+  --popover: #16151f;
+  --popover-foreground: #fafafa;
+
+  --primary: #5a46f0;
+  --primary-foreground: #ffffff;
+
+  --secondary: #1e1d29;
+  --secondary-foreground: #fafafa;
+  --muted: #1e1d29;
+  --muted-foreground: #a1a1aa;
+  --accent: #1e1d29;
+  --accent-foreground: #fafafa;
+
+  --coral: #ff7a59;
+  --coral-foreground: #2a1206;
+
+  --destructive: #f87171;
+  --destructive-foreground: #2a0a0a;
+
+  --border: #26252f;
+  --input: #26252f;
+  --ring: #7c6bff;
+
+  --chart-1: #7c6bff;
+  --chart-2: #ff7a59;
+  --chart-3: #22c55e;
+  --chart-4: #f59e0b;
+  --chart-5: #06b6d4;
+
+  --sidebar: #16151f;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #7c6bff;
+  --sidebar-primary-foreground: #0b0a12;
+  --sidebar-accent: #1e1d29;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #26252f;
+  --sidebar-ring: #7c6bff;
+}
+
+/* ============================================================
+   Exponer los tokens a Tailwind v4 (utilidades bg-*, text-*).
+   Aquí es donde "nace" bg-coral, text-primary, border-border, etc.
+   ============================================================ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Nuestro token propio de marca */
+  --color-coral: var(--coral);
+  --color-coral-foreground: var(--coral-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tipografía. --font-geist-sans/mono vienen de layout.tsx (next/font).
+     --font-heading se usará para titulares/wordmark (Space Grotesk) en 8.0.d. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-space-grotesk);
+
+  /* Escala de radios derivada de --radius */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

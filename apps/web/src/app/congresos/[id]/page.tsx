@@ -33,35 +33,33 @@ export default function CongresoDetallePage() {
     })();
   }, [params.id, router]);
 
-  if (error) return <p className="p-8 text-red-700">{error}</p>;
-  if (!detalle) return <p className="p-8 text-zinc-500">Cargando…</p>;
+  if (error) return <p className="p-8 text-destructive">{error}</p>;
+  if (!detalle) return <p className="p-8 text-muted-foreground">Cargando…</p>;
 
   return (
     <div className="mx-auto w-full max-w-2xl p-8">
-      <Link href="/congresos" className="text-sm text-indigo-600">
+      <Link href="/congresos" className="text-sm text-primary">
         ‹ Congresos
       </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-semibold text-zinc-900">{detalle.nombre}</h1>
+      <h1 className="mb-6 mt-2 text-2xl font-semibold text-foreground">{detalle.nombre}</h1>
 
-      <h2 className="mb-3 text-lg font-medium text-zinc-800">Sesiones</h2>
+      <h2 className="mb-3 text-lg font-medium text-foreground">Sesiones</h2>
       {detalle.sesiones.length === 0 ? (
-        <p className="text-zinc-500">Este congreso aún no tiene sesiones.</p>
+        <p className="text-muted-foreground">Este congreso aún no tiene sesiones.</p>
       ) : (
         <ul className="space-y-3">
           {detalle.sesiones.map((s) => (
             <li key={s.id}>
               <Link
                 href={`/sesiones/${s.id}`}
-                className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow"
+                className="block rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow"
               >
-                <span className="text-sm text-indigo-600">
+                <span className="text-sm text-primary">
                   {hora(s.inicio)} - {hora(s.fin)}
                   {s.sala ? `  ·  ${s.sala}` : ''}
                 </span>
-                <p className="font-medium text-zinc-900">{s.titulo}</p>
-                <span className="mt-1 block text-sm text-indigo-600">
-                  Moderar en vivo ›
-                </span>
+                <p className="font-medium text-card-foreground">{s.titulo}</p>
+                <span className="mt-1 block text-sm text-primary">Moderar en vivo ›</span>
               </Link>
             </li>
           ))}
