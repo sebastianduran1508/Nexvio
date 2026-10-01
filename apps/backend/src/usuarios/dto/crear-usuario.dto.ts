@@ -9,8 +9,15 @@ import {
 
 /**
  * Molde para CREAR un usuario del tenant (cuerpo de POST /usuarios).
- * Lo usa el staff para dar de alta asistentes (y opcionalmente coordinadores).
- * La organizacion NO va aqui: sale del token del que hace la peticion (@OrgId()).
+ * La organizacion NO va aqui: sale del tenant activo de la peticion (@OrgId()).
+ *
+ * Sobre el campo `rol` (Bloque 8.2):
+ *  - Por defecto se crea un 'participante' (asistente).
+ *  - Un ORGANIZADOR puede crear ademas 'coordinador'.
+ *  - Solo el SUPERADMIN puede crear 'organizador' (el admin del congreso).
+ * La lista de aqui es el primer filtro (formato); quien puede crear que rol lo
+ * decide el service, que si sabe quien esta pidiendo. Nunca se puede crear un
+ * 'admin' por esta via: el superadmin se siembra una sola vez con un script.
  */
 export class CrearUsuarioDto {
   @IsString()
@@ -25,10 +32,7 @@ export class CrearUsuarioDto {
   @MinLength(6)
   password: string;
 
-  // Por defecto se crea un 'participante' (asistente). Un organizador puede
-  // ademas crear 'coordinador'. NO puede crear otros organizadores ni admins
-  // desde aqui (seguridad: evitar escalar privilegios).
   @IsOptional()
-  @IsIn(['participante', 'coordinador'])
+  @IsIn(['participante', 'coordinador', 'organizador'])
   rol?: string;
 }

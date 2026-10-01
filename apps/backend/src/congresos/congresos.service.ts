@@ -26,6 +26,12 @@ export class CongresosService {
           fecha_inicio: new Date(dto.fecha_inicio),
           fecha_fin: new Date(dto.fecha_fin),
           ...(dto.estado ? { estado: dto.estado } : {}),
+          ...(dto.descripcion ? { descripcion: dto.descripcion } : {}),
+          ...(dto.ciudad ? { ciudad: dto.ciudad } : {}),
+          ...(dto.pais ? { pais: dto.pais } : {}),
+          ...(dto.pais_codigo ? { pais_codigo: dto.pais_codigo.toUpperCase() } : {}),
+          ...(dto.lugar ? { lugar: dto.lugar } : {}),
+          ...(dto.zona_horaria ? { zona_horaria: dto.zona_horaria } : {}),
         },
       }),
     );
@@ -74,6 +80,14 @@ export class CongresosService {
             ? { fecha_fin: new Date(dto.fecha_fin) }
             : {}),
           ...(dto.estado !== undefined ? { estado: dto.estado } : {}),
+          ...(dto.descripcion !== undefined ? { descripcion: dto.descripcion } : {}),
+          ...(dto.ciudad !== undefined ? { ciudad: dto.ciudad } : {}),
+          ...(dto.pais !== undefined ? { pais: dto.pais } : {}),
+          ...(dto.pais_codigo !== undefined
+            ? { pais_codigo: dto.pais_codigo.toUpperCase() }
+            : {}),
+          ...(dto.lugar !== undefined ? { lugar: dto.lugar } : {}),
+          ...(dto.zona_horaria !== undefined ? { zona_horaria: dto.zona_horaria } : {}),
         },
       });
     });

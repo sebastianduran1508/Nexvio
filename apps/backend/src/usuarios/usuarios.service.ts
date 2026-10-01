@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Rol } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
@@ -21,8 +25,24 @@ export class UsuariosService {
     private readonly auth: SupabaseAdminService,
   ) {}
 
-  /** Alta de un usuario (asistente por defecto) en la organizacion del staff. */
-  async crear(orgId: string, dto: CrearUsuarioDto) {
+  /**
+   * Alta de un usuario (asistente por defecto) en la organizacion activa.
+   *
+   * `rolDeQuienPide` es el rol de quien hace la peticion, y sirve para que
+   * nadie pueda darse mas poder del que tiene (escalada de privilegios):
+   * un organizador puede crear asistentes y coordinadores, pero NO otros
+   * organizadores. Eso ultimo solo lo puede hacer el superadmin, que es quien
+   * designa al "admin del congreso" de cada cliente (Bloque 8.2).
+   */
+  async crear(orgId: string, dto: CrearUsuarioDto, rolDeQuienPide?: string) {
+    const rolPedido = dto.rol ?? 'participante';
+
+    if (rolPedido === 'organizador' && rolDeQuienPide !== 'admin') {
+      throw new ForbiddenException(
+        'Solo el superadmin puede crear organizadores (admins de congreso)',
+      );
+    }
+
     // 1) Cuenta de login. Si el correo ya existe, crearUsuario lanza 409.
     const authUserId = await this.auth.crearUsuario(dto.email, dto.password);
 
@@ -35,7 +55,7 @@ export class UsuariosService {
             organizacion_id: orgId,
             email: dto.email,
             nombre: dto.nombre,
-            rol: (dto.rol ?? 'participante') as Rol,
+            rol: rolPedido as Rol,
           },
           select: { id: true, email: true, nombre: true, rol: true },
         }),

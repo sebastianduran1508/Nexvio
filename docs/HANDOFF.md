@@ -362,8 +362,8 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 **Fase 8 → Fase 9 → Fase 7**. La Fase 8 se aborda en bloques (cada uno cierra con prueba):
 
 - **8.0** ✅ Identidad visual: tokens de la Opción A (claro/oscuro), logo, montar shadcn (web) + NativeWind (móvil).
-- **8.1** Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
-- **8.2** Superadmin: crear congresos (+ asignar admin).
+- **8.1** ✅ Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
+- **8.2** ✅ Superadmin: crear congresos (+ asignar admin) + layout del panel.
 - **8.3** Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
 - **8.4** Admin · Agenda + Speakers.
 - **8.5** Admin · Sponsors + Personalización (reflejada en la app).
@@ -433,10 +433,196 @@ el panel del admin y el rediseño del móvil); deja el sistema listo.
 
 ### Método / commits (importante)
 
-- **Un solo commit al final del Módulo 8** (decisión de Sebastián): TODO el Bloque 8.0
-  está **sin commitear** aún. Lo pendiente por incluir: `docs/IDENTIDAD_VISUAL.md`,
-  `docs/logo-nexvio.html`, la ampliación de `docs/GUIA_DEV.md` y este `HANDOFF.md`, y
-  todo `apps/web` y `apps/mobile` (init shadcn, tokens, tema, logo, íconos, pantallas
-  convertidas) + dependencias nuevas.
-- Flujo actualizado: los archivos se **escriben directo en la carpeta** (no se pasan por
+- **Commit por bloque** (decisión revisada en oct-2026; antes se había planteado un
+  único commit al final del Módulo 8). El Bloque 8.0 quedó en el commit
+  `d047567 feat(8.0): identidad visual — tokens de marca, shadcn (web) + NativeWind
+  (movil), logo red de nodos`. - Flujo actualizado: los archivos se **escriben directo en la carpeta** (no se pasan por
   el chat); Sebastián revisa y hará el commit.
+
+## Actualización (oct-2026) — Traspaso a chat nuevo
+
+**Bloque 8.0 — Identidad visual: CERRADO y COMMITEADO** (`d047567`). Lo construido
+quedó documentado en la sección de 8.0 (arriba) y en `GUIA_DEV.md`.
+
+**Documento académico (informe de avance) — ENTREGADO.** Se llenó la plantilla
+oficial del programa: `docs/NEXVIO_Informe_Avance_Plantilla.docx` (contenido mapeado
+desde `NEXVIO_Vfinal.md` + secciones nuevas 3.2 Marco teórico y 6 Resultados, con 3
+figuras propias: arquitectura, flujo RLS y avance por fases). Alineado a la rúbrica
+de 4 criterios. Encajes de estructura: el análisis BPSC va dentro de 2.1 (la plantilla
+no trae un 2.2 aparte) y la gestión del proyecto (alcance/tiempo/presupuesto/
+comunicaciones/riesgos) va dentro de "Resultados y discusión" (la plantilla no trae
+sección de Gestión aparte).
+
+**Pendientes SOLO del documento (no del desarrollo):** aplicar al `.docx` la OPEX
+corregida (AWS → Supabase/Upstash + host del backend), CAPEX (AWS S3 → Supabase
+Storage), y renumerar referencias por orden de aparición quitando las de Cognito y S3;
+actualizar la tabla de contenido en Word, borrar los textos azules de la plantilla y
+llenar portada/resumen. (Todo esto se dejó listo en el chat anterior, sin aplicar al
+archivo.)
+
+## Estado actual (Fase 8 · Bloque 8.1 — Modelo de datos) ✅ COMPLETO
+
+Cimiento de todo el panel del administrador (8.2–8.7). **No construye pantallas**:
+solo amplía la base de datos con lo que pidió el cliente en la reunión.
+Detalle completo y el "por qué" de cada decisión en `GUIA_DEV.md` § 20.
+
+- [x] **Columnas nuevas en 5 tablas existentes** (`fase8_modelo_datos`):
+  - `usuario` → perfil de asistente: `username`, `apellidos`, `tipo_documento`,
+    `numero_documento`, `telefono`, `cargo`, `empresa`, `pais`, `pais_codigo`,
+    `foto_url`, `debe_cambiar_password`, `acepto_datos_en` (Ley 1581).
+  - `congreso` → `descripcion`, `ciudad`, `lugar`, `zona_horaria`
+    (default `America/Bogota`).
+  - `sesion` → `tipo` (`charla`|`break`|`taller`|`plenaria`), `descripcion`, `orden`.
+  - `ponente` → `cargo`, `empresa`, `pais`, `pais_codigo`, `orden`.
+  - `inscripcion` → `tipo_suscripcion`, `origen` (`manual`|`excel`).
+- [x] **4 tablas nuevas**: `sponsor`, `personalizacion_congreso` (1:1 con congreso),
+  `dispositivo_push` (token de Expo por aparato) y `notificacion` (historial de push).
+- [x] **RLS** de las 4 tablas nuevas — migración `rls_fase8_modelo_datos`; SQL de
+  referencia en `prisma/setup/07_rls_fase8.sql`.
+- [x] **Prueba de cierre** `prisma/tests/e2e_fase8_1_modelo.js` — columnas nuevas,
+  4 tablas nuevas, las 2 restricciones (`P2002`) y el aislamiento RLS
+  (fail-closed + Org B ciega + `WITH CHECK`). Se autolimpia.
+
+### Decisiones y gotchas del Bloque 8.1
+
+- **`tipo_suscripcion` vive en `inscripcion`, no en `usuario`.** Es un dato de la
+  relación persona↔congreso: la misma persona puede ser "Miembro" en un congreso y
+  "General" en otro. Regla: si un dato cambia según el congreso, va en la tabla que
+  une a la persona con el congreso.
+- **`String` + `@default` en vez de `enum`** para `tipo`, `nivel`, `destino`, `origen`…
+  Un `enum` de Postgres exige migración para agregar un valor; con `String` basta
+  tocar el DTO. Se sigue la convención que ya tenía el proyecto en los `estado`.
+  El único `enum` real sigue siendo `Rol` (conjunto cerrado del que depende el
+  `RolesGuard`).
+- **Imágenes = URL, no bytes.** Logos, portadas y fotos van a **Supabase Storage**
+  (se monta en 8.5); en la BD solo vive la URL (igual que `ponente.foto_url`).
+- **`dispositivo_push`: único por `(usuario_id, expo_push_token)`**, no por token
+  solo. Con RLS, una fila de otro tenant con el mismo token sería invisible y el
+  INSERT fallaría con un duplicado inexplicable desde la app.
+- **`@@unique([organizacion_id, numero_documento])` en `usuario`** evita duplicar
+  personas al reimportar el Excel. En Postgres los `NULL` **no chocan** entre sí, así
+  que el staff sin documento no se ve afectado.
+- **El RLS filtra filas, no columnas** → las 5 tablas que solo recibieron columnas no
+  necesitaron tocar su política. Los `GRANT` los hereda `nexvio_app` de los
+  *default privileges* de `01_app_role.sql`.
+- **Migración no destructiva:** todas las columnas nuevas son opcionales o traen
+  `@default`, así que las filas existentes no se rompen.
+- **El `WITH CHECK` rechaza con `P2039`, no `P2002`.** Es el codigo de Prisma para
+  "la BD rechazo la operacion" (aqui, la politica de RLS). Comportamiento correcto.
+- **⏳ Pendiente: actualizar los DIAGRAMAS.** El **ERD** (`docs/diagramas.html`, la
+  figura del ERD en `NEXVIO_Vfinal.md` y la del informe de avance) debe incluir las 4
+  entidades nuevas y los atributos nuevos de `USUARIO`, `CONGRESO`, `SESION`,
+  `PONENTE` e `INSCRIPCION`. El **C4** cambiara mas adelante (Supabase Storage en 8.5,
+  Expo Push en 8.6). La **secuencia de RLS** NO cambia. Decision: hacerlo de una sola
+  vez al cerrar el Modulo 8, para no retocarlo en cada bloque.
+- **Se repitió el gotcha de Windows** (esperable): si `start:dev` está corriendo, el
+  cliente de Prisma no se regenera → parar `start:dev`, `npx prisma generate`,
+  arrancar de nuevo.
+
+## Estado actual (Fase 8 · Bloque 8.2 — Superadmin + layout del panel) ✅ COMPLETO
+
+Resuelve cómo trabaja el superadmin, que no pertenece a ninguna organización (su
+`organizacion_id` es NULL y el RLS —bien— le devuelve 0 filas). Detalle completo y
+el porqué de cada decisión en `GUIA_DEV.md` § 21.
+
+### Decisiones de diseño tomadas en este bloque
+
+- **Alcance del "admin del congreso": por ORGANIZACIÓN.** Un `organizador` ve todos
+  los congresos de su organización. En la práctica se crea un organizador por
+  congreso, así que el límite es de convención, no de sistema.
+  **Evolución prevista** (si el cliente la pide): tabla `congreso_admin`
+  (organizador ↔ congreso) que se añade ENCIMA, sin rehacer nada — habría que
+  filtrar también por ella en las pantallas de 8.3–8.6.
+- **Suplantación de tenant (no una política de "superadmin ve todo").** Se
+  descartó a propósito la política RLS de superadmin porque es un interruptor que
+  APAGA el aislamiento — justo el núcleo de la tesis. Con la suplantación el RLS
+  queda intacto y una petición vive siempre en UN solo tenant.
+
+### Lo construido
+
+- [x] **Suplantación de tenant** (`src/auth/tenant-context.middleware.ts`): el
+  superadmin manda `X-Organizacion-Id` y esa pasa a ser la organización de la
+  petición. La cabecera **solo se obedece si el TOKEN dice `rol: admin`**; para
+  cualquier otro rol se ignora. Efecto dominó: TODOS los controllers existentes
+  funcionan para el superadmin sin cambiar una línea.
+- [x] **Dos funciones `SECURITY DEFINER` acotadas** (migración
+  `fase8_funciones_superadmin`; SQL en `prisma/setup/08_funciones_superadmin.sql`):
+  `nexvio_listar_organizaciones()` (para el selector) y
+  `nexvio_panorama_congresos()` (la vista global que pidió el cliente, con
+  `en_curso` y conteos). `STABLE` + `SET search_path` + `REVOKE FROM PUBLIC` +
+  `GRANT` solo a `nexvio_app`. Devuelven columnas contadas, cero datos de negocio.
+- [x] **Módulo `src/superadmin/`**: `GET /superadmin/organizaciones` y
+  `GET /superadmin/panorama`. Las únicas dos rutas de la API sin tenant (y el único
+  service que no usa `runInTenant`).
+- [x] **Alta de organizadores**: `POST /usuarios` acepta `rol: 'organizador'` pero
+  solo si quien pide es `admin` (anti escalada de privilegios, vía `@RolActual()`).
+- [x] **Campos nuevos del congreso conectados**: `descripcion`, `ciudad`, `lugar` y
+  `zona_horaria` en los DTOs de crear/actualizar y en el service (hacía falta: el
+  `ValidationPipe` global tiene `forbidNonWhitelisted: true`).
+- [x] **Panel web con menú lateral**: route group `app/(panel)/` con
+  `layout.tsx` (barra lateral + cabecera). `congresos/` y `sesiones/` se MOVIERON
+  ahí dentro (las URLs no cambian). `components/panel/` con el contexto,
+  la barra lateral, la cabecera y el **selector de organización**.
+  Las entradas de 8.3–8.6 ya están en el menú marcadas como "pronto".
+- [x] **`ModeToggle` movido** del botón flotante provisional a la cabecera real
+  (✅ pendiente arrastrado del 8.0, resuelto).
+- [x] **Pantallas nuevas**: `/superadmin` (panorama con tarjetas y botón "Entrar"),
+  `/superadmin/organizaciones` (lista + alta de organización con su primer
+  organizador) y `/congresos/nuevo` (alta de congreso, sirve igual para
+  organizador y superadmin).
+- [x] **Prueba de cierre** `prisma/tests/e2e_fase8_2_superadmin.js` — **17/17 verde**.
+
+### Ajustes tras la primera revisión visual (mismo bloque)
+
+- [x] **`congreso.pais` y `congreso.pais_codigo`** (migración `fase8_congreso_pais`)
+  — el nombre visible y el ISO-3166 alpha-2 por separado, igual que en `ponente`
+  y `usuario`.
+- [x] **`components/ui/selector-buscable.tsx`** (combobox): se escribe para
+  filtrar pero hay que ELEGIR de la lista, para normalizar los datos. Busca sin
+  tildes, teclado completo, y modo `permitirLibre` para lo que el catálogo no
+  cubre. Catálogos en `datos/paises.ts` y `datos/ciudades.ts` (las ciudades
+  dependen del país; cambiar el país limpia la ciudad). **Se reusará en 8.4**
+  para la ficha de speakers.
+- [x] **`components/panel/dialogo-confirmar.tsx`**: confirmación propia (no
+  `window.confirm`, que ignora el tema oscuro y la marca). Ya se usa al cerrar
+  sesión; tiene variante `peligroso` para borrados y para el envío de push.
+- [x] **Cabecera en tres zonas** (identidad · organización activa · acciones): el
+  selector queda **centrado y destacado** con la etiqueta "Trabajando en".
+  Motivo: si el superadmin no tiene presente en qué cliente está, puede editar
+  el congreso equivocado.
+- [x] **Menú lateral: una sola entrada activa.** Antes `/superadmin` y
+  `/superadmin/organizaciones` se resaltaban a la vez (una es prefijo de la
+  otra). Ahora gana la coincidencia MÁS LARGA, y funciona solo para cualquier
+  ruta anidada que se agregue después.
+- ⏳ **El diseño fino queda para el 8.7** (decisión de Sebastián): estos cambios
+  fueron de funcionamiento, no de estética.
+
+### Gotchas y notas del 8.2
+
+- **`apiFetch` manda SIEMPRE la cabecera** `X-Organizacion-Id` si hay una
+  organización elegida en `localStorage`. Es inofensivo para los no-admin (el
+  backend la ignora) y evita condicionales por todo el frontend.
+- **Al cambiar de organización se recarga la página entera** (no `router.push`),
+  a propósito: no queda ni un dato del cliente anterior en pantalla.
+- **El rol se lee del JWT en el navegador sin verificar la firma** (`lib/sesion.ts`).
+  Es seguro porque ahí solo se decide QUÉ PINTAR; los permisos los aplica el backend.
+- **⚠️ Limitación conocida — Socket.io no entiende la suplantación.** El gateway
+  valida la sala con el `organizacion_id` del TOKEN, no con la cabecera. El
+  superadmin puede gestionar un congreso ajeno pero no moderar en vivo. Se arregla
+  pasando la organización en el handshake del socket. **Pendiente.**
+- **El `Button` del panel usa Base UI y NO tiene `asChild`.** Para un enlace con
+  pinta de botón se usa `<Link className={buttonVariants({...})}>`.
+- **Borrar `.next`** tras mover carpetas de rutas: la caché de Next guarda los
+  caminos viejos y da errores de módulo inexistente hasta que se regenera.
+- **Credenciales de prueba**: ahora viven en `.credenciales-dev.md` en la raíz
+  (añadido al `.gitignore`). Utilidad nueva para reponer una clave olvidada:
+  `node prisma/setup/09_cambiar_password.js <email> <nueva>`.
+
+**SIGUIENTE EN DESARROLLO: Bloque 8.3 — Admin · Usuarios.** CRUD de los inscritos a
+un congreso + **importación del Excel** que envía la organización, con el nuevo
+login por **usuario tipo `JPGarcia`** (correo sintético por dentro) y **contraseña
+temporal** que se cambia al primer ingreso. El modelo ya está listo desde el 8.1
+(`username`, `debe_cambiar_password`, documento, `tipo_suscripcion`, `origen`), y la
+pieza para generar contraseñas ya existe (`09_cambiar_password.js`). Mismo método de
+siempre (paso a paso explicando el código, Sebastián commitea, cada bloque cierra
+con prueba; docs vivas se actualizan al cerrar).

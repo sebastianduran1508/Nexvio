@@ -21,3 +21,6 @@ coverage/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Credenciales de las cuentas de PRUEBA (desarrollo local, nunca a git)
+.credenciales-dev.md

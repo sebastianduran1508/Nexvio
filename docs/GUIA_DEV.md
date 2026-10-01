@@ -541,6 +541,17 @@ node prisma/tests/e2e_fase5_realtime.js   <emailOrg> <passOrg> <emailAsis> <pass
 node prisma/tests/e2e_fase6_networking.js <emailOrg> <passOrg> <emailAsis1> <passAsis1>
 node prisma/tests/e2e_fase6_chat.js       <emailOrg> <passOrg> <emailAsis1> <passAsis1>
 
+# Fase 8 - Bloque 8.1: modelo de datos (no necesita el backend corriendo;
+# habla con la BD directo como nexvio_app, igual que lo hara la app):
+node prisma/tests/e2e_fase8_1_modelo.js
+
+# Fase 8 - Bloque 8.2: superadmin (requiere el backend corriendo).
+# Los 4 argumentos son: correo y clave del superadmin, y de un organizador.
+node prisma/tests/e2e_fase8_2_superadmin.js <adminEmail> <adminPass> <orgEmail> <orgPass>
+
+# Utilidad: cambiar la contrasena de cualquier cuenta de prueba de Supabase Auth
+node prisma/setup/09_cambiar_password.js <email> <passwordNueva>
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -1035,3 +1046,365 @@ gotcha en el HANDOFF), `react-native-svg`, y `tailwindcss@3.4.17` (dev).
 
 Funciona igual en web y móvil porque los **nombres** de token son los mismos; solo
 cambia dónde se definen (globals.css en web, tailwind.config + global.css en móvil).
+
+
+---
+
+## 20. El modelo de datos del panel del admin (Bloque 8.1)
+
+Este bloque **no construye pantallas**: prepara la base de datos para todo lo que
+pidió el cliente en la reunión (usuarios importados por Excel, agenda con breaks,
+speakers con ficha, sponsors, personalización por congreso y notificaciones push).
+Es el cimiento de los bloques 8.2–8.7.
+
+La regla de oro sigue intacta: **toda tabla nueva lleva `organizacion_id`** y su
+política RLS, así que el aislamiento entre clientes no depende de que el
+programador se acuerde de filtrar.
+
+### 20.1. Columnas nuevas en tablas que ya existían
+
+| Tabla | Qué se agregó | Para qué |
+|---|---|---|
+| `usuario` | `username`, `apellidos`, `tipo_documento`, `numero_documento`, `telefono`, `cargo`, `empresa`, `pais`, `pais_codigo`, `foto_url`, `debe_cambiar_password`, `acepto_datos_en` | El **perfil del asistente** tal como llega en el Excel de la organización, el login por usuario tipo `JPGarcia` y la aceptación de la Ley 1581 |
+| `congreso` | `descripcion`, `ciudad`, `lugar`, `zona_horaria` | Datos del evento y **en qué horario pintar la agenda** (las sesiones se siguen guardando en UTC) |
+| `sesion` | `tipo`, `descripcion`, `orden` | Distinguir **charla vs. break** (café/almuerzo) y ordenar el día |
+| `ponente` | `cargo`, `empresa`, `pais`, `pais_codigo`, `orden` | La **ficha del speaker** que pide el cliente (con bandera) |
+| `inscripcion` | `tipo_suscripcion`, `origen` | El tipo de suscripción viene en el Excel y es **por congreso**; `origen` dice si la fila se creó a mano o importada |
+
+Tres decisiones que vale la pena entender:
+
+**a) ¿Por qué `tipo_suscripcion` vive en `inscripcion` y no en `usuario`?**
+Porque es un dato de *la relación* persona↔congreso, no de la persona. La misma
+doctora puede ser "Miembro" en el congreso de cardiología y "General" en el de
+pediatría. Si lo pusiéramos en `usuario` tendríamos que elegir uno y perder el otro.
+Regla práctica: *si un dato cambia según el congreso, va en la tabla que une a la
+persona con el congreso.*
+
+**b) ¿Por qué `tipo`, `estado`, `nivel`… son `String` y no `enum`?**
+Un `enum` de Postgres da garantía a nivel de base, pero **agregar un valor nuevo
+exige una migración**. Si mañana el cliente pide un tipo "panel" o "taller
+simultáneo", con `String` solo tocamos la validación del DTO. Seguimos la
+convención que ya traía el proyecto (`estado` en congreso, inscripción, pregunta…):
+`String` + `@default(...)` + un comentario que lista los valores válidos, y la
+validación de verdad la hace `class-validator` en el DTO. El único `enum` real
+sigue siendo `Rol`, porque los roles sí son un conjunto cerrado y el `RolesGuard`
+depende de ellos.
+
+**c) `pais` y `pais_codigo` separados.**
+`pais` es lo que se lee ("Colombia"); `pais_codigo` es el ISO-3166 de dos letras
+("CO"). El front necesita el código para pintar la bandera, y no queremos que
+dibujar una bandera dependa de cómo se escribió el nombre del país.
+
+### 20.2. Las 4 tablas nuevas
+
+```
+sponsor                     → patrocinadores de un congreso (logo, nivel, orden)
+personalizacion_congreso    → la marca del evento (logo, colores, portada, tema)
+dispositivo_push            → a qué teléfonos entregar las push (token de Expo)
+notificacion                → el historial de mensajes push que envió el admin
+```
+
+**`sponsor`** — `nombre`, `logo_url`, `sitio_web`, `nivel` (oro/plata/bronce/general)
+y `orden`. El logo se sube a **Supabase Storage** (bloque 8.5) y aquí guardamos solo
+la URL: la base de datos almacena *textos*, no imágenes. Es el mismo criterio que ya
+usábamos en `ponente.foto_url`.
+
+**`personalizacion_congreso`** — logo, imagen de portada, color primario/secundario y
+tema por defecto. Es **1:1 con el congreso**, y lo que la convierte en 1:1 es una sola
+palabra:
+
+```prisma
+congreso_id String @unique @db.Uuid
+```
+
+Sin `@unique` sería "un congreso tiene muchas personalizaciones"; con `@unique`,
+Prisma la expone como `congreso.personalizacion` (un objeto, no una lista). Se hizo
+tabla aparte en vez de 6 columnas dentro de `congreso` porque son datos de *imagen de
+marca* que casi siempre se leen juntos y se editan en una sola pantalla del panel; así
+la tabla `congreso` se mantiene liviana para las consultas del día a día.
+
+**`dispositivo_push`** — Expo le da a **cada instalación de la app** un token
+(`ExponentPushToken[...]`). Sin guardarlo no sabríamos a qué aparatos enviar, porque
+una push no se manda "a un usuario", se manda a un dispositivo. Una persona puede
+tener varios (teléfono + tablet), de ahí la relación uno-a-muchos con `usuario` y el
+`@@unique([usuario_id, expo_push_token])` para no duplicar el mismo token.
+El campo `activo` permite apagar un token que Expo reporte como inválido sin borrar el
+historial.
+
+> Se eligió `@@unique([usuario_id, expo_push_token])` en vez de hacer único el token
+> solo. Motivo: con el RLS puesto, una fila de **otro tenant** que tuviera el mismo
+> token sería invisible, y el INSERT fallaría con un error de duplicado imposible de
+> explicar desde la app. Con la pareja, cada tenant gestiona sus propios tokens.
+
+**`notificacion`** — `titulo`, `cuerpo`, `destino` (`todos` | `sesion`), `sesion_id`
+opcional, `estado` (`borrador`|`enviada`|`fallida`), contadores `enviados`/`fallidos`,
+`creado_por_id` y `enviado_en`. Guardar el historial sirve para dos cosas: que el admin
+vea en el panel qué se mandó y cuándo, y poder **reintentar** un envío fallido sin
+volver a escribirlo.
+
+### 20.3. El RLS de las tablas nuevas
+
+Mismo patrón de siempre, en `prisma/setup/07_rls_fase8.sql` y aplicado con la
+migración `rls_fase8_modelo_datos`:
+
+```sql
+ALTER TABLE "sponsor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sponsor" FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_aislamiento ON "sponsor"
+  USING (organizacion_id = NULLIF(current_setting('app.org_id', true), '')::uuid)
+  WITH CHECK (organizacion_id = NULLIF(current_setting('app.org_id', true), '')::uuid);
+```
+
+Las 5 tablas que solo recibieron **columnas** no se tocan: su política ya protege la
+fila completa, sin importar cuántas columnas tenga. *El RLS filtra filas, no columnas.*
+
+Los `GRANT` tampoco hacen falta: `nexvio_app` los hereda de los *default privileges*
+que dejó `01_app_role.sql` cuando se creó el rol.
+
+### 20.4. Las dos restricciones que previenen errores humanos
+
+```prisma
+// en usuario
+@@unique([organizacion_id, numero_documento])
+```
+
+Evita que, al importar el Excel dos veces (algo que *va* a pasar), la misma persona
+quede duplicada. Detalle de Postgres que conviene saber: **los `NULL` no chocan entre
+sí** en un índice único. Es decir, cientos de usuarios de staff sin documento conviven
+sin problema; la regla solo muerde cuando hay un documento real repetido.
+
+```prisma
+// en personalizacion_congreso
+congreso_id String @unique @db.Uuid
+```
+
+Evita dos personalizaciones para el mismo congreso (que dejaría a la app sin saber qué
+colores usar).
+
+### 20.5. Prueba de cierre
+
+`prisma/tests/e2e_fase8_1_modelo.js` — no necesita el backend corriendo: se conecta a
+la BD con el **mismo rol `nexvio_app` y el mismo mecanismo** que usa el backend
+(`set_config('app.org_id', ...)` dentro de una transacción, que es literalmente lo que
+hace `runInTenant`). Comprueba, en orden:
+
+1. Las **columnas nuevas** se escriben y se leen (perfil completo, ficha de speaker,
+   sesión de tipo `break`, valor por defecto `charla`, `zona_horaria`, suscripción).
+2. Las **4 tablas nuevas** aceptan datos y aplican sus valores por defecto.
+3. Las **restricciones**: segunda personalización → rechazada; documento repetido →
+   rechazado (ambas con código `P2002`).
+4. El **aislamiento**: sin tenant → 0 filas en las 4 tablas (*fail-closed*); la Org B
+   no ve nada de la Org A; y la Org B **no puede crear** una fila estampada con el
+   `organizacion_id` de la Org A (eso lo corta el `WITH CHECK`).
+5. **Limpia** todo lo que creó, en orden inverso para no chocar con las claves
+   foráneas, así que se puede correr tantas veces como se quiera.
+
+
+---
+
+## 21. El superadmin y la suplantación de tenant (Bloque 8.2)
+
+Este bloque resuelve una pregunta incómoda: **¿cómo trabaja el superadmin si no
+pertenece a ninguna organización?** Su `organizacion_id` es NULL, así que el RLS
+—funcionando exactamente como debe— le devuelve cero filas.
+
+Se barajaron tres caminos y conviene conocerlos, porque la decisión es defendible:
+
+| | Qué hace | Por qué se descartó / eligió |
+|---|---|---|
+| A. Nada | El superadmin no entra a los datos | Inservible: el cliente pide que vea y gestione los congresos |
+| B. Política "superadmin ve todo" | Una política extra por tabla, activada por una bandera | ❌ Es un interruptor que **apaga** el aislamiento. Un bug expone a todos los clientes a la vez |
+| **C. Suplantación de tenant** | El superadmin **elige** una organización y trabaja dentro de ella | ✅ **La elegida.** El RLS queda intacto; solo cambia de casilla |
+
+### 21.1. Cómo funciona la suplantación
+
+El superadmin manda la cabecera `X-Organizacion-Id` y el middleware la convierte
+en el tenant de esa petición:
+
+```ts
+// src/auth/tenant-context.middleware.ts
+let orgId = orgDelToken;                       // lo normal: tu organización
+if (rol === 'admin' && UUID_RE.test(orgPedida)) {
+  orgId = orgPedida;                           // el superadmin elige dónde trabaja
+  suplantando = true;
+}
+```
+
+A partir de ahí, **para la base de datos el superadmin es un organizador más de
+esa organización**. Lo importante es el efecto dominó: como `@OrgId()` lee ese
+valor ya calculado, *todos* los controllers que ya existían (congresos,
+sesiones, ponentes, inscripciones, participación, networking) funcionan para el
+superadmin **sin cambiar una sola línea**.
+
+Tres garantías, y son el argumento de seguridad del bloque:
+
+1. **La cabecera solo se obedece si el TOKEN dice `rol: admin`.** Fíjate en que
+   la condición mira el token —firmado por Supabase, imposible de falsificar—,
+   no la cabecera. Nunca se decide un permiso con un dato que manda el cliente.
+2. **Para cualquier otro rol la cabecera se ignora** (y se anota en el log). Un
+   organizador que la mande sigue viendo solo lo suyo.
+3. **Una petición vive en UN solo tenant.** Nunca se ven dos a la vez, así que
+   un bug no podría *mezclar* datos de dos clientes en una misma respuesta. Esa
+   es la diferencia de fondo con la opción B.
+
+También se registra un rastro de auditoría: cada vez que el superadmin entra a
+una organización, queda en el log a qué tenant entró y con qué petición.
+
+### 21.2. Las dos ventanillas (`SECURITY DEFINER`)
+
+Dos cosas cruzan tenants por naturaleza y no se pueden resolver con el RLS: la
+**lista de organizaciones** (para poder elegir una) y el **panorama** de
+congresos de todos los clientes que pidió el cliente.
+
+Para eso, y solo para eso, hay dos funciones en
+`prisma/setup/08_funciones_superadmin.sql`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.nexvio_listar_organizaciones()
+RETURNS TABLE (id uuid, nombre text, slug text, estado text,
+               creado_en timestamptz, total_congresos int)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ ... $$;
+
+REVOKE ALL ON FUNCTION ... FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ... TO nexvio_app;
+```
+
+`SECURITY DEFINER` significa *"corre con los permisos de quien la creó"* —
+postgres— y por eso ve por encima del RLS. Es el mismo mecanismo del
+`custom_access_token_hook` de la Fase 2.
+
+Los cuatro candados que la hacen segura:
+
+| Candado | Qué impide |
+|---|---|
+| `STABLE` | Que pueda escribir. Solo lee |
+| `SET search_path = public` | Que alguien la engañe apuntando a tablas falsas |
+| `REVOKE ALL FROM PUBLIC` | Que cualquiera la ejecute |
+| `GRANT EXECUTE TO nexvio_app` + `@Roles('admin')` | Que la use alguien que no sea el superadmin |
+
+Y lo más importante: devuelven **columnas contadas**. Identificación y conteos.
+Ni un dato de negocio. Si mañana hay que responder "¿qué puede ver el
+superadmin por encima del aislamiento?", la respuesta cabe en un archivo.
+
+La segunda, `nexvio_panorama_congresos()`, añade una columna calculada útil:
+`en_curso` (`CURRENT_DATE BETWEEN fecha_inicio AND fecha_fin`), que es lo que
+permite poner arriba los congresos que están pasando ahora mismo.
+
+### 21.3. `src/superadmin/` — las dos únicas rutas sin tenant
+
+```
+GET /superadmin/organizaciones   -> para el selector del panel
+GET /superadmin/panorama         -> congresos de todos los clientes
+```
+
+Su service es el único de todo el backend que **no usa `runInTenant`**, y está
+comentado ahí mismo para que no parezca un olvido. Todo lo demás que hace el
+superadmin pasa por los endpoints normales con la cabecera puesta.
+
+### 21.4. Quién puede crear organizadores
+
+`POST /usuarios` ahora acepta `rol: 'organizador'`, pero el service compara
+contra el rol de **quien pide**:
+
+```ts
+if (rolPedido === 'organizador' && rolDeQuienPide !== 'admin') {
+  throw new ForbiddenException('Solo el superadmin puede crear organizadores');
+}
+```
+
+Así el superadmin designa al "admin del congreso" de cada cliente, pero un
+organizador **no puede clonarse**. Eso se llama prevenir una *escalada de
+privilegios*, y es la razón por la que el rol viaja desde el controller
+(`@RolActual()`) en vez de confiar en el cuerpo de la petición.
+
+### 21.5. El panel web: layout con menú lateral
+
+```
+apps/web/src/
+├── app/
+│   ├── login/page.tsx            ← FUERA del panel (no lleva menú)
+│   └── (panel)/                  ← route group: NO aparece en la URL
+│       ├── layout.tsx            ← menú lateral + cabecera
+│       ├── congresos/            ← /congresos  (se movió aquí)
+│       ├── sesiones/             ← /sesiones/… (se movió aquí)
+│       └── superadmin/           ← /superadmin  y  /superadmin/organizaciones
+└── components/panel/
+    ├── panel-contexto.tsx        ← quién eres + en qué organización estás
+    ├── barra-lateral.tsx         ← el menú (con las entradas de 8.3–8.6 en "pronto")
+    ├── cabecera.tsx              ← ModeToggle + cerrar sesión + selector
+    └── selector-organizacion.tsx ← la cara visible de la suplantación
+```
+
+**Los paréntesis de `(panel)`** son un *route group* de Next: agrupan pantallas
+para darles un layout común **sin que el nombre entre en la URL**. `/congresos`
+sigue siendo `/congresos`. `/login` queda fuera a propósito, porque una pantalla
+de login con menú lateral no tiene sentido.
+
+**El `ModeToggle`** se movió del botón flotante provisional del Bloque 8.0 a la
+cabecera real (pendiente arrastrado, ya resuelto).
+
+**La cabecera viaja sola.** `apiFetch` lee la organización elegida de
+`localStorage` y la adjunta en cada petición:
+
+```ts
+const org = leerOrgActual();
+headers: { ...(org ? { 'X-Organizacion-Id': org.id } : {}) }
+```
+
+Por eso las pantallas **no saben nada** de la suplantación: `congresos/page.tsx`
+pide "los congresos" y ya. Quien decide cuáles es el tenant activo.
+
+**Al cambiar de organización se recarga la página entera** (no `router.push`).
+Es deliberado: cambiar de tenant es un cambio de contexto grande y así no queda
+ni un dato del cliente anterior flotando en pantalla.
+
+**El rol se lee del JWT en el navegador** (`lib/sesion.ts`) sin verificar la
+firma. Es seguro porque ahí solo se decide **qué pintar**. Regla que conviene
+grabarse: *el frontend decide la experiencia, el backend decide los permisos.*
+Si alguien manipulara su token para "verse" como admin, la API le respondería
+403 igual.
+
+### 21.6. Tres piezas reutilizables que nacieron aquí
+
+Las tres salieron de ajustes pedidos tras la primera revisión visual, y las tres
+se van a reusar en los bloques 8.3–8.6:
+
+**`components/ui/selector-buscable.tsx`** — un *combobox*: se escribe para
+filtrar, pero el valor solo queda fijado al **elegir** una opción. Es lo que
+normaliza los datos: impide que "bogota", "Bogotá D.C." y "BOGOTA" acaben
+siendo tres ciudades distintas en la misma columna. Busca ignorando tildes y
+mayúsculas, se maneja con el teclado (flechas, Enter, Escape) y tiene un modo
+`permitirLibre` que ofrece *Usar «lo que escribiste»* para los casos que el
+catálogo no cubre — sigue siendo una elección explícita, no un descuido.
+
+**`datos/paises.ts` y `datos/ciudades.ts`** — los catálogos. El país se guarda
+en dos columnas: `pais` (lo que se lee) y `pais_codigo` (ISO-3166 alpha-2, para
+la bandera), y así dibujar una bandera no depende de cómo se escribió el
+nombre. Las ciudades dependen del país elegido: cambiar el país limpia la
+ciudad, porque "Colombia + Madrid" no tendría sentido. Los mismos catálogos
+alimentarán la ficha de speakers en el 8.4.
+
+**`components/panel/dialogo-confirmar.tsx`** — confirmación propia en vez del
+`window.confirm()` del navegador, que no respeta los colores de la marca ni el
+modo oscuro. Tiene variante `peligroso` (botón rojo) para lo que viene: borrar
+un usuario, borrar un speaker o mandar una push a todos los asistentes.
+
+### 21.7. Limitación conocida
+
+El **tiempo real (Socket.io)** todavía no entiende la suplantación: el gateway
+valida la sala con el `organizacion_id` del token, no con la cabecera. En la
+práctica significa que el superadmin puede gestionar un congreso ajeno, pero no
+moderar sus preguntas en vivo. Se arregla pasando la organización en el
+*handshake* del socket; queda anotado para el bloque donde haga falta.
+
+### 21.8. Prueba de cierre
+
+`prisma/tests/e2e_fase8_2_superadmin.js` (17 comprobaciones). Las tres que de
+verdad importan:
+
+- al cambiar de la Org A a la Org B **no se cuela ni un congreso** de la A;
+- un **organizador que manda la cabecera** de otra organización sigue viendo
+  solo la suya;
+- un congreso creado por el superadmin en la Org B da **404** para la Org A,
+  incluso para el propio superadmin cuando se cambia de casilla.

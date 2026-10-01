@@ -4,6 +4,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { OrgId } from '../auth/org-id.decorator';
+import { RolActual } from '../auth/rol.decorator';
 import { CrearUsuarioDto } from './dto/crear-usuario.dto';
 
 /**
@@ -17,8 +18,14 @@ export class UsuariosController {
 
   @Post()
   @Roles('admin', 'organizador')
-  crear(@OrgId() orgId: string, @Body() dto: CrearUsuarioDto) {
-    return this.usuarios.crear(orgId, dto);
+  crear(
+    @OrgId() orgId: string,
+    @RolActual() rol: string,
+    @Body() dto: CrearUsuarioDto,
+  ) {
+    // El rol de quien pide viaja al service: es lo que impide que un
+    // organizador se fabrique otros organizadores.
+    return this.usuarios.crear(orgId, dto, rol);
   }
 
   @Get()

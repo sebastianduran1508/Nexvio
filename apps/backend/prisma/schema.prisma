@@ -38,19 +38,23 @@ model Organizacion {
   creado_en DateTime @default(now())
 
   // Relaciones inversas
-  usuarios         Usuario[]
-  congresos        Congreso[]
-  sesiones         Sesion[]
-  ponentes         Ponente[]
-  sesion_ponentes     SesionPonente[]
-  inscripciones       Inscripcion[]
-  preguntas           Pregunta[]
-  encuestas           Encuesta[]
-  opciones_encuesta   OpcionEncuesta[]
-  respuestas_encuesta RespuestaEncuesta[]
+  usuarios             Usuario[]
+  congresos            Congreso[]
+  sesiones             Sesion[]
+  ponentes             Ponente[]
+  sesion_ponentes      SesionPonente[]
+  inscripciones        Inscripcion[]
+  preguntas            Pregunta[]
+  encuestas            Encuesta[]
+  opciones_encuesta    OpcionEncuesta[]
+  respuestas_encuesta  RespuestaEncuesta[]
   intereses_networking InteresNetworking[]
   conexiones           Conexion[]
   mensajes_chat        MensajeChat[]
+  sponsors             Sponsor[]
+  personalizaciones    PersonalizacionCongreso[]
+  dispositivos_push    DispositivoPush[]
+  notificaciones       Notificacion[]
 
   @@map("organizacion")
 }
@@ -58,19 +62,40 @@ model Organizacion {
 model Usuario {
   id              String   @id @default(uuid()) @db.Uuid
   organizacion_id String?  @db.Uuid // NULL solo para el Admin global
-  email           String   @unique
+  email           String   @unique // correo real o SINTETICO (lo exige Supabase Auth)
+  username        String?  @unique // lo que el asistente escribe al entrar: "JPGarcia"
   nombre          String
+  apellidos       String?
   rol             Rol
   creado_en       DateTime @default(now())
 
-  organizacion Organizacion? @relation(fields: [organizacion_id], references: [id])
-  inscripciones       Inscripcion[]
-  preguntas           Pregunta[]
-  respuestas_encuesta RespuestaEncuesta[]
-  intereses_emitidos  InteresNetworking[] @relation("intereses_emitidos")
-  intereses_recibidos InteresNetworking[] @relation("intereses_recibidos")
-  mensajes_chat       MensajeChat[]       @relation("mensajes_chat")
+  // --- Perfil de asistente (Bloque 8.1) -----------------------------------
+  // Vienen del Excel que la organizacion envia y el admin importa (8.3).
+  tipo_documento        String? // CC | CE | PA | TI | NIT
+  numero_documento      String?
+  telefono              String?
+  cargo                 String?
+  empresa               String?
+  pais                  String? // nombre visible: "Colombia"
+  pais_codigo           String? // ISO-3166 alpha-2 para la bandera: "CO"
+  foto_url              String?
+  debe_cambiar_password Boolean   @default(false) // contrasena temporal -> cambio al 1er ingreso
+  acepto_datos_en       DateTime? // Ley 1581: cuando acepto el tratamiento de datos
 
+  organizacion           Organizacion?       @relation(fields: [organizacion_id], references: [id])
+  inscripciones          Inscripcion[]
+  preguntas              Pregunta[]
+  respuestas_encuesta    RespuestaEncuesta[]
+  intereses_emitidos     InteresNetworking[] @relation("intereses_emitidos")
+  intereses_recibidos    InteresNetworking[] @relation("intereses_recibidos")
+  mensajes_chat          MensajeChat[]       @relation("mensajes_chat")
+  dispositivos_push      DispositivoPush[]
+  notificaciones_creadas Notificacion[]      @relation("notificaciones_creadas")
+
+  // Evita importar dos veces a la misma persona en la misma organizacion.
+  // Ojo: en Postgres los NULL no chocan entre si, asi que el staff (sin
+  // documento) no se ve afectado.
+  @@unique([organizacion_id, numero_documento])
   @@index([organizacion_id])
   @@map("usuario")
 }
@@ -83,11 +108,24 @@ model Congreso {
   fecha_fin       DateTime @db.Date
   estado          String   @default("borrador")
 
-  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
-  sesiones      Sesion[]
-  ponentes      Ponente[]
-  inscripciones Inscripcion[]
+  // --- Datos del evento (Bloque 8.1) --------------------------------------
+  descripcion  String?
+  ciudad       String?
+  pais         String? // nombre visible: "Colombia"
+  pais_codigo  String? // ISO-3166 alpha-2: "CO" (para la bandera)
+  lugar        String? // sede / hotel / auditorio
+  // Zona horaria del evento. Las sesiones se guardan en UTC; esta columna dice
+  // en que horario hay que PINTARLAS (resuelve el pendiente arrastrado).
+  zona_horaria String  @default("America/Bogota")
+
+  organizacion         Organizacion             @relation(fields: [organizacion_id], references: [id])
+  sesiones             Sesion[]
+  ponentes             Ponente[]
+  inscripciones        Inscripcion[]
   intereses_networking InteresNetworking[]
+  sponsors             Sponsor[]
+  personalizacion      PersonalizacionCongreso?
+  notificaciones       Notificacion[]
 
   @@index([organizacion_id])
   @@map("congreso")
@@ -102,11 +140,19 @@ model Sesion {
   fin             DateTime
   sala            String?
 
-  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
-  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
-  ponentes     SesionPonente[]
-  preguntas    Pregunta[]
-  encuestas    Encuesta[]
+  // --- Agenda por dia (Bloque 8.1) ----------------------------------------
+  // "break" = cafe/almuerzo/receso: ocupa un hueco en la agenda pero no tiene
+  // ponente ni preguntas. El resto son charlas.
+  tipo        String  @default("charla") // charla | break | taller | plenaria
+  descripcion String?
+  orden       Int? // desempate cuando dos cosas empiezan a la misma hora
+
+  organizacion   Organizacion    @relation(fields: [organizacion_id], references: [id])
+  congreso       Congreso        @relation(fields: [congreso_id], references: [id])
+  ponentes       SesionPonente[]
+  preguntas      Pregunta[]
+  encuestas      Encuesta[]
+  notificaciones Notificacion[]
 
   @@index([organizacion_id])
   @@index([congreso_id])
@@ -126,6 +172,13 @@ model Ponente {
   nombre          String
   bio             String?
   foto_url        String?
+
+  // --- Ficha de speaker (Bloque 8.1) --------------------------------------
+  cargo       String?
+  empresa     String?
+  pais        String?
+  pais_codigo String? // ISO-3166 alpha-2 -> la bandera la pinta el front
+  orden       Int? // para ordenar la vitrina de speakers en la app
 
   organizacion Organizacion    @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso        @relation(fields: [congreso_id], references: [id])
@@ -174,6 +227,12 @@ model Inscripcion {
   estado          String   @default("confirmada") // confirmada | cancelada
   registrado_en   DateTime @default(now())
 
+  // --- Datos del Excel de la organizacion (Bloque 8.1) --------------------
+  // El tipo de suscripcion es POR CONGRESO (la misma persona puede ser
+  // "Miembro" en uno y "General" en otro), por eso vive aqui y no en usuario.
+  tipo_suscripcion String?
+  origen           String  @default("manual") // manual | excel
+
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso     @relation(fields: [congreso_id], references: [id])
   usuario      Usuario      @relation(fields: [usuario_id], references: [id])
@@ -184,7 +243,6 @@ model Inscripcion {
   @@index([usuario_id])
   @@map("inscripcion")
 }
-
 
 // ---------------------------------------------------------------------------
 // FASE 5 — Participacion en vivo (preguntas y encuestas)
@@ -220,8 +278,8 @@ model Encuesta {
   activa          Boolean  @default(false)
   creado_en       DateTime @default(now())
 
-  organizacion Organizacion     @relation(fields: [organizacion_id], references: [id])
-  sesion       Sesion           @relation(fields: [sesion_id], references: [id])
+  organizacion Organizacion        @relation(fields: [organizacion_id], references: [id])
+  sesion       Sesion              @relation(fields: [sesion_id], references: [id])
   opciones     OpcionEncuesta[]
   respuestas   RespuestaEncuesta[]
 
@@ -267,7 +325,6 @@ model RespuestaEncuesta {
   @@index([opcion_id])
   @@map("respuesta_encuesta")
 }
-
 
 // ---------------------------------------------------------------------------
 // FASE 6 — Networking (interes mutuo -> match -> chat limitado)
@@ -330,4 +387,101 @@ model MensajeChat {
   @@index([organizacion_id])
   @@index([conexion_id])
   @@map("mensaje_chat")
+}
+
+// ---------------------------------------------------------------------------
+// FASE 8 · Bloque 8.1 — Tablas nuevas del panel del administrador
+// (sponsors, personalizacion por congreso, push y notificaciones)
+// ---------------------------------------------------------------------------
+
+// Patrocinador de un congreso. El admin sube el logo a Supabase Storage y aqui
+// guardamos la URL publica. La app los muestra ordenados por nivel y orden.
+model Sponsor {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  congreso_id     String   @db.Uuid
+  nombre          String
+  logo_url        String?
+  sitio_web       String?
+  nivel           String   @default("general") // oro | plata | bronce | general
+  orden           Int      @default(0)
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@map("sponsor")
+}
+
+// Marca del congreso (logo, colores, portada) que la app movil lee para
+// "vestirse" con los colores del evento. Es 1:1 con congreso: el @unique de
+// congreso_id es lo que convierte la relacion en uno-a-uno.
+model PersonalizacionCongreso {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizacion_id    String   @db.Uuid
+  congreso_id        String   @unique @db.Uuid
+  logo_url           String?
+  imagen_portada_url String?
+  color_primario     String? // hex: "#5A46F0"
+  color_secundario   String? // hex: "#FF7A59"
+  tema_default       String   @default("sistema") // claro | oscuro | sistema
+  actualizado_en     DateTime @updatedAt
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+
+  @@index([organizacion_id])
+  @@map("personalizacion_congreso")
+}
+
+// Un telefono concreto donde entregar las push. Expo le da a cada instalacion
+// un "expo push token"; sin esta tabla no sabriamos a que aparatos enviar.
+// Una persona puede tener varios (telefono + tablet).
+model DispositivoPush {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  usuario_id      String   @db.Uuid
+  expo_push_token String
+  plataforma      String? // android | ios
+  activo          Boolean  @default(true)
+  creado_en       DateTime @default(now())
+  visto_en        DateTime @updatedAt // ultimo registro del token (para limpiar viejos)
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  usuario      Usuario      @relation(fields: [usuario_id], references: [id])
+
+  @@unique([usuario_id, expo_push_token]) // el mismo token no se duplica por persona
+  @@index([organizacion_id])
+  @@index([expo_push_token])
+  @@map("dispositivo_push")
+}
+
+// Un mensaje push que el admin escribe y envia a los asistentes de su congreso.
+// Guardamos el historial (que se envio, cuando y con que resultado) para que el
+// admin lo vea en el panel y para poder reintentar.
+model Notificacion {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizacion_id String    @db.Uuid
+  congreso_id     String    @db.Uuid
+  titulo          String
+  cuerpo          String
+  destino         String    @default("todos") // todos | sesion
+  sesion_id       String?   @db.Uuid // solo si destino = sesion
+  estado          String    @default("borrador") // borrador | enviada | fallida
+  enviados        Int       @default(0)
+  fallidos        Int       @default(0)
+  creado_por_id   String?   @db.Uuid
+  creado_en       DateTime  @default(now())
+  enviado_en      DateTime?
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  congreso     Congreso     @relation(fields: [congreso_id], references: [id])
+  sesion       Sesion?      @relation(fields: [sesion_id], references: [id])
+  creado_por   Usuario?     @relation("notificaciones_creadas", fields: [creado_por_id], references: [id])
+
+  @@index([organizacion_id])
+  @@index([congreso_id])
+  @@map("notificacion")
 }
