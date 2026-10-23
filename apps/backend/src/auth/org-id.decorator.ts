@@ -40,3 +40,18 @@ export const OrgId = createParamDecorator(
     return orgId;
   },
 );
+
+/**
+ * Igual que @OrgId(), pero NO corta si no hay organización.
+ *
+ * Lo usan las rutas que valen tanto para alguien con organización (un
+ * asistente, un organizador) como para el superadmin global, que no tiene
+ * ninguna: /auth/yo y /auth/cambiar-password. Sin organización, runInTenant
+ * recibe undefined y toma el valor del contexto de la petición.
+ */
+export const OrgIdOpcional = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): string | undefined => {
+    const req = ctx.switchToHttp().getRequest();
+    return req.user?.orgId ?? undefined;
+  },
+);

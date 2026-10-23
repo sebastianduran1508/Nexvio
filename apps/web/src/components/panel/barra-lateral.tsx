@@ -35,7 +35,7 @@ const MENU_SUPERADMIN: Entrada[] = [
  *  cuando está trabajando dentro de una organización. */
 const MENU_CONGRESO: Entrada[] = [
   { href: '/congresos', texto: 'Congresos', Icono: CalendarDays },
-  { href: '/usuarios', texto: 'Usuarios', Icono: Users, proximamente: true },
+  { href: '/usuarios', texto: 'Usuarios', Icono: Users },
   { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard, proximamente: true },
   { href: '/speakers', texto: 'Speakers', Icono: Mic2, proximamente: true },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake, proximamente: true },

@@ -552,6 +552,9 @@ node prisma/tests/e2e_fase8_2_superadmin.js <adminEmail> <adminPass> <orgEmail> 
 # Utilidad: cambiar la contrasena de cualquier cuenta de prueba de Supabase Auth
 node prisma/setup/09_cambiar_password.js <email> <passwordNueva>
 
+# Fase 8 - Bloque 8.3: usuarios e importacion de Excel (requiere el backend corriendo)
+node prisma/tests/e2e_fase8_3_usuarios.js <orgEmail> <orgPass>
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -1408,3 +1411,249 @@ verdad importan:
   solo la suya;
 - un congreso creado por el superadmin en la Org B da **404** para la Org A,
   incluso para el propio superadmin cuando se cambia de casilla.
+
+
+---
+
+## 22. Asistentes e importación de Excel (Bloque 8.3)
+
+Aquí se resuelve cómo entran las personas al sistema. El cliente fue claro:
+Nexvio **no** cobra ni inscribe. La organización vende e inscribe por su cuenta,
+y le pasa al admin un **Excel** con los registrados. El asistente entra con un
+usuario tipo `JPGarcia` y una contraseña temporal, no con correo.
+
+### 22.1. El problema del correo que no existe
+
+Supabase Auth trabaja con correos: no sabe iniciar sesión de otra forma. Pero el
+cliente dijo que el correo del asistente es **opcional**. Dos cosas que chocan.
+
+La solución es un **correo sintético** que la persona nunca ve:
+
+```
+JPGarcia  +  organización "amcper"  ->  jpgarcia@amcper.nexvio.local
+```
+
+Lleva el slug de la organización porque el correo tiene que ser único en TODO el
+proyecto de Supabase: dos clientes distintos pueden tener cada uno su `JPGarcia`
+sin chocar. Y `.local` es un dominio reservado que nunca va a existir de verdad,
+así que ningún correo podría escaparse hacia afuera por accidente. Las cuentas se
+crean con `email_confirm: true`, de modo que Supabase no intenta enviar nada.
+
+Si la persona **sí** trae correo en el Excel, se usa ese y punto.
+
+### 22.2. Las credenciales las genera el sistema (`username.util.ts`)
+
+```ts
+baseUsername('Juan Pablo', 'García Ruiz')   // -> 'JPGarcia'
+usernameLibre('JPGarcia', ocupados)         // -> 'JPGarcia2' si ya existía
+```
+
+Iniciales de los nombres + primer apellido, sin tildes ni caracteres raros.
+
+Dos detalles que parecen menores y no lo son:
+
+- **`ocupados` es un `Set` que se carga UNA vez.** Con 300 filas del Excel, ir a
+  la base a preguntar "¿existe este usuario?" por cada fila serían 300 consultas.
+  Se traen todos los usernames de la organización de un golpe y el Set se va
+  actualizando en memoria a medida que se reservan.
+- **La contraseña temporal excluye caracteres confundibles**: nada de `O/0` ni
+  `I/l/1`. Quien las reparta por teléfono o leyéndolas de un papel lo agradece.
+  Usa `randomInt` de Node (aleatoriedad criptográfica), no `Math.random()`.
+
+### 22.3. La importación en dos pasos
+
+```
+POST /congresos/:id/importacion/previsualizar   -> analiza. NO escribe nada.
+POST /congresos/:id/importacion/confirmar       -> ejecuta lo creable.
+```
+
+**Por qué dos pasos:** un Excel con un error de formato puede crear 200 cuentas
+basura en Supabase Auth, y desde el panel no hay forma de deshacerlo. Que el
+admin vea *"30 se crean, 4 ya existen, 2 con documento repetido"* antes de
+confirmar convierte un desastre en un aviso.
+
+**Por qué se sube el archivo dos veces:** así el servidor no guarda estado entre
+las dos peticiones. Lo que se importa es exactamente lo que se analizó, y nadie
+puede manipular la lista por el camino.
+
+Cada fila sale clasificada en uno de cuatro estados:
+
+| Estado | Qué significa |
+|---|---|
+| `nueva` | Persona nueva: se le crea cuenta, perfil e inscripción |
+| `se_inscribe` | Ya existe en la organización (mismo documento): conserva su usuario, solo se le añade la inscripción a este congreso |
+| `ya_inscrita` | Ya está en este congreso: se omite |
+| `error` | Le falta algo obligatorio, o el documento está repetido dentro del propio archivo |
+
+**El documento es la huella de cada persona.** Gracias al
+`@@unique([organizacion_id, numero_documento])` del Bloque 8.1, reimportar el
+mismo Excel no duplica a nadie: el sistema reconoce a quien ya estaba.
+
+**Los encabezados son flexibles.** El servicio normaliza cada encabezado (quita
+tildes, mayúsculas y espacios) y lo compara contra una lista de sinónimos:
+"Celular", "Móvil" y "Teléfono" son la misma columna; "Cédula", "Documento" y
+"Número de documento" también. Si la organización cambia una palabra, la
+importación no se rompe. Solo tres columnas son obligatorias: nombres,
+apellidos y número de documento.
+
+### 22.4. Las contraseñas solo se ven una vez
+
+Al confirmar, la respuesta trae las credenciales de los recién creados, y el
+panel ofrece descargarlas como Excel. **Es la única vez.** En la base solo queda
+el hash dentro de Supabase: no hay forma de recuperar una contraseña, solo de
+generar otra (`09_cambiar_password.js`). El panel lo avisa con todas las letras.
+
+### 22.5. El login por usuario y el primer ingreso
+
+El asistente escribe `JPGarcia`… pero eso pasa **antes** de tener token, así que
+no hay tenant y el RLS devuelve 0 filas. Es la misma situación del superadmin en
+el 8.2, y se resuelve igual: una **tercera ventanilla acotada**,
+`nexvio_email_por_username()` (ver `10_funcion_login_username.sql`), que devuelve
+**una sola columna**: el correo.
+
+> **Decisión consciente, documentada para la sustentación.** Cualquier endpoint
+> que traduzca usuario→correo permite en teoría probar nombres hasta descubrir
+> cuáles existen (*enumeración de usuarios*). Se asume porque (1) el usuario no
+> es un secreto: va impreso en la escarapela; (2) saberlo no acerca a nadie a
+> entrar, la contraseña sigue siendo el muro; y (3) la alternativa —que el
+> asistente escriba el correo sintético— anula justo lo que pidió el cliente.
+> Mitigación prevista para la Fase 9: limitar intentos por IP. El mensaje de
+> error es idéntico al de contraseña incorrecta, para no dar ni esa pista.
+
+El ciclo de la contraseña temporal:
+
+```
+login con la temporal -> GET /auth/yo  ->  debe_cambiar_password: true
+                      -> POST /auth/cambiar-password
+                      -> la app ya no se lo vuelve a pedir
+```
+
+**El orden importa**: primero se cambia en Supabase (que es lo que puede fallar)
+y después se apaga la bandera en nuestra base. Al revés, si Supabase fallara, la
+persona quedaría con la contraseña vieja y sin que el sistema volviera a pedirle
+el cambio.
+
+### 22.6. El panel
+
+```
+/congresos/:id/asistentes           ← lista, buscador, alta manual, quitar
+/congresos/:id/asistentes/importar  ← los dos pasos de la importación
+/usuarios                           ← del menú: pregunta en qué congreso trabajar
+```
+
+Vive **dentro del congreso** porque la inscripción y el tipo de suscripción son
+por evento. La entrada "Usuarios" del menú lateral solo pregunta cuál; si la
+organización tiene un único congreso, entra directo sin hacer elegir entre una
+sola opción.
+
+Dos piezas nuevas en `lib/api.ts`:
+
+- **`apiSubirArchivo`** — manda `multipart/form-data`. Un detalle que despista a
+  todo el mundo: **no se pone `Content-Type` a mano**. El navegador lo genera
+  solo e incluye el *boundary* que separa las partes del formulario; si lo
+  escribimos nosotros, ese boundary falta y el servidor no puede leer el archivo.
+- **`apiDescargar`** — recibe la respuesta como *blob*, crea una URL temporal en
+  memoria y simula un clic en un enlace invisible. Es la forma estándar de
+  descargar algo que requiere mandar un token, porque un `<a href>` normal no
+  puede llevar cabeceras.
+
+**Quitar a alguien borra la INSCRIPCIÓN, no a la persona.** Puede estar inscrita
+a otros congresos, y borrar su `usuario` arrastraría sus preguntas, votos y
+chats. El diálogo lo explica antes de confirmar.
+
+### 22.7. Lo que un admin puede hacer con una cuenta (y lo que no)
+
+Tras la primera revisión se añadieron las acciones por persona. El menú de los
+tres puntos de cada fila ofrece: **ver ficha**, **editar datos**, **restablecer
+contraseña** y **quitar del congreso**. Al hacer clic en la fila se abre la
+ficha completa en un panel lateral.
+
+**Se puede editar casi todo**, incluido el correo y el documento: los datos
+vienen de un Excel que llena otra gente y los errores de dedo son la norma.
+
+> **El correo vive en DOS sitios**: nuestra tabla `usuario` y Supabase Auth, que
+> es con lo que la persona inicia sesión. Si solo lo corrigiéramos de nuestro
+> lado, el login seguiría pidiendo el viejo. Por eso se cambia primero en Auth
+> —que es lo que puede fallar por duplicado— y solo si eso sale bien se guarda
+> en la base; si la base lo rechaza después, se devuelve el correo anterior a
+> Auth (compensación) para no dejarlos desincronizados.
+
+**Lo único que NO se puede cambiar es el `username`.** Ya está impreso en la
+escarapela o repartido por WhatsApp: cambiarlo dejaría a la persona fuera sin
+que nadie se entere.
+
+### 22.8. Por qué no existe "ver la contraseña"
+
+Es la pregunta que surge siempre, y la respuesta merece entenderse bien:
+**Supabase no guarda la contraseña, guarda un hash** — una huella de un solo
+sentido. Se puede comprobar si la que alguien escribe coincide, pero no se puede
+leer la original. Ni el admin, ni nosotros, ni Supabase.
+
+Y está bien que sea así: si un admin pudiera ver la contraseña de cualquiera,
+podría entrar suplantándolo, y un robo de la base se llevaría todas las
+contraseñas en texto plano.
+
+Lo que sí existe son dos formas de **devolver el acceso**:
+
+| Acción | Qué hace | Cuándo |
+|---|---|---|
+| **Restablecer contraseña** (una persona) | Genera una nueva, la muestra una vez y vuelve a marcar `debe_cambiar_password` | Alguien perdió sus credenciales |
+| **Listado de acceso** (el congreso) | Devuelve a **todos** los inscritos con su usuario, y genera contraseña nueva solo para quienes aún no han entrado | Los Excel llegan por tandas y el admin quiere UN documento con todo el mundo |
+
+El segundo es el que resuelve el caso real: los Excel llegan semana a semana
+durante meses, y en cualquier momento el admin necesita un censo completo. El
+archivo trae a todos, con una columna **Estado**:
+
+| Persona | Contraseña | Estado |
+|---|---|---|
+| No ha entrado nunca | una nueva, generada en el momento | "Entregar esta contraseña temporal" |
+| Ya puso la suya | `—` (fila en gris) | "Ya tiene su propia contraseña" |
+
+La pieza crítica es el filtro `debe_cambiar_password`: a quien ya entró **no se
+le toca nada**. Aparece en el listado para que el documento esté completo, pero
+sin clave — la suya es privada y nadie puede leerla. Invalidarle el acceso sin
+avisarle sería un desastre.
+
+> **Las dos formas sanas de trabajar**, y conviene tenerlas claras porque son
+> excluyentes: (A) no descargar nada durante las tandas y pulsar "Listado de
+> acceso" una sola vez cerca del evento — un archivo, todo el mundo; o (B)
+> descargar el archivo de cada tanda al importarla y repartirlo enseguida, sin
+> usar nunca el listado completo, porque regeneraría las ya entregadas.
+
+### 22.9. Dos piezas reutilizables más
+
+**`components/panel/menu-acciones.tsx`** — el menú de los tres puntos. Existe
+porque meter cuatro botones en cada fila la vuelve ilegible: con decenas de
+inscritos, la tabla se convierte en un muro de iconos. Lleva `stopPropagation`
+porque la fila entera también es clicable.
+
+**`components/panel/panel-lateral.tsx`** — el panel que entra desde la derecha
+(*drawer*). Se eligió en vez de una página aparte porque el admin casi siempre
+quiere mirar una ficha y volver: con una página perdería el scroll, el filtro y
+el sitio donde estaba. Los dos se reusarán en speakers, sponsors y
+notificaciones.
+
+### 22.10. Nombres incompletos
+
+El Excel lo llena otra gente, así que llega como llega. `baseUsername` nunca
+falla:
+
+| Entrada | Usuario |
+|---|---|
+| "Juan Pablo" + "García Ruiz" | `JPGarcia` |
+| "Shakira" + *(sin apellido)* | `Shakira` |
+| *(sin nombre)* + "Pérez" | `Perez` |
+| nada usable | `Usuario` (y el contador hace `Usuario2`, `Usuario3`…) |
+
+Por eso `apellidos` pasó a ser **opcional**. Y conviene recordar que esto solo
+afecta al USUARIO: **la contraseña es aleatoria siempre** y no tiene ninguna
+relación con el nombre de la persona.
+
+### 22.11. Prueba de cierre
+
+`prisma/tests/e2e_fase8_3_usuarios.js` recorre el ciclo completo: arma un Excel
+en memoria con 4 filas (2 buenas, 1 con documento repetido, 1 sin documento),
+previsualiza, **comprueba que no escribió nada**, importa, **reimporta el mismo
+archivo** para verificar que no duplica a nadie, entra como asistente con el
+usuario `JPGarcia`, cambia la contraseña temporal y confirma que la vieja dejó de
+servir. Al final limpia todo.

@@ -9,9 +9,10 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { ParticipacionModule } from './participacion/participacion.module';
 import { NetworkingModule } from './networking/networking.module';
 import { SuperadminModule } from './superadmin/superadmin.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule],
+  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })

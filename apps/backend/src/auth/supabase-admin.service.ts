@@ -76,4 +76,52 @@ export class SupabaseAdminService {
       headers: this.headers(),
     });
   }
+
+  /**
+   * Cambia el correo de una cuenta (Bloque 8.3).
+   *
+   * Hace falta porque el correo es con lo que la persona inicia sesión: si solo
+   * lo corrigiéramos en nuestra tabla, el login seguiría pidiendo el viejo y
+   * nadie entendería por qué. `email_confirm: true` evita que Supabase mande un
+   * correo de verificación al nuevo (muchos de los nuestros son sintéticos y no
+   * existen).
+   */
+  async cambiarEmail(id: string, email: string): Promise<void> {
+    const res = await fetch(`${this.url}/auth/v1/admin/users/${id}`, {
+      method: 'PUT',
+      headers: this.headers(),
+      body: JSON.stringify({ email, email_confirm: true }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = (data?.msg || data?.error_description || '').toLowerCase();
+      if (res.status === 422 || msg.includes('already')) {
+        throw new ConflictException('Ya existe una cuenta con ese correo');
+      }
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el correo en Supabase Auth',
+      );
+    }
+  }
+
+  /**
+   * Reemplaza la contraseña de una cuenta (Bloque 8.3).
+   *
+   * Se usa cuando el asistente cambia su contraseña temporal en el primer
+   * ingreso. Va por la Admin API y no por supabase.auth.updateUser() del
+   * cliente porque así el backend es el único que decide cuándo se cambia, y
+   * puede apagar `debe_cambiar_password` en la MISMA operación.
+   */
+  async cambiarPassword(id: string, password: string): Promise<void> {
+    const res = await fetch(`${this.url}/auth/v1/admin/users/${id}`, {
+      method: 'PUT',
+      headers: this.headers(),
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      throw new InternalServerErrorException(
+        'No se pudo actualizar la contraseña en Supabase Auth',
+      );
+    }
+  }
 }

@@ -364,7 +364,7 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 - **8.0** ✅ Identidad visual: tokens de la Opción A (claro/oscuro), logo, montar shadcn (web) + NativeWind (móvil).
 - **8.1** ✅ Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
 - **8.2** ✅ Superadmin: crear congresos (+ asignar admin) + layout del panel.
-- **8.3** Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
+- **8.3** ✅ Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
 - **8.4** Admin · Agenda + Speakers.
 - **8.5** Admin · Sponsors + Personalización (reflejada en la app).
 - **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
@@ -618,11 +618,102 @@ el porqué de cada decisión en `GUIA_DEV.md` § 21.
   (añadido al `.gitignore`). Utilidad nueva para reponer una clave olvidada:
   `node prisma/setup/09_cambiar_password.js <email> <nueva>`.
 
-**SIGUIENTE EN DESARROLLO: Bloque 8.3 — Admin · Usuarios.** CRUD de los inscritos a
-un congreso + **importación del Excel** que envía la organización, con el nuevo
-login por **usuario tipo `JPGarcia`** (correo sintético por dentro) y **contraseña
-temporal** que se cambia al primer ingreso. El modelo ya está listo desde el 8.1
-(`username`, `debe_cambiar_password`, documento, `tipo_suscripcion`, `origen`), y la
-pieza para generar contraseñas ya existe (`09_cambiar_password.js`). Mismo método de
-siempre (paso a paso explicando el código, Sebastián commitea, cada bloque cierra
-con prueba; docs vivas se actualizan al cerrar).
+## Estado actual (Fase 8 · Bloque 8.3 — Usuarios e importación de Excel) ✅ COMPLETO
+
+Cómo entran las personas al sistema. Detalle completo en `GUIA_DEV.md` § 22.
+
+### Decisiones de diseño del bloque
+
+- **Importación en DOS pasos** (previsualizar → confirmar). Un Excel con un error
+  puede crear 200 cuentas basura sin forma de deshacerlo desde el panel.
+- **Las credenciales se entregan en un Excel descargable**, no por correo: Nexvio
+  no manda correos y el del asistente es opcional. La organización las reparte
+  como ya lo hace hoy.
+- **"Usuarios" vive dentro del congreso**, porque la inscripción y el tipo de
+  suscripción son por evento.
+
+### Lo construido
+
+- [x] **`username.util.ts`**: `JPGarcia` (iniciales + primer apellido, sin
+  tildes), colisiones con sufijo, **correo sintético**
+  `jpgarcia@<slug-org>.nexvio.local` (único en todo el proyecto de Supabase; el
+  asistente nunca lo ve) y contraseña temporal sin caracteres confundibles
+  (nada de O/0 ni I/l/1), con `randomInt`.
+- [x] **`asistentes.service.ts`**: listar / crear / editar / quitar del congreso.
+  `cargarContexto()` trae usernames y documentos de una sola vez (con 300 filas,
+  evita 300 consultas).
+- [x] **`importacion.service.ts`** (exceljs): analizar y ejecutar. Encabezados
+  flexibles por sinónimos ("Celular" = "Teléfono"), 4 estados por fila
+  (`nueva` | `se_inscribe` | `ya_inscrita` | `error`), generación de la
+  **plantilla** y del **Excel de credenciales**.
+- [x] **Tercera función `SECURITY DEFINER` acotada**: `nexvio_email_por_username`
+  (migración `fase8_login_username`; SQL en
+  `prisma/setup/10_funcion_login_username.sql`). Devuelve UNA columna.
+- [x] **`src/auth/`**: `POST /auth/resolver-usuario` (pública),
+  `GET /auth/yo` y `POST /auth/cambiar-password`. Decorador `@OrgIdOpcional()`.
+- [x] **Panel**: `/congresos/:id/asistentes` (lista, buscador, alta manual,
+  quitar), `/congresos/:id/asistentes/importar` (dos pasos + descarga de
+  credenciales) y `/usuarios` (elige congreso). Entrada "Usuarios" del menú ya
+  activa. `apiSubirArchivo` y `apiDescargar` en `lib/api.ts`.
+- [x] **Prueba de cierre** `prisma/tests/e2e_fase8_3_usuarios.js` — **verde**.
+
+### Ajustes tras la primera revisión visual (mismo bloque)
+
+- [x] **Menú de acciones por fila** (ver ficha / editar / restablecer contraseña /
+  quitar) + **ficha completa en panel lateral** al hacer clic en la fila.
+  Componentes nuevos reutilizables: `menu-acciones.tsx` y `panel-lateral.tsx`.
+- [x] **Edición completa**, incluidos correo y documento. El correo se cambia
+  TAMBIÉN en Supabase Auth (primero allí, que es lo que puede fallar; si la base
+  lo rechaza después, se revierte en Auth). El `username` NO se puede cambiar:
+  ya está repartido.
+- [x] **Restablecer contraseña** de una persona
+  (`POST /asistentes/:id/restablecer-password`).
+- [x] **Listado de acceso** (`POST /congresos/:id/listado-acceso`): devuelve a
+  **TODOS** los inscritos con su usuario y genera contraseña nueva solo para
+  quienes aún no han entrado. El Excel trae una columna **Estado**: "Entregar
+  esta contraseña temporal" o "Ya tiene su propia contraseña" (fila en gris, sin
+  clave). Resuelve el caso real: los Excel llegan por tandas durante semanas y
+  el admin necesita en cualquier momento UN documento con todo el mundo.
+  **Dos formas sanas y excluyentes de trabajar:** (A) no descargar nada durante
+  las tandas y pulsar "Listado de acceso" una sola vez cerca del evento, o (B)
+  descargar el archivo de cada tanda al importarla y no usar nunca el listado
+  completo (regeneraría las ya entregadas).
+- [x] **`baseUsername` tolerante** a nombres incompletos: sin apellido usa el
+  nombre entero, sin nombre el apellido, y si no hay nada usable, `Usuario`.
+  `apellidos` pasó a **opcional** en el DTO y en el Excel.
+
+> **⚠️ No existe "ver la contraseña", y no es una limitación del panel.** Supabase
+> guarda un hash (huella de un solo sentido): nadie puede leer la original. Si un
+> admin pudiera verla, podría suplantar a cualquiera, y un robo de la base se
+> llevaría todo en texto plano. Lo que existe es **restablecer**. Vale la pena
+> tenerlo claro para la sustentación: es una propiedad de seguridad, no un
+> pendiente.
+
+### Gotchas y notas del 8.3
+
+- **Dependencias nuevas** (en `apps/backend`): `exceljs` y `@types/multer`.
+- **`addWorksheet` es del LIBRO, no de la hoja.** Error de compilación que ya
+  mordió una vez: `libro.addWorksheet(...)`, nunca `hoja.addWorksheet(...)`.
+- **En `multipart/form-data` NO se pone `Content-Type` a mano.** El navegador lo
+  genera con el *boundary*; si lo escribimos nosotros, el servidor no puede leer
+  el archivo.
+- **Las contraseñas temporales se ven UNA sola vez.** En la base solo queda el
+  hash: no hay forma de recuperarlas, solo de generar otras con
+  `09_cambiar_password.js`. El panel lo avisa.
+- **Quitar a alguien borra la INSCRIPCIÓN, no a la persona** (puede estar en
+  otros congresos, y borrar su `usuario` arrastraría preguntas, votos y chats).
+- **⚠️ Enumeración de usuarios — riesgo asumido y documentado.**
+  `/auth/resolver-usuario` permite en teoría probar nombres hasta descubrir
+  cuáles existen. Se asume porque el usuario va impreso en la escarapela y la
+  contraseña sigue siendo el muro. El error es idéntico al de contraseña
+  incorrecta. **Mitigación pendiente para la Fase 9: limitar intentos por IP.**
+- **Pendiente para el 8.7 (móvil):** la pantalla de login por usuario y la de
+  cambio de contraseña al primer ingreso. El backend ya está listo.
+
+**SIGUIENTE EN DESARROLLO: Bloque 8.4 — Admin · Agenda + Speakers.** Agenda por
+día con charlas y breaks (el campo `tipo` ya existe desde el 8.1), asignar
+speaker a cada charla, y la ficha de speaker con cargo, empresa, foto y bandera
+(los campos ya existen; los catálogos de países de `datos/paises.ts` se reusan).
+La foto necesita **Supabase Storage**, que en principio se monta en el 8.5 —
+habrá que decidir si se adelanta. Mismo método de siempre.
+

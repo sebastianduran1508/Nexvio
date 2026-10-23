@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { buttonVariants } from '@/components/ui/button';
 
 type Sesion = { id: string; titulo: string; inicio: string; fin: string; sala?: string | null };
 type CongresoDetalle = { id: string; nombre: string; sesiones: Sesion[] };
@@ -41,7 +43,17 @@ export default function CongresoDetallePage() {
       <Link href="/congresos" className="text-sm text-primary">
         ‹ Congresos
       </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-semibold text-foreground">{detalle.nombre}</h1>
+      <div className="mb-6 mt-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          {detalle.nombre}
+        </h1>
+        <Link
+          href={`/congresos/${detalle.id}/asistentes`}
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          <Users /> Asistentes
+        </Link>
+      </div>
 
       <h2 className="mb-3 text-lg font-medium text-foreground">Sesiones</h2>
       {detalle.sesiones.length === 0 ? (
