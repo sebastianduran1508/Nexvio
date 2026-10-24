@@ -30,6 +30,9 @@ export class SesionesService {
           inicio: new Date(dto.inicio),
           fin: new Date(dto.fin),
           ...(dto.sala !== undefined ? { sala: dto.sala } : {}),
+          ...(dto.tipo !== undefined ? { tipo: dto.tipo } : {}),
+          ...(dto.descripcion !== undefined ? { descripcion: dto.descripcion } : {}),
+          ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
       });
     });
@@ -43,7 +46,8 @@ export class SesionesService {
 
       return tx.sesion.findMany({
         where: { congreso_id: congresoId },
-        orderBy: { inicio: 'asc' },
+        // Por hora de inicio y, si empatan, por el campo `orden`.
+        orderBy: [{ inicio: 'asc' }, { orden: 'asc' }],
         include: { ponentes: { include: { ponente: true } } },
       });
     });
@@ -62,6 +66,9 @@ export class SesionesService {
           ...(dto.inicio !== undefined ? { inicio: new Date(dto.inicio) } : {}),
           ...(dto.fin !== undefined ? { fin: new Date(dto.fin) } : {}),
           ...(dto.sala !== undefined ? { sala: dto.sala } : {}),
+          ...(dto.tipo !== undefined ? { tipo: dto.tipo } : {}),
+          ...(dto.descripcion !== undefined ? { descripcion: dto.descripcion } : {}),
+          ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
       });
     });

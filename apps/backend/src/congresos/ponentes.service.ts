@@ -23,6 +23,13 @@ export class PonentesService {
           nombre: dto.nombre,
           ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
           ...(dto.foto_url !== undefined ? { foto_url: dto.foto_url } : {}),
+          ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
+          ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
+          ...(dto.pais !== undefined ? { pais: dto.pais } : {}),
+          ...(dto.pais_codigo !== undefined
+            ? { pais_codigo: dto.pais_codigo.toUpperCase() }
+            : {}),
+          ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
       });
     });
@@ -53,6 +60,13 @@ export class PonentesService {
           ...(dto.nombre !== undefined ? { nombre: dto.nombre } : {}),
           ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
           ...(dto.foto_url !== undefined ? { foto_url: dto.foto_url } : {}),
+          ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
+          ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
+          ...(dto.pais !== undefined ? { pais: dto.pais } : {}),
+          ...(dto.pais_codigo !== undefined
+            ? { pais_codigo: dto.pais_codigo.toUpperCase() }
+            : {}),
+          ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
       });
     });

@@ -1,4 +1,13 @@
-import { IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import { TIPOS_SESION } from './crear-sesion.dto';
 
 /** Molde para ACTUALIZAR una sesión (PATCH). Todo opcional (actualización parcial). */
 export class ActualizarSesionDto {
@@ -18,4 +27,17 @@ export class ActualizarSesionDto {
   @IsOptional()
   @IsString()
   sala?: string;
+
+  @IsOptional()
+  @IsIn(TIPOS_SESION as unknown as string[])
+  tipo?: string;
+
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  orden?: number;
 }

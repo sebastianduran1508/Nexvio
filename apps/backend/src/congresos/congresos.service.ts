@@ -52,7 +52,13 @@ export class CongresosService {
       tx.congreso.findFirst({
         where: { id },
         include: {
-          sesiones: { orderBy: { inicio: 'asc' } },
+          // Cada sesión trae sus ponentes (para pintar "Dra. Ana Ríos" bajo la
+          // charla en la agenda). Es un dato EXTRA en la respuesta: quien no
+          // lo use, simplemente lo ignora.
+          sesiones: {
+            orderBy: [{ inicio: 'asc' }, { orden: 'asc' }],
+            include: { ponentes: { include: { ponente: true } } },
+          },
           ponentes: true,
         },
       }),

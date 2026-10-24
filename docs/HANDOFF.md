@@ -710,6 +710,13 @@ Cómo entran las personas al sistema. Detalle completo en `GUIA_DEV.md` § 22.
 - **Pendiente para el 8.7 (móvil):** la pantalla de login por usuario y la de
   cambio de contraseña al primer ingreso. El backend ya está listo.
 
+### Pendientes de UX anotados (oct-2026)
+
+- [ ] **Botón "ver contraseña" (el ojito)** en TODOS los campos de contraseña,
+  web y móvil: login del panel, login de la app, cambio de contraseña al primer
+  ingreso (8.7) y cualquier formulario que pida clave. Pedido por Sebastián
+  tras la preparación de la feria.
+
 **SIGUIENTE EN DESARROLLO: Bloque 8.4 — Admin · Agenda + Speakers.** Agenda por
 día con charlas y breaks (el campo `tipo` ya existe desde el 8.1), asignar
 speaker a cada charla, y la ficha de speaker con cargo, empresa, foto y bandera

@@ -41,6 +41,24 @@ type Panel = {
 const Ctx = createContext<Panel | null>(null);
 
 /**
+ * A dónde ir después de cambiar de organización.
+ *
+ * Una ruta con un id dentro (/congresos/<id>, /congresos/<id>/asistentes,
+ * /sesiones/<id>) pertenece a UNA organización concreta: si recargamos esa
+ * misma ruta ya trabajando en otra organización, el RLS hace invisible ese id
+ * y la pantalla muestra "No se pudo cargar el congreso". Es el aislamiento
+ * funcionando bien; lo que estaba mal era quedarse en esa ruta.
+ *
+ * Por eso volvemos a la raíz de la sección, que sí existe en cualquier
+ * organización. Las rutas del superadmin no dependen del tenant y se respetan.
+ */
+function destinoSeguro(ruta: string): string {
+  if (ruta.startsWith('/superadmin')) return ruta;
+  if (ruta.startsWith('/usuarios')) return '/usuarios';
+  return '/congresos';
+}
+
+/**
  * El "estado compartido" de todo el panel: quién eres y, si eres superadmin,
  * en qué organización estás trabajando.
  *
@@ -112,7 +130,7 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     // Recarga COMPLETA (no router.push) a propósito: así no queda ni un dato
     // de la organización anterior flotando en pantalla. Cambiar de tenant es
     // un cambio de contexto grande; vale la pena empezar de cero.
-    window.location.href = destino ?? window.location.pathname;
+    window.location.href = destino ?? destinoSeguro(window.location.pathname);
   }, []);
 
   const cerrarSesion = useCallback(async () => {
