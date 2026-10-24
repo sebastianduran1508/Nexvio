@@ -4,6 +4,10 @@ export type Congreso = {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  // Datos del evento (Bloque 8.1). Opcionales: congresos viejos no los tienen.
+  descripcion?: string | null;
+  ciudad?: string | null;
+  lugar?: string | null;
 };
 
 export type Ponente = {
@@ -11,6 +15,11 @@ export type Ponente = {
   nombre: string;
   bio?: string | null;
   foto_url?: string | null;
+  // Ficha del speaker (Bloque 8.1)
+  cargo?: string | null;
+  empresa?: string | null;
+  pais?: string | null;
+  pais_codigo?: string | null;
 };
 
 export type Sesion = {
@@ -19,6 +28,10 @@ export type Sesion = {
   inicio: string;
   fin: string;
   sala?: string | null;
+  tipo?: string; // charla | break | taller | plenaria
+  descripcion?: string | null;
+  // El detalle del congreso trae los ponentes de cada sesión (tabla intermedia).
+  ponentes?: { ponente: Ponente }[];
 };
 
 export type CongresoDetalle = Congreso & {

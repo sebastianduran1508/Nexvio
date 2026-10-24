@@ -5,7 +5,6 @@ import CongresoDetalleScreen from '../screens/CongresoDetalleScreen';
 import SesionScreen from '../screens/SesionScreen';
 import NetworkingScreen from '../screens/NetworkingScreen';
 import ChatScreen from '../screens/ChatScreen';
-import BotonSalir from '../components/BotonSalir';
 
 /** Pantallas (y parametros) de la pestana Congresos: lista -> detalle. */
 export type CongresosStackParamList = {
@@ -18,35 +17,18 @@ export type CongresosStackParamList = {
 
 const Stack = createNativeStackNavigator<CongresosStackParamList>();
 
+/**
+ * Rediseño: cada pantalla pinta su propia cabecera con degradado (y su flecha de
+ * volver), así que ocultamos la cabecera nativa en todo el stack.
+ */
 export function CongresosStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerRight: () => <BotonSalir /> }}>
-      <Stack.Screen
-        name="Congresos"
-        component={CongresosScreen}
-        options={{ title: 'Congresos' }}
-      />
-      <Stack.Screen
-        name="CongresoDetalle"
-        component={CongresoDetalleScreen}
-        // El titulo de la cabecera es el nombre del congreso (viene por params).
-        options={({ route }) => ({ title: route.params.nombre })}
-      />
-      <Stack.Screen
-        name="Sesion"
-        component={SesionScreen}
-        options={({ route }) => ({ title: route.params.titulo })}
-      />
-      <Stack.Screen
-        name="Networking"
-        component={NetworkingScreen}
-        options={{ title: 'Networking' }}
-      />
-      <Stack.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={({ route }) => ({ title: route.params.nombre })}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Congresos" component={CongresosScreen} />
+      <Stack.Screen name="CongresoDetalle" component={CongresoDetalleScreen} />
+      <Stack.Screen name="Sesion" component={SesionScreen} />
+      <Stack.Screen name="Networking" component={NetworkingScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
     </Stack.Navigator>
   );
 }

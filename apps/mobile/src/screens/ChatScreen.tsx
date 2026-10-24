@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Socket } from 'socket.io-client';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
@@ -16,6 +18,8 @@ import { crearSocket } from '../lib/socket';
 import { useAuth } from '../context/AuthContext';
 import type { MensajeChat, MensajesResp } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
+import { Avatar, Cabecera, Vacio } from '../components/ui';
+import { F, sombra, useTema } from '../tema/tema';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Chat'>;
 
@@ -23,11 +27,16 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Chat'>;
  * Chat de una conexion. Se une a la sala `conexion:<id>` por socket y refresca al
  * oir 'mensajes:cambio'. El chat es ACOTADO: cuando se llega al limite, se
  * deshabilita el envio.
+ *
+ * Rediseño (mockup "A · Chat"): burbujas violeta (mías) y blancas (del otro),
+ * contador de mensajes restantes y caja de texto con botón redondo.
  */
-export default function ChatScreen({ route }: Props) {
-  const { conexionId } = route.params;
+export default function ChatScreen({ route, navigation }: Props) {
+  const { conexionId, nombre } = route.params;
   const { session } = useAuth();
   const miId = session?.user?.id;
+  const t = useTema();
+  const insets = useSafeAreaInsets();
 
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [limite, setLimite] = useState(0);
@@ -82,89 +91,96 @@ export default function ChatScreen({ route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      style={{ flex: 1, backgroundColor: t.fondo }}
+      // 'padding' también en Android: con edge-to-edge (app.json) Android ya no
+      // encoge la ventana al abrir el teclado, así que hay que empujar nosotros.
+      behavior="padding"
     >
+      <Cabecera
+        compacta
+        titulo={nombre}
+        subtitulo="Conexión de networking"
+        onAtras={() => navigation.goBack()}
+        derecha={<Avatar nombre={nombre} tamano={38} />}
+      />
+
       <FlatList
         ref={listaRef}
-        contentContainerStyle={styles.lista}
+        contentContainerStyle={est.lista}
         data={mensajes}
         keyExtractor={(m) => m.id}
         onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: true })}
-        ListEmptyComponent={
-          <Text style={styles.vacio}>Aún no hay mensajes. ¡Saluda!</Text>
+        ListHeaderComponent={
+          <View style={[est.aviso, { backgroundColor: t.barraFondo }]}>
+            <Text style={[est.avisoTexto, { color: t.textoTenue }]}>Conectaron · pueden chatear</Text>
+          </View>
         }
+        ListEmptyComponent={<Vacio texto="Aún no hay mensajes. ¡Saluda!" icono="hand-left-outline" />}
         renderItem={({ item }) => {
           const mio = item.autor.id === miId;
           return (
-            <View style={[styles.burbujaFila, mio ? styles.derecha : styles.izquierda]}>
-              <View style={[styles.burbuja, mio ? styles.burbujaMia : styles.burbujaOtro]}>
-                <Text style={mio ? styles.textoMio : styles.textoOtro}>{item.texto}</Text>
+            <View style={[est.burbujaFila, { justifyContent: mio ? 'flex-end' : 'flex-start' }]}>
+              <View
+                style={[
+                  est.burbuja,
+                  mio
+                    ? { backgroundColor: t.primario, borderBottomRightRadius: 6 }
+                    : { backgroundColor: t.tarjeta, borderBottomLeftRadius: 6, ...sombra(t) },
+                ]}
+              >
+                <Text style={[est.burbujaTexto, { color: mio ? '#fff' : t.texto }]}>{item.texto}</Text>
               </View>
             </View>
           );
         }}
       />
 
-      <Text style={styles.contador}>
-        {bloqueado ? 'Límite de mensajes alcanzado' : `${restantes} mensaje${restantes === 1 ? '' : 's'} restantes`}
+      <Text style={[est.contador, { color: t.textoTenue }]}>
+        {bloqueado
+          ? 'Límite de mensajes alcanzado'
+          : `${restantes} mensaje${restantes === 1 ? '' : 's'} restantes`}
       </Text>
 
-      <View style={styles.inputRow}>
+      <View style={[est.barraInput, { paddingBottom: insets.bottom + 10 }]}>
         <TextInput
-          style={styles.input}
+          style={[est.input, { backgroundColor: t.tarjeta, color: t.texto, borderColor: t.borde }]}
           placeholder={bloqueado ? 'Chat cerrado' : 'Mensaje...'}
+          placeholderTextColor={t.textoTenue}
           value={texto}
           onChangeText={setTexto}
           editable={!bloqueado}
           multiline
         />
         <TouchableOpacity
-          style={[styles.enviar, bloqueado && styles.disabled]}
+          style={[est.enviar, { backgroundColor: t.primario }, bloqueado && { opacity: 0.5 }]}
           onPress={enviar}
           disabled={bloqueado}
         >
-          <Text style={styles.enviarTexto}>Enviar</Text>
+          <Ionicons name="send" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  lista: { padding: 12, gap: 6, flexGrow: 1 },
-  vacio: { textAlign: 'center', color: '#64748b', marginTop: 40 },
+const est = StyleSheet.create({
+  lista: { padding: 16, gap: 8, flexGrow: 1 },
+  aviso: { alignSelf: 'center', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 },
+  avisoTexto: { fontFamily: F.medio, fontSize: 11.5 },
   burbujaFila: { flexDirection: 'row' },
-  izquierda: { justifyContent: 'flex-start' },
-  derecha: { justifyContent: 'flex-end' },
-  burbuja: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 9 },
-  burbujaMia: { backgroundColor: '#4f46e5', borderBottomRightRadius: 4 },
-  burbujaOtro: { backgroundColor: '#e2e8f0', borderBottomLeftRadius: 4 },
-  textoMio: { color: '#fff', fontSize: 15 },
-  textoOtro: { color: '#0f172a', fontSize: 15 },
-  contador: { textAlign: 'center', fontSize: 12, color: '#94a3b8', paddingVertical: 4 },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    backgroundColor: '#fff',
-    alignItems: 'flex-end',
-  },
+  burbuja: { maxWidth: '78%', borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10 },
+  burbujaTexto: { fontFamily: F.medio, fontSize: 14.5, lineHeight: 20 },
+  contador: { textAlign: 'center', fontFamily: F.medio, fontSize: 11.5, paddingVertical: 4 },
+  barraInput: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 6, alignItems: 'flex-end' },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     fontSize: 15,
-    maxHeight: 100,
+    fontFamily: F.medio,
+    maxHeight: 110,
   },
-  enviar: { backgroundColor: '#4f46e5', borderRadius: 20, paddingVertical: 11, paddingHorizontal: 18 },
-  enviarTexto: { color: '#fff', fontWeight: '700' },
-  disabled: { opacity: 0.5 },
+  enviar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 });
