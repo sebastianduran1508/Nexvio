@@ -365,10 +365,10 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 - **8.1** ✅ Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
 - **8.2** ✅ Superadmin: crear congresos (+ asignar admin) + layout del panel.
 - **8.3** ✅ Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
-- **8.4** Admin · Agenda + Speakers.
+- **8.4** Admin · Agenda + Speakers. *(Parcial desde la feria: la API ya acepta los campos y el panel muestra la agenda en solo lectura.)*
 - **8.5** Admin · Sponsors + Personalización (reflejada en la app).
 - **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
-- **8.7** App móvil: diseño final + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
+- **8.7** App móvil: *(el diseño ya se hizo en la feria)* + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
 
 Luego **Fase 9** (pruebas, carga, seguridad, Ley 1581) y por último **Fase 7**
 (WhatsApp + IA). Pendientes menores arrastrados: zona horaria de sesiones (UTC) y la
@@ -710,17 +710,94 @@ Cómo entran las personas al sistema. Detalle completo en `GUIA_DEV.md` § 22.
 - **Pendiente para el 8.7 (móvil):** la pantalla de login por usuario y la de
   cambio de contraseña al primer ingreso. El backend ya está listo.
 
-### Pendientes de UX anotados (oct-2026)
+## Preparación de la feria (oct-2026) ✅ COMPLETA
 
-- [ ] **Botón "ver contraseña" (el ojito)** en TODOS los campos de contraseña,
-  web y móvil: login del panel, login de la app, cambio de contraseña al primer
-  ingreso (8.7) y cualquier formulario que pida clave. Pedido por Sebastián
-  tras la preparación de la feria.
+Sprint corto para mostrar el proyecto en una feria, con una regla: **que se viera
+como producto sin cambiar la funcionalidad**. Rama `feria`, unida a `main` al
+cerrar. Detalle completo en `GUIA_DEV.md` § 23. **La feria salió bien**: los
+cambios le dieron mucha vida al proyecto.
 
-**SIGUIENTE EN DESARROLLO: Bloque 8.4 — Admin · Agenda + Speakers.** Agenda por
-día con charlas y breaks (el campo `tipo` ya existe desde el 8.1), asignar
-speaker a cada charla, y la ficha de speaker con cargo, empresa, foto y bandera
-(los campos ya existen; los catálogos de países de `datos/paises.ts` se reusan).
-La foto necesita **Supabase Storage**, que en principio se monta en el 8.5 —
-habrá que decidir si se adelanta. Mismo método de siempre.
+### Lo construido
 
+- [x] **Backend — la API acepta los campos del 8.1** (adelanta el 8.4): `tipo`,
+  `descripcion` y `orden` en sesiones; `cargo`, `empresa`, `pais`, `pais_codigo`
+  y `orden` en ponentes. `TIPOS_SESION` vive en `crear-sesion.dto.ts`. El detalle
+  del congreso trae los ponentes de cada sesión y ordena por `inicio` + `orden`.
+- [x] **Seed de demostración** `prisma/setup/11_seed_feria.js`: 3 organizaciones
+  (Medicina + Ingeniería de Software + Educación Digital), cada una con un
+  congreso de 2 días, 6 ponentes y asistentes. Pasa por la API como superadmin
+  con `X-Organizacion-Id`. Idempotente.
+- [x] **Limpieza** `prisma/setup/12_limpiar_orgs_prueba.sql`: borra las
+  "Organización a/b <número>" que deja `e2e_onboarding_aislamiento.js`. Ya se
+  corrió: quedaron 4 organizaciones (Org A – Medicina, Org B – Derecho y las 2
+  nuevas).
+- [x] **Panel — volver a la raíz al cambiar de organización**
+  (`destinoSeguro()` en `panel-contexto.tsx`). Antes, cambiar de organización
+  dentro de un congreso daba "No se pudo cargar el congreso" (404 del RLS).
+- [x] **Panel — detalle del congreso** con agenda por día, breaks, etiquetas y
+  ponentes. **Solo lectura**: la gestión es del 8.4.
+- [x] **App móvil — rediseño completo** (Opción A de los mockups; adelanta el
+  diseño del 8.7): `src/tema/tema.ts` (paleta clara/oscura, fuentes) y
+  `src/components/ui.tsx` (Cabecera, Tarjeta, Etiqueta, Avatar, Boton...). Las 7
+  pantallas con su JSX nuevo y **la lógica intacta**. Agenda por día con
+  pestañas, EN VIVO, breaks no navegables, ponentes con bandera, ojito en el login.
+- [x] **Fix: fechas de congreso un día antes** (se leen en UTC) — app y panel.
+- [x] **Fix: el teclado tapaba los campos en Android** (`behavior="padding"`).
+
+### Gotchas de la feria (resumen; detalle en GUIA § 23.7)
+
+- **Fechas de congreso en UTC, horas de sesión en local.** Mezclarlas da un día
+  de diferencia.
+- **`edgeToEdgeEnabled` + teclado:** Android ya no encoge la ventana; el
+  `KeyboardAvoidingView` debe usar `padding` también en Android.
+- **"Failed to download remote update" (Expo Go)** = el dispositivo no llega al
+  PC. Firewall (red Privada + regla para 8081 y 3000) o red distinta. En eventos,
+  usar el **punto de acceso de un celular**; `--tunnel` no sirve.
+- **Dependencias nuevas (móvil):** `expo-linear-gradient`, `expo-font`,
+  `@expo-google-fonts/space-grotesk`, `@expo-google-fonts/plus-jakarta-sans`
+  (plugin `expo-font` en `app.json`). Tras instalar: `npx expo start -c`.
+- **Fuentes personalizadas:** el grosor va en el nombre de la fuente; nunca
+  combinar con `fontWeight`.
+- **`index.lock` huérfano:** si pesa 0 bytes, `del .git\index.lock`. Para
+  consultar sin crearlo: `git --no-optional-locks status`.
+- **Cuentas de demo:** las contraseñas NO se guardan en el repo. Las imprime el
+  seed; si se pierde una, `09_cambiar_password.js`. Para moderar preguntas en una
+  demo, usar el **organizador** (no el superadmin, por el pendiente de Socket.io).
+
+## Pendientes arrastrados (consolidado, oct-2026)
+
+- [x] Ojito "ver contraseña" en el **login de la app** (feria).
+- [ ] Ojito en el **panel web** (login) y en todo formulario con clave, incluido
+  el cambio de contraseña al primer ingreso (8.7).
+- [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
+  § 23.7). Se notó en la feria.
+- [ ] Validaciones de negocio de la agenda: `fin > inicio`, dentro de las fechas
+  del congreso, break sin ponentes (**8.4**).
+- [ ] Que `e2e_onboarding_aislamiento.js` borre sus organizaciones al terminar.
+- [ ] Límite de intentos por IP en `/auth/resolver-usuario` (**Fase 9**).
+- [ ] Pantallas móviles de login por usuario y cambio de contraseña al primer
+  ingreso (**8.7**; el backend ya está listo).
+- [ ] `.gitattributes` para normalizar finales de línea.
+- [ ] Suite de Jest (`clearMocksOnScope`).
+- [ ] Actualizar ERD y C4 (`diagramas.html` y `NEXVIO_Vfinal.md`) al cerrar el
+  Módulo 8.
+- [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
+  el equipo).
+
+**SIGUIENTE EN DESARROLLO: Bloque 8.4 — Admin · Agenda + Speakers (lo que
+falta).** Ya hecho: la API acepta los campos y el panel muestra la agenda en solo
+lectura. Falta: (1) validaciones de negocio en el backend; (2) las pantallas de
+**gestión** en el panel (crear, editar y borrar sesiones y ponentes, asignar
+ponentes a charlas), activando "Agenda" y "Speakers" en el menú lateral; (3) la
+**foto del ponente**; (4) prueba de cierre e2e + docs.
+
+Decisiones abiertas a resolver al arrancar el 8.4:
+- **¿Adelantar Supabase Storage** (previsto para el 8.5) para la foto del
+  ponente? Recomendación: sí, como último paso del bloque, subiendo por el
+  backend (para que funcione la suplantación) a un bucket **público**
+  (fotos y logos están hechos para mostrarse; ahí no van datos de asistentes).
+- **Zona horaria en los formularios de agenda:** recomendación, que el backend
+  interprete "09:00" en la `zona_horaria` del congreso cuando la fecha llegue sin
+  zona, y respete las que ya traen `Z` u offset (como el seed).
+
+Mismo método de siempre.

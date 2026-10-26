@@ -1,5 +1,9 @@
 # Guía de desarrollo — Nexvio
 
+> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.3 cerrados, más el sprint
+> de la **feria** (§ 23), que adelantó partes del 8.4 y del 8.7. Lo siguiente es
+> el **Bloque 8.4 — Agenda + Speakers**.
+
 > **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
 > **Fase 8** (identidad visual + panel del administrador + producto completo).
 > Las decisiones y el nuevo plan están en `HANDOFF.md`. Esta guía documenta el
@@ -555,6 +559,14 @@ node prisma/setup/09_cambiar_password.js <email> <passwordNueva>
 # Fase 8 - Bloque 8.3: usuarios e importacion de Excel (requiere el backend corriendo)
 node prisma/tests/e2e_fase8_3_usuarios.js <orgEmail> <orgPass>
 
+# Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
+# (requiere el backend corriendo; idempotente)
+node prisma/setup/11_seed_feria.js <adminEmail> <adminPass> [slugOrgA]
+
+# Limpieza de las organizaciones que deja e2e_onboarding_aislamiento.js:
+# pegar prisma/setup/12_limpiar_orgs_prueba.sql en el SQL Editor de Supabase
+# (primero el paso 1, que solo mira; luego el paso 2).
+
 # --- Bloque puente: alta de organizaciones ---
 # Sembrar el admin global (UNA vez). Requiere SUPABASE_SERVICE_ROLE_KEY en .env.
 node prisma/setup/03_seed_admin.js <email> <password> "<nombre>"
@@ -744,6 +756,10 @@ src/
     └── BotonSalir.tsx  ← cierra sesión desde la cabecera
 ```
 
+> **Rediseñada en la feria (oct-2026):** se sumaron `tema/tema.ts` y
+> `components/ui.tsx`, cada pantalla pinta su propia cabecera y hay pestañas de
+> agenda por día. Detalle en el § 23.6.
+
 ### 16.2. Piezas clave
 
 - **Navegación guiada por la sesión.** `RootNavigator` lee `useAuth()`: sin sesión
@@ -767,8 +783,9 @@ src/
   Expo.
 - **Zona horaria.** Las sesiones se guardan en UTC (`...Z`). La app las muestra en la
   hora local del teléfono, así que una sesión guardada a las 09:00 UTC se ve a las
-  04:00 en Colombia (UTC-5). Es correcto; para la demo conviene guardar las horas ya
-  pensadas en local (o formatear con una zona fija).
+  04:00 en Colombia (UTC-5). Es correcto: hay que **crear** las sesiones con su zona
+  (`"...T09:00:00-05:00"`), como hace el seed de la feria. Ojo con las **fechas de
+  congreso**, que son otra historia: ver el § 23.7.
 
 ### 16.4. Cómo correrla
 
@@ -1657,3 +1674,332 @@ previsualiza, **comprueba que no escribió nada**, importa, **reimporta el mismo
 archivo** para verificar que no duplica a nadie, entra como asistente con el
 usuario `JPGarcia`, cambia la contraseña temporal y confirma que la vieja dejó de
 servir. Al final limpia todo.
+
+---
+
+## 23. Preparación de la feria (oct-2026)
+
+Antes de una feria donde había que mostrar el proyecto en público se hizo un
+sprint corto con una regla clara: **que se viera como producto sin cambiar la
+funcionalidad**. Se trabajó en la rama `feria` (ya unida a `main`).
+
+No fue solo maquillaje: adelantó piezas de bloques futuros.
+
+| Hecho en la feria | Adelanta |
+|---|---|
+| La API acepta los campos de agenda y la ficha del ponente | 8.4 (backend) |
+| Detalle del congreso en el panel, de solo lectura | 8.4 (vista) |
+| Rediseño completo de la app móvil | 8.7 (diseño) |
+| Seed de demostración con 3 organizaciones | Pruebas y demos |
+
+### 23.1. Backend: la agenda y la ficha del ponente entran por la API
+
+Desde el 8.1 la base ya tenía `tipo`, `descripcion` y `orden` en `sesion`, y
+`cargo`, `empresa`, `pais`, `pais_codigo` y `orden` en `ponente`. Pero la API no
+los dejaba entrar: el `ValidationPipe` tiene `forbidNonWhitelisted`, así que
+mandar `tipo: "break"` respondía **400** porque el DTO no conocía el campo.
+
+Se ampliaron los cuatro DTOs de `src/congresos/dto/`:
+
+```ts
+export const TIPOS_SESION = ['charla', 'break', 'taller', 'plenaria'] as const;
+
+@IsOptional()
+@IsIn(TIPOS_SESION as unknown as string[])
+tipo?: string;   // si no se manda, la BD pone "charla"
+```
+
+- La lista de tipos vive en **un solo lugar** (`TIPOS_SESION`, en
+  `crear-sesion.dto.ts`) y el DTO de actualizar la importa. Agregar un tipo
+  nuevo es tocar esa línea: es la decisión b) del § 20.1 (`String` en la base,
+  validación en el DTO).
+- `pais_codigo` se valida con `@Length(2, 2)` y el service lo pasa a
+  mayúsculas: "co" y "CO" pintan la misma bandera.
+- `orden` es `@IsInt() @Min(0)`.
+
+Los services guardan los campos con el patrón de siempre
+(`...(dto.tipo !== undefined ? { tipo: dto.tipo } : {})`), y dos lecturas
+cambiaron:
+
+```ts
+// congresos.service.ts -> obtener()
+sesiones: {
+  orderBy: [{ inicio: 'asc' }, { orden: 'asc' }],          // desempate por `orden`
+  include: { ponentes: { include: { ponente: true } } },  // ponentes de cada sesión
+},
+```
+
+El `include` es un dato **extra** en la respuesta: quien no lo usa, lo ignora.
+Lo aprovechan la app y el panel para escribir "Dra. Ana Ríos" debajo de cada
+charla.
+
+> **Pendiente para el 8.4:** las validaciones de negocio (que `fin` sea después
+> de `inicio`, que la sesión caiga dentro de las fechas del congreso, que un
+> break no tenga ponentes). Hoy la API acepta cualquier combinación válida de tipos.
+
+### 23.2. Datos de demostración (`prisma/setup/11_seed_feria.js`)
+
+Llena el sistema con datos creíbles para mostrar, en especial, el
+**aislamiento entre organizaciones**.
+
+| Organización | Congreso | Fechas |
+|---|---|---|
+| Org A – Medicina (ya existía) | Congreso Nacional de Cardiología 2026 | 24–25 oct 2026 |
+| Sociedad Colombiana de Ingeniería de Software (`sc-ingenieria-software`) | TechConf Bogotá 2026 | 12–13 nov 2026 |
+| Red Latinoamericana de Educación Digital (`red-educacion-digital`) | EduInnova Medellín 2026 | 3–4 dic 2026 |
+
+Cada congreso trae 2 días de agenda (charlas, talleres, plenarias, cafés y
+almuerzos), 6 ponentes con ficha completa y 5–6 asistentes. Las dos
+organizaciones nuevas traen su organizador y asistentes **con correo**, para
+entrar a la app.
+
+Cómo está hecho, y por qué:
+
+- **Pasa por la API real, no por la base.** Entra como superadmin y trabaja
+  dentro de cada organización con la cabecera `X-Organizacion-Id` (§ 21). Así
+  el seed atraviesa el mismo RLS, los mismos DTOs y las mismas reglas que el
+  panel: si algo está roto, el seed también falla.
+- **Es idempotente.** Busca la organización por `slug`, el congreso por
+  `nombre`, y solo carga agenda si el congreso no tiene sesiones. Si un
+  asistente ya existe, el backend responde 409 y el seed sigue. Se puede correr
+  varias veces sin duplicar nada.
+- **Las horas se escriben con zona:** `"2026-10-24T09:30:00-05:00"`. La API las
+  guarda en UTC y la app las muestra en la hora local del teléfono.
+- **Contraseñas conocidas para las cuentas de demo.** `fijarPassword()` hace lo
+  mismo que `09_cambiar_password.js`, pero **recorre las páginas** del listado de
+  la Admin API de Supabase (`?page=N&per_page=200`), porque ese listado no
+  filtra por correo de forma fiable. Las claves se imprimen al final del script.
+- **La Org A se busca por nombre** (`/medic/i`). Si eligiera mal, el script
+  imprime todas las organizaciones con su slug y se puede pasar el slug correcto
+  como tercer argumento.
+
+```bash
+# desde apps/backend, con el backend corriendo
+node prisma/setup/11_seed_feria.js <emailSuperadmin> <passSuperadmin> [slugOrgA]
+```
+
+> Las contraseñas de las cuentas de prueba **no se escriben en el repositorio**.
+> Las imprime el seed; si una se pierde, se fija otra con `09_cambiar_password.js`.
+
+### 23.3. Limpieza de organizaciones de prueba (`prisma/setup/12_limpiar_orgs_prueba.sql`)
+
+La prueba `e2e_onboarding_aislamiento.js` crea en cada corrida una
+"Organización a <número>" y una "Organización b <número>" (con slug
+`org-a-<número>` / `org-b-<número>`), y no las borra. Se acumulaban en el
+selector del superadmin.
+
+**A propósito no hay un botón para borrar organizaciones**: borrar un cliente
+entero es una operación demasiado destructiva para un clic. La limpieza es un
+script SQL para el **SQL Editor de Supabase** (corre como `postgres`, dueño de
+las tablas, así que el RLS no aplica):
+
+1. **Paso 1 (solo mira):** lista lo que se borraría, con cuántos congresos y
+   usuarios tiene cada organización.
+2. **Paso 2 (borra):** todo dentro de `BEGIN … COMMIT` (si algo falla, no se
+   borra nada), de las tablas hoja hacia la raíz para no chocar con las claves
+   foráneas, y al final las cuentas de `auth.users`.
+
+Supabase muestra dos avisos al correr el paso 2: "operación destructiva" (sí,
+es la idea) y "crea tablas sin RLS". El segundo se refiere a `orgs_basura` y
+`auth_basura`, que son **tablas temporales** (`ON COMMIT DROP`): existen solo
+durante la consulta y nadie más las ve. Se elige **"Run without RLS"**.
+
+> **Pendiente:** que la propia prueba `e2e_onboarding_aislamiento.js` borre sus
+> organizaciones al terminar, como ya hacen las demás pruebas.
+
+### 23.4. Panel: volver a la raíz al cambiar de organización
+
+**Síntoma:** el superadmin estaba dentro de `/congresos/<id-de-TechConf>`,
+cambiaba de organización en el selector y veía *"No se pudo cargar el congreso"*.
+
+**Causa:** `cambiarOrg()` recargaba **la misma ruta**. Ya dentro de la otra
+organización, el RLS hace invisible ese congreso y el backend responde 404. El
+aislamiento funcionaba perfecto; lo que estaba mal era quedarse en una ruta que
+pertenece a otro cliente.
+
+**Arreglo** (`components/panel/panel-contexto.tsx`):
+
+```ts
+function destinoSeguro(ruta: string): string {
+  if (ruta.startsWith('/superadmin')) return ruta;  // no dependen del tenant
+  if (ruta.startsWith('/usuarios')) return '/usuarios';
+  return '/congresos';                              // cualquier ruta con un id
+}
+```
+
+Regla general: **una ruta con un id dentro pertenece a una organización**. Al
+cambiar de organización se vuelve a la raíz de la sección, que existe en todas.
+
+### 23.5. Panel: detalle del congreso
+
+`app/(panel)/congresos/[id]/page.tsx` muestra ahora lo mismo que ve el
+asistente en la app, para que en una demo se vean "las dos caras" del mismo dato:
+
+- Encabezado con degradado, fechas, lugar, descripción y cifras (días,
+  sesiones, ponentes).
+- **Agenda por día** con pestañas, breaks en gris, etiquetas TALLER /
+  PLENARIA / EN VIVO y los ponentes de cada charla.
+- Columna de ponentes con iniciales, cargo, empresa y bandera.
+- Cada charla lleva a **"Moderar en vivo"** (`/sesiones/:id`, Fase 5).
+
+Es **de solo lectura**. Crear, editar y asignar es el Bloque 8.4, que
+reutilizará estas piezas visuales.
+
+### 23.6. App móvil: el rediseño
+
+Se tomó la **Opción A** de los mockups (violeta, fondo claro, Space Grotesk +
+Plus Jakarta Sans) y se aplicó a las 7 pantallas. Lo que el cliente vio en la
+feria es esto.
+
+**La regla que se respetó:** solo cambiaron el JSX y los estilos. Las funciones
+que hablan con la API y con Socket.io (`cargar()`, `inscribirme()`, `votar()`,
+`enviar()`...) se copiaron tal cual.
+
+**Estructura nueva** (se suma a la del § 16.1):
+
+```
+apps/mobile/src/
+├── tema/
+│   └── tema.ts          ← paleta clara/oscura, fuentes (F) y sombra()
+└── components/
+    └── ui.tsx           ← piezas visuales reutilizables
+```
+
+**`tema/tema.ts` — por qué un objeto de colores además de los tokens de NativeWind.**
+Las pantallas usan `StyleSheet`, y `StyleSheet` no entiende variables CSS. Así
+que la misma paleta vive también como valores JS, en dos versiones:
+
+```ts
+const t = useTema();          // devuelve CLARO u OSCURO según el sistema
+<View style={{ backgroundColor: t.tarjeta, borderColor: t.borde }} />
+```
+
+`useTema()` lee `useColorScheme()`: si el teléfono está en modo oscuro, la app
+se pone oscura sola, como el panel web. Hay dos violetas: `primario` (rellenos,
+siempre `#5A46F0`) y `primarioTexto` (textos e íconos, más claro en oscuro para
+que se lean).
+
+**Las fuentes.** Se cargan una vez en `App.tsx` con `useFonts()` de
+`expo-font` (paquetes `@expo-google-fonts/space-grotesk` y
+`@expo-google-fonts/plus-jakarta-sans`). Mientras cargan, la app no pinta nada,
+para que no "salte" de la fuente del sistema a la nuestra. `app.json` ganó el
+plugin `"expo-font"`.
+
+> **Gotcha:** con fuentes personalizadas el grosor va **en el nombre**
+> (`F.negrita = 'PlusJakartaSans_700Bold'`). No se combina con `fontWeight`:
+> en Android ignoraría la fuente.
+
+**`components/ui.tsx` — las piezas.**
+
+| Pieza | Qué es |
+|---|---|
+| `<Cabecera>` | Degradado violeta con círculos decorativos, flecha de volver opcional, `compacta` para pantallas internas. Respeta la barra de estado con `useSafeAreaInsets()` |
+| `<BotonCristal>` | Botón redondo translúcido para la cabecera (aquí vive ahora "Salir") |
+| `<Tarjeta>` | Fondo, borde, radio 18 y sombra; tocable si recibe `onPress` |
+| `<Etiqueta>` | Chip de color: EN VIVO, TALLER, INSCRITO... |
+| `<Avatar>` | Iniciales sobre un color pastel. El color sale de un *hash* del nombre, así cada persona tiene siempre el mismo |
+| `<Boton>` | Variantes `primario`, `peligro`, `suave`, `verde` |
+| `<TituloSeccion>`, `<Cargando>`, `<Vacio>` | Título en mayúsculas, spinner y estado vacío |
+| `bandera("CO")` | Devuelve 🇨🇴 usando los *regional indicators* de Unicode |
+
+**Navegación.** Cada pantalla pinta su propia cabecera, así que el stack y las
+pestañas usan `headerShown: false`. `BotonSalir.tsx` quedó sin uso. La barra de
+estado va en blanco (`<StatusBar style="light" />`) porque todas las cabeceras
+son violetas.
+
+**Agenda por día** (`CongresoDetalleScreen`). Sin llamadas nuevas: la misma
+lista de sesiones se agrupa en pantalla por su día **local**.
+
+```ts
+const dias = useMemo(() => {
+  const grupos = new Map<string, Sesion[]>();
+  for (const s of detalle?.sesiones ?? []) {
+    const k = claveDia(s.inicio);              // "2026-10-24"
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k)!.push(s);                    // cada sesión a la caja de su día
+  }
+  return [...grupos.entries()].sort(([a], [b]) => a.localeCompare(b));
+}, [detalle]);
+```
+
+Se abre en el día de hoy si el congreso tiene agenda hoy; si no, en el primero.
+Con un solo día no se muestran pestañas. Además:
+
+- Los **breaks** se ven en gris con ícono de café o almuerzo y **no abren** la
+  pantalla de preguntas (no tienen preguntas ni encuestas).
+- Una charla que está ocurriendo ahora (`enVivo()`) lleva la barra coral y la
+  etiqueta **EN VIVO**.
+- El congreso destacado en la lista es el que está **en curso** (`enCurso()`)
+  o, si no, el más próximo.
+
+**El ojito.** El login tiene el botón para ver la contraseña mientras se
+escribe (`secureTextEntry={!verClave}`).
+
+### 23.7. Los gotchas que aparecieron (¡importantes!)
+
+**1. Las fechas de los congresos salían un día antes.**
+`fecha_inicio` es una fecha "pura" en la base, pero llega como
+`"2026-10-24T00:00:00.000Z"`: medianoche en UTC. Formateada con la hora de
+Colombia (UTC-5), eso es **el 23 a las 7 p. m.**
+
+```ts
+d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', timeZone: 'UTC' })
+```
+
+**Regla:** las **fechas de congreso** se leen en UTC; las **horas de las
+sesiones** son instantes reales y se muestran en hora local. Aplica en la app
+(`lib/formato.ts`) y en el panel (`fechaCongreso()` del detalle). La lista de
+congresos del panel ya lo hacía bien.
+
+**2. El teclado tapaba lo que se escribía (Android).**
+`app.json` tiene `"edgeToEdgeEnabled": true`. Con eso, Android **ya no encoge la
+ventana** al abrir el teclado: lo pinta encima de la app. El código decía "en
+Android no hagas nada" (`behavior: undefined`). Ahora Login, Sesión y Chat usan
+`<KeyboardAvoidingView behavior="padding">` en las dos plataformas: al abrir el
+teclado se agrega abajo un relleno del alto del teclado y la caja de texto sube.
+
+**3. "Failed to download remote update" en Expo Go.**
+Significa que el dispositivo **no llega a Metro** (puerto 8081) en el PC. No es
+la tablet. Diagnóstico: abrir `http://IP-del-PC:8081` y `http://IP-del-PC:3000`
+en el navegador del dispositivo.
+
+- Si no carga ninguna → **firewall de Windows** o red distinta. La red debe
+  estar marcada como **Privada**, y se abren los dos puertos solo para redes
+  privadas (PowerShell como administrador):
+  ```powershell
+  New-NetFirewallRule -DisplayName "Nexvio dev (Expo + backend)" -Direction Inbound -Protocol TCP -LocalPort 8081,3000 -Action Allow -Profile Private
+  ```
+- Si carga la 8081 pero la app falla → actualizar Expo Go o borrarle la caché.
+
+**Para demos fuera de casa:** el Wi-Fi de ferias y eventos suele aislar los
+dispositivos entre sí. Lo seguro es un **punto de acceso de un celular** con el
+PC y los dispositivos conectados (y esa red marcada como Privada en Windows).
+El modo `--tunnel` de Expo **no sirve** aquí, porque `config.ts` calcula la
+dirección del backend a partir de la de Metro.
+
+**4. Socket.io no respeta la suplantación del superadmin.**
+Ya estaba anotado como limitación (§ 21.7) y se notó en la práctica: moderando
+como superadmin, las preguntas no llegan en vivo al panel. Para demos se modera
+con el **organizador** de la organización. Pendiente de arreglar.
+
+**5. `index.lock` huérfano en Git.**
+Un `git status` lanzado desde una herramienta sin permiso de borrar archivos
+dejó `.git/index.lock`, y luego `git add` decía *"Another git process seems to
+be running"*. Si el archivo pesa 0 bytes, nadie lo está usando: se borra con
+`del .git\index.lock`. Para consultar Git sin crear ese candado:
+`git --no-optional-locks status`.
+
+### 23.8. Cómo probarlo
+
+Lo visual no tiene prueba automática, así que se prueba con un **recorrido
+manual**, en claro y en oscuro:
+
+1. Login: degradado, hoja con el formulario, el ojito funciona y el teclado no
+   tapa los campos.
+2. Congresos: el congreso en curso aparece destacado; el resto en filas.
+3. Detalle: pestañas por día, breaks en gris, ponentes con bandera.
+4. Sesión: enviar una pregunta → aparece en el panel ("Moderar en vivo") →
+   aprobarla → aparece en la app.
+5. Networking y chat entre dos asistentes en dos dispositivos.
+6. Panel: detalle del congreso con la misma agenda; cambiar de organización
+   estando dentro de un congreso → vuelve a la lista sin error.
