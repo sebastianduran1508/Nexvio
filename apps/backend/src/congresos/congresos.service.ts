@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { ordenarSponsors } from '../sponsors/sponsors.service';
 import { CrearCongresoDto } from './dto/crear-congreso.dto';
 import { ActualizarCongresoDto } from './dto/actualizar-congreso.dto';
 
@@ -14,7 +16,10 @@ import { ActualizarCongresoDto } from './dto/actualizar-congreso.dto';
  */
 @Injectable()
 export class CongresosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   /** Crear un congreso para la organización activa. */
   crear(orgId: string, dto: CrearCongresoDto) {
@@ -60,12 +65,15 @@ export class CongresosService {
             include: { ponentes: { include: { ponente: true } } },
           },
           ponentes: true,
+          // 8.5: los sponsors van en el detalle para que la app pinte la franja
+          // "Con el apoyo de" sin otra llamada. El orden por nivel se hace abajo.
+          sponsors: true,
         },
       }),
     );
     // Si no existe (o es de otra organización, invisible por RLS) -> 404.
     if (!congreso) throw new NotFoundException('Congreso no encontrado');
-    return congreso;
+    return { ...congreso, sponsors: ordenarSponsors(congreso.sponsors) };
   }
 
   /** Actualizar un congreso del tenant. */
@@ -101,9 +109,27 @@ export class CongresosService {
 
   /** Borrar un congreso del tenant (y en cascada su agenda/ponentes, ver nota). */
   async borrar(orgId: string, id: string) {
-    return this.prisma.runInTenant(orgId, async (tx) => {
+    const imagenes = await this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.congreso.findFirst({ where: { id } });
       if (!existe) throw new NotFoundException('Congreso no encontrado');
+
+      // 8.5: anotamos las imágenes en Storage ANTES de borrar las filas, para
+      // limpiarlas al final (fotos de ponentes, logos de sponsors, logo y
+      // portada del congreso). Así no quedan archivos huérfanos en el bucket.
+      const [fotos, logos, perso] = await Promise.all([
+        tx.ponente.findMany({ where: { congreso_id: id }, select: { foto_url: true } }),
+        tx.sponsor.findMany({ where: { congreso_id: id }, select: { logo_url: true } }),
+        tx.personalizacionCongreso.findFirst({
+          where: { congreso_id: id },
+          select: { logo_url: true, imagen_portada_url: true },
+        }),
+      ]);
+
+      // 8.1/8.5: tablas que nacieron después de escribir este borrado. Las
+      // notificaciones pueden apuntar a una sesión, así que van ANTES de ellas.
+      await tx.notificacion.deleteMany({ where: { congreso_id: id } });
+      await tx.sponsor.deleteMany({ where: { congreso_id: id } });
+      await tx.personalizacionCongreso.deleteMany({ where: { congreso_id: id } });
 
       // Borramos primero lo que depende del congreso (no hay ON DELETE CASCADE
       // configurado), para no violar las llaves foráneas.
@@ -153,7 +179,18 @@ export class CongresosService {
       }
       await tx.interesNetworking.deleteMany({ where: { congreso_id: id } });
       await tx.congreso.delete({ where: { id } });
-      return { borrado: true };
+
+      return [
+        ...fotos.map((f) => f.foto_url),
+        ...logos.map((l) => l.logo_url),
+        perso?.logo_url,
+        perso?.imagen_portada_url,
+      ];
     });
+
+    // Las imágenes se borran DESPUÉS de la transacción: solo si el congreso
+    // realmente se borró. borrarPorUrl ignora los vacíos y nunca falla.
+    await Promise.all(imagenes.map((url) => this.storage.borrarPorUrl(url)));
+    return { borrado: true };
   }
 }

@@ -850,4 +850,29 @@ logos y la portada. Falta: backend (CRUD de sponsors, subir logos, guardar la
 personalización), las pantallas del panel (activar "Sponsors" en el menú) y
 mostrarlo en la app.
 
+Plan del 8.5: (a) backend de sponsors + logo; (b) pantalla Sponsors en el
+panel; (c) backend de personalización; (d) pantalla "Apariencia" dentro del
+congreso con vista previa del celular; (e) la app muestra sponsors y aplica la
+personalización; (f) prueba de cierre + docs.
+
+### Decisiones del 8.5 (tomadas con Sebastián, oct-2026)
+
+1. **Alcance de la personalización en la app:** solo las pantallas DEL CONGRESO
+   (detalle, sesión, networking, chat) usan logo, portada y color del evento.
+   Login y lista de congresos siguen con la marca Nexvio. (En el 8.7 el
+   asistente verá solo su congreso, así que en la práctica toda su experiencia
+   tendrá la marca del evento.)
+2. **Color:** paleta sugerida de ~8 colores probados + opción de color propio,
+   con **aviso de contraste** (regla WCAG) si el texto blanco no se lee.
+3. **Tema por defecto** (`tema_default`: claro/oscuro/sistema): **se deja para
+   el 8.7**. Por ahora la app respeta el modo del teléfono.
+4. **Sponsors en la app, en dos lugares:**
+   - Una **franja "Con el apoyo de"** arriba en el detalle del congreso (después
+     de la inscripción, antes de la agenda): logos pequeños deslizables, Oro primero.
+   - Al tocarla, la pantalla **"Patrocinadores"**: agrupados por nivel (Oro con
+     logos grandes, luego Plata, Bronce, General), con botón "Visitar sitio web".
+   - En el panel, el orden dentro de cada nivel se cambia con flechas ↑↓.
+5. **Idea para el 8.7 (no ahora):** "Patrocinado por…" en una charla
+   específica. Necesita un dato nuevo (qué sponsor patrocina qué sesión).
+
 Mismo método de siempre.
