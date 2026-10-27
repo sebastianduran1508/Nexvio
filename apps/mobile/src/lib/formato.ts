@@ -91,3 +91,17 @@ export function enVivo(ini: string, fin: string): boolean {
   const ahora = Date.now();
   return new Date(ini).getTime() <= ahora && ahora < new Date(fin).getTime();
 }
+
+/**
+ * La zona horaria del teléfono, legible: "America/Bogota" -> "Bogota".
+ * Se muestra junto a la agenda: las horas de las sesiones se pintan en la zona
+ * del teléfono (un asistente virtual en Madrid ve su propia hora).
+ */
+export function zonaDelTelefono(): string {
+  try {
+    const zona = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+    return (zona.split('/').pop() ?? zona).replace(/_/g, ' ');
+  } catch {
+    return '';
+  }
+}

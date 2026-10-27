@@ -1,12 +1,13 @@
 import {
-  IsDateString,
   IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Min,
 } from 'class-validator';
+import { FORMATO_FECHA_HORA } from '../zona-horaria.util';
 
 /** Tipos de bloque que puede tener la agenda (ver schema.prisma, Bloque 8.1). */
 export const TIPOS_SESION = ['charla', 'break', 'taller', 'plenaria'] as const;
@@ -21,12 +22,13 @@ export class CrearSesionDto {
   @IsNotEmpty()
   titulo: string;
 
-  // Timestamp completo con zona: "2026-09-01T09:00:00Z" o "...T09:00:00-05:00".
-  // Se guarda en UTC.
-  @IsDateString()
+  // "2026-11-12T09:00" (SIN zona) = hora del LUGAR DEL EVENTO: el backend la
+  // convierte con congreso.zona_horaria. Si trae zona ("Z", "-05:00") se
+  // respeta tal cual. Siempre se guarda en UTC. Ver zona-horaria.util.ts.
+  @Matches(FORMATO_FECHA_HORA, { message: '$property: usa el formato 2026-11-12T09:00 (hora del evento) o una fecha con zona' })
   inicio: string;
 
-  @IsDateString()
+  @Matches(FORMATO_FECHA_HORA, { message: '$property: usa el formato 2026-11-12T09:00 (hora del evento) o una fecha con zona' })
   fin: string;
 
   @IsOptional()

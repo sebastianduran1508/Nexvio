@@ -20,6 +20,7 @@ import {
   hoyISO,
   hora,
   rangoFechas,
+  zonaDelTelefono,
 } from '../lib/formato';
 import type { CongresoDetalle, Inscripcion, Ponente, Sesion } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
@@ -195,6 +196,14 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
 
         {/* ---------- Agenda por día ---------- */}
         <TituloSeccion texto="Agenda" />
+        {dias.length > 0 && zonaDelTelefono() ? (
+          <View style={est.zona}>
+            <Ionicons name="globe-outline" size={13} color={t.textoTenue} />
+            <Text style={[est.zonaTexto, { color: t.textoTenue }]}>
+              Horas en tu zona horaria ({zonaDelTelefono()})
+            </Text>
+          </View>
+        ) : null}
         {dias.length === 0 ? (
           <Vacio texto="Este congreso aún no tiene sesiones." icono="time-outline" />
         ) : (
@@ -365,6 +374,8 @@ const est = StyleSheet.create({
   netTitulo: { fontFamily: F.negrita, fontSize: 14.5 },
   netTexto: { fontFamily: F.medio, fontSize: 12.5, marginTop: 1 },
   dias: { gap: 8, paddingBottom: 14 },
+  zona: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -6, marginBottom: 12, marginHorizontal: 4 },
+  zonaTexto: { fontFamily: F.medio, fontSize: 12 },
   diaChip: { borderWidth: 1, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center' },
   diaSemana: { fontFamily: F.semi, fontSize: 11.5 },
   diaNum: { fontFamily: F.titulo, fontSize: 15, marginTop: 1 },

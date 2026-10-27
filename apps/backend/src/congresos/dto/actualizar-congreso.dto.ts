@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  IsTimeZone,
 } from 'class-validator';
 
 /**
@@ -56,6 +57,6 @@ export class ActualizarCongresoDto {
   // Zona horaria IANA del evento ("America/Bogota"). Las sesiones se guardan
   // en UTC; esto dice en que horario hay que pintarlas.
   @IsOptional()
-  @IsString()
+  @IsTimeZone()
   zona_horaria?: string;
 }
