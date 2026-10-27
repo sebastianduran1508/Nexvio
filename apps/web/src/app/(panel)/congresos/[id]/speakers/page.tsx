@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mic2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { ArrowLeft, ImageUp, Mic2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { apiFetch, apiSubirArchivo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -260,6 +260,40 @@ function FormularioPonente({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ---- Foto (8.4.d) ------------------------------------------------------
+  // La foto se sube al GUARDAR, no al elegirla: así "Cancelar" de verdad no
+  // cambia nada. `archivo` es la nueva elegida; `quitarFoto`, la orden de borrar
+  // la actual; `vistaPrevia`, una URL temporal del navegador para verla antes.
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [vistaPrevia, setVistaPrevia] = useState<string | null>(null);
+  const [quitarFoto, setQuitarFoto] = useState(false);
+  // Si al crear se guardó el ponente pero falló la foto, el siguiente intento
+  // EDITA ese ponente en vez de crear otro repetido.
+  const [idCreado, setIdCreado] = useState<string | null>(null);
+
+  // Liberar la URL temporal cuando cambia o se cierra el formulario.
+  useEffect(() => () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); }, [vistaPrevia]);
+
+  function elegirFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo
+    if (!f) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
+      setError('La foto debe ser JPG, PNG o WebP');
+      return;
+    }
+    if (f.size > 2 * 1024 * 1024) {
+      setError('La foto pesa más de 2 MB. Prueba con una más liviana.');
+      return;
+    }
+    setError(null);
+    setArchivo(f);
+    setQuitarFoto(false);
+    setVistaPrevia(URL.createObjectURL(f));
+  }
+
+  const fotoVisible = vistaPrevia ?? (quitarFoto ? null : ponente?.foto_url ?? null);
+
   function campo(k: 'nombre' | 'cargo' | 'empresa') {
     return {
       id: `ponente-${k}`,
@@ -284,10 +318,23 @@ function FormularioPonente({
       pais_codigo: pais?.codigo ?? null,
     };
     try {
-      if (ponente) {
-        await apiFetch('PATCH', `/ponentes/${ponente.id}`, datos);
+      // 1) Los datos de la ficha.
+      let id = ponente?.id ?? idCreado;
+      if (id) {
+        await apiFetch('PATCH', `/ponentes/${id}`, datos);
       } else {
-        await apiFetch('POST', `/congresos/${congresoId}/ponentes`, { ...datos, orden: ordenNuevo });
+        const creado = await apiFetch<{ id: string }>('POST', `/congresos/${congresoId}/ponentes`, {
+          ...datos,
+          orden: ordenNuevo,
+        });
+        id = creado.id;
+        setIdCreado(creado.id);
+      }
+      // 2) La foto: subir la nueva o quitar la actual.
+      if (archivo) {
+        await apiSubirArchivo(`/ponentes/${id}/foto`, archivo);
+      } else if (quitarFoto && ponente?.foto_url) {
+        await apiFetch('DELETE', `/ponentes/${id}/foto`);
       }
       await alGuardar();
     } catch (e: any) {
@@ -298,6 +345,41 @@ function FormularioPonente({
 
   return (
     <form onSubmit={enviar} className="space-y-4">
+      {/* ---------- Foto ---------- */}
+      <div className="flex items-center gap-4">
+        <AvatarPonente
+          nombre={form.nombre || '?'}
+          fotoUrl={fotoVisible}
+          className="h-20 w-20 rounded-2xl text-xl"
+        />
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+              <ImageUp className="h-4 w-4" />
+              {fotoVisible ? 'Cambiar foto' : 'Subir foto'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={elegirFoto} className="hidden" />
+            </label>
+            {fotoVisible && (
+              <button
+                type="button"
+                onClick={() => {
+                  setArchivo(null);
+                  setVistaPrevia(null);
+                  setQuitarFoto(true);
+                }}
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            JPG, PNG o WebP, máximo 2 MB. Mejor cuadrada.
+            {archivo && ' Se guardará al pulsar Guardar.'}
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="ponente-nombre">Nombre</Label>
         <Input {...campo('nombre')} required placeholder="Dra. Ana Ríos" />
@@ -334,10 +416,6 @@ function FormularioPonente({
         />
         <p className="text-right text-xs text-muted-foreground">{form.bio.length}/600</p>
       </div>
-
-      <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-        La foto se podrá subir muy pronto. Mientras tanto, la app muestra las iniciales.
-      </p>
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
