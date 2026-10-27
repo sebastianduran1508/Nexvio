@@ -25,6 +25,19 @@ type Entrada = {
   proximamente?: boolean;
 };
 
+/** Secciones que viven dentro de un congreso y la entrada del menú que les toca. */
+const SECCIONES_DE_CONGRESO: Record<string, string> = {
+  agenda: '/agenda',
+  speakers: '/speakers',
+  asistentes: '/usuarios',
+};
+
+/** /congresos/abc/agenda -> /agenda · cualquier otra ruta se queda igual. */
+function seccionDelMenu(ruta: string): string {
+  const m = ruta.match(/^\/congresos\/[^/]+\/([^/]+)/);
+  return (m && SECCIONES_DE_CONGRESO[m[1]]) || ruta;
+}
+
 /** Menú del superadmin: lo que vive POR ENCIMA de las organizaciones. */
 const MENU_SUPERADMIN: Entrada[] = [
   { href: '/superadmin', texto: 'Panorama', Icono: Globe2 },
@@ -36,7 +49,7 @@ const MENU_SUPERADMIN: Entrada[] = [
 const MENU_CONGRESO: Entrada[] = [
   { href: '/congresos', texto: 'Congresos', Icono: CalendarDays },
   { href: '/usuarios', texto: 'Usuarios', Icono: Users },
-  { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard, proximamente: true },
+  { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard },
   { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake, proximamente: true },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell, proximamente: true },
@@ -59,10 +72,16 @@ export function BarraLateral() {
   // y se veían las dos resaltadas. La regla correcta es quedarse con la
   // coincidencia MÁS LARGA — la más específica —, y así funciona sola para
   // cualquier ruta anidada que agreguemos en los bloques siguientes.
+  //
+  // Segundo detalle (8.4): Agenda, Speakers y Asistentes viven DENTRO de un
+  // congreso (/congresos/:id/agenda...). Por su ruta encajarían en
+  // "Congresos", pero el admin llegó desde su propia entrada del menú, así
+  // que se traducen a esa entrada antes de comparar.
+  const rutaMenu = seccionDelMenu(ruta);
   const activaHref = [...MENU_SUPERADMIN, ...MENU_CONGRESO]
     .filter((e) => !e.proximamente)
     .map((e) => e.href)
-    .filter((href) => ruta === href || ruta.startsWith(href + '/'))
+    .filter((href) => rutaMenu === href || rutaMenu.startsWith(href + '/'))
     .sort((a, b) => b.length - a.length)[0];
 
   return (

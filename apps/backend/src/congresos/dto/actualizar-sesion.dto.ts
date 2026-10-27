@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -41,4 +42,14 @@ export class ActualizarSesionDto {
   @IsInt()
   @Min(0)
   orden?: number;
+
+  /**
+   * "Correr la agenda" (8.4): si la sesión cambia de hora de FIN, mover lo
+   * mismo todas las sesiones de ese día que empezaban a partir del fin viejo.
+   * Ej.: la charla pasa de terminar 10:30 a 11:00 -> todo lo que venía
+   * después se corre 30 minutos. No es un campo de la tabla: es una orden.
+   */
+  @IsOptional()
+  @IsBoolean()
+  correr_siguientes?: boolean;
 }

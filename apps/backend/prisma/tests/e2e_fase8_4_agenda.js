@@ -8,6 +8,7 @@
 //      Una hora con zona ("-05:00") se respeta tal cual.
 //   2. Reglas: fin después de inicio, dentro de las fechas del congreso
 //      (contadas en la zona del evento), formatos y fechas imposibles.
+//      Correr la agenda: mueve las siguientes del mismo día, todo o nada.
 //   3. Breaks sin ponentes; un ponente solo en SU congreso.
 //   4. Ficha del ponente (pais_codigo en mayúsculas) y ponentes por sesión.
 //   5. Zona horaria inválida en el congreso -> 400.
@@ -128,6 +129,26 @@ const iso = (s) => (s ? new Date(s).toISOString() : null);
 
     const r7 = await api('PATCH', `/sesiones/${s1.body.id}`, token, { fin: '2026-11-12T10:30' });
     check('PATCH válido -> 200 y fin = 16:30Z', r7.status === 200 && iso(r7.body?.fin) === '2026-11-12T16:30:00.000Z', iso(r7.body?.fin));
+
+    // ---------- 2b. Correr la agenda ----------
+    // Día 13 (México): X 14:00-15:00, Y 15:00-16:00, Z 16:30-17:00 (+ la cena de 21:00).
+    const X = await api('POST', `/congresos/${cid}/sesiones`, token, { titulo: 'X', inicio: '2026-11-13T14:00', fin: '2026-11-13T15:00' });
+    const Y = await api('POST', `/congresos/${cid}/sesiones`, token, { titulo: 'Y', inicio: '2026-11-13T15:00', fin: '2026-11-13T16:00' });
+    const Z = await api('POST', `/congresos/${cid}/sesiones`, token, { titulo: 'Z', inicio: '2026-11-13T16:30', fin: '2026-11-13T17:00' });
+    const ver = async (id) => (await api('GET', `/congresos/${cid}/sesiones`, token)).body.find((s) => s.id === id);
+
+    const c1 = await api('PATCH', `/sesiones/${X.body.id}`, token, { fin: '2026-11-13T15:30', correr_siguientes: true });
+    check('Alargar X 30 min corriendo las siguientes -> 200', c1.status === 200, JSON.stringify(c1.body));
+    check('Y pasa a 15:30 (21:30Z)', iso((await ver(Y.body.id))?.inicio) === '2026-11-13T21:30:00.000Z', iso((await ver(Y.body.id))?.inicio));
+    check('Z pasa a 17:00 (23:00Z)', iso((await ver(Z.body.id))?.inicio) === '2026-11-13T23:00:00.000Z', iso((await ver(Z.body.id))?.inicio));
+    check('Una sesión de OTRO día no se mueve', iso((await ver(s1.body.id))?.inicio) === '2026-11-12T15:00:00.000Z', iso((await ver(s1.body.id))?.inicio));
+
+    const c2 = await api('PATCH', `/sesiones/${X.body.id}`, token, { fin: '2026-11-13T19:00', correr_siguientes: true });
+    check('Correr que sacaría la cena del congreso -> 400', c2.status === 400, JSON.stringify(c2.body));
+    check('...y no movió nada (todo o nada)', iso((await ver(Y.body.id))?.inicio) === '2026-11-13T21:30:00.000Z', iso((await ver(Y.body.id))?.inicio));
+
+    const c3 = await api('PATCH', `/sesiones/${X.body.id}`, token, { fin: '2026-11-13T16:00' });
+    check('Alargar SIN correr no mueve a las demás', c3.status === 200 && iso((await ver(Y.body.id))?.inicio) === '2026-11-13T21:30:00.000Z', iso((await ver(Y.body.id))?.inicio));
 
     // ---------- 3. Breaks y ponentes ----------
     const p1 = await api('POST', `/congresos/${cid}/ponentes`, token, {

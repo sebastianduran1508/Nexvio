@@ -16,6 +16,7 @@ import {
 import { apiFetch } from '@/lib/api';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { diaEnZona, enVivo, etiquetaDia, horaEnZona } from '@/lib/zona';
 
 type Ponente = {
   id: string;
@@ -42,6 +43,7 @@ type CongresoDetalle = {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  zona_horaria: string;
   descripcion?: string | null;
   ciudad?: string | null;
   lugar?: string | null;
@@ -50,12 +52,9 @@ type CongresoDetalle = {
 };
 
 // ---------------------------------------------------------------------------
-// Formatos (mismas reglas que la app móvil)
+// Formatos. Las horas de la agenda se pintan en la ZONA DEL EVENTO
+// (lib/zona.ts); las fechas del congreso, en UTC.
 // ---------------------------------------------------------------------------
-
-function hora(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-}
 
 /** Las fechas del congreso llegan a medianoche UTC: se leen en UTC para no
  *  mostrar el día anterior. */
@@ -63,25 +62,6 @@ function fechaCongreso(iso: string) {
   return new Date(iso)
     .toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
     .replace(/\./g, '');
-}
-
-/** "2026-10-24" en hora local, para agrupar la agenda por día. */
-function claveDia(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function etiquetaDia(clave: string) {
-  const [y, m, d] = clave.split('-').map(Number);
-  const f = new Date(y, m - 1, d, 12);
-  const semana = f.toLocaleDateString('es-CO', { weekday: 'long' });
-  const dia = f.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace(/\./g, '');
-  return { semana: semana.charAt(0).toUpperCase() + semana.slice(1), dia };
-}
-
-function enVivo(ini: string, fin: string) {
-  const ahora = Date.now();
-  return new Date(ini).getTime() <= ahora && ahora < new Date(fin).getTime();
 }
 
 function iniciales(nombre: string) {
@@ -104,8 +84,8 @@ function bandera(codigo?: string | null) {
  * talleres y breaks, y la ficha de los ponentes. Cada charla lleva a la pantalla
  * de moderación en vivo (preguntas y encuestas).
  *
- * La gestión completa de agenda y ponentes (crear, editar, asignar) es el
- * Bloque 8.4; esta pantalla es de solo lectura.
+ * Es de solo lectura: la agenda y los ponentes se gestionan en sus pantallas
+ * (/congresos/:id/agenda y /congresos/:id/speakers, Bloque 8.4).
  */
 export default function CongresoDetallePage() {
   const router = useRouter();
@@ -128,7 +108,8 @@ export default function CongresoDetallePage() {
   const dias = useMemo(() => {
     const grupos = new Map<string, Sesion[]>();
     for (const s of detalle?.sesiones ?? []) {
-      const k = claveDia(s.inicio);
+      // Día EN LA ZONA DEL EVENTO: el panel muestra la agenda en la hora del lugar.
+      const k = diaEnZona(s.inicio, detalle!.zona_horaria);
       if (!grupos.has(k)) grupos.set(k, []);
       grupos.get(k)!.push(s);
     }
@@ -138,7 +119,7 @@ export default function CongresoDetallePage() {
   if (error) return <p className="p-8 text-destructive">{error}</p>;
   if (!detalle) return <p className="p-8 text-muted-foreground">Cargando…</p>;
 
-  const hoy = claveDia(new Date().toISOString());
+  const hoy = diaEnZona(new Date().toISOString(), detalle.zona_horaria);
   const diaActivo =
     (diaElegido && dias.find(([k]) => k === diaElegido)?.[0]) ??
     dias.find(([k]) => k === hoy)?.[0] ??
@@ -178,6 +159,12 @@ export default function CongresoDetallePage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/congresos/${detalle.id}/agenda`}
+              className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
+            >
+              <CalendarDays className="h-4 w-4" /> Agenda
+            </Link>
             <Link
               href={`/congresos/${detalle.id}/speakers`}
               className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
@@ -244,7 +231,7 @@ export default function CongresoDetallePage() {
               <ul className="space-y-3">
                 {sesionesDelDia.map((s) => (
                   <li key={s.id}>
-                    <ItemAgenda sesion={s} />
+                    <ItemAgenda sesion={s} zona={detalle.zona_horaria} />
                   </li>
                 ))}
               </ul>
@@ -305,8 +292,8 @@ function Dato({ valor, texto }: { valor: number; texto: string }) {
 }
 
 /** Un bloque de la agenda: los breaks son informativos; el resto lleva a moderar. */
-function ItemAgenda({ sesion }: { sesion: Sesion }) {
-  const horario = `${hora(sesion.inicio)} – ${hora(sesion.fin)}${sesion.sala ? ` · ${sesion.sala}` : ''}`;
+function ItemAgenda({ sesion, zona }: { sesion: Sesion; zona: string }) {
+  const horario = `${horaEnZona(sesion.inicio, zona)} – ${horaEnZona(sesion.fin, zona)}${sesion.sala ? ` · ${sesion.sala}` : ''}`;
 
   if (sesion.tipo === 'break') {
     const Icono = /almuerzo/i.test(sesion.titulo) ? UtensilsCrossed : Coffee;

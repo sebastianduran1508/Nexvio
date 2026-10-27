@@ -125,6 +125,12 @@ export class SesionesService {
         );
       }
 
+      // "Correr la agenda": mover lo que venía después, dentro de esta misma
+      // transacción (si una sola falla la validación, no se mueve nada).
+      if (dto.correr_siguientes && dto.fin !== undefined) {
+        await this.correrSiguientes(tx, existe, fin);
+      }
+
       return tx.sesion.update({
         where: { id },
         data: {
@@ -138,6 +144,48 @@ export class SesionesService {
         },
       });
     });
+  }
+
+  /**
+   * Corre las sesiones que venían DESPUÉS de una que cambió de hora de fin.
+   *
+   * "Después" = mismo congreso, mismo día (en la zona del evento) y que
+   * empezaban a partir del fin VIEJO. Se mueven exactamente lo mismo que se
+   * movió el fin (si se acortó, se adelantan). Cada sesión movida se valida
+   * igual que una nueva: no puede salirse de las fechas del congreso.
+   */
+  private async correrSiguientes(
+    tx: any,
+    sesion: { id: string; congreso_id: string; inicio: Date; fin: Date; congreso: CongresoAgenda },
+    finNuevo: Date,
+  ) {
+    const delta = finNuevo.getTime() - sesion.fin.getTime();
+    if (delta === 0) return;
+
+    const zona = sesion.congreso.zona_horaria;
+    const dia = diaEnZona(sesion.inicio, zona);
+    const candidatas: { id: string; titulo: string; inicio: Date; fin: Date }[] =
+      await tx.sesion.findMany({
+        where: {
+          congreso_id: sesion.congreso_id,
+          id: { not: sesion.id },
+          inicio: { gte: sesion.fin },
+        },
+        select: { id: true, titulo: true, inicio: true, fin: true },
+      });
+
+    for (const s of candidatas.filter((c) => diaEnZona(c.inicio, zona) === dia)) {
+      const inicio = new Date(s.inicio.getTime() + delta);
+      const fin = new Date(s.fin.getTime() + delta);
+      try {
+        this.validarHorario(sesion.congreso, inicio, fin);
+      } catch {
+        throw new BadRequestException(
+          `Correr la agenda dejaría «${s.titulo}» fuera de las fechas del congreso`,
+        );
+      }
+      await tx.sesion.update({ where: { id: s.id }, data: { inicio, fin } });
+    }
   }
 
   /** Borrar una sesión del tenant (y sus vínculos con ponentes). */
