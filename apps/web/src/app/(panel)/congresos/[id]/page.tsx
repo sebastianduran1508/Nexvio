@@ -177,12 +177,20 @@ export default function CongresoDetallePage() {
               )}
             </div>
           </div>
-          <Link
-            href={`/congresos/${detalle.id}/asistentes`}
-            className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#5A46F0] shadow-sm transition hover:bg-white/90"
-          >
-            <Users className="h-4 w-4" /> Asistentes
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/congresos/${detalle.id}/speakers`}
+              className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
+            >
+              <Mic2 className="h-4 w-4" /> Speakers
+            </Link>
+            <Link
+              href={`/congresos/${detalle.id}/asistentes`}
+              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#5A46F0] shadow-sm transition hover:bg-white/90"
+            >
+              <Users className="h-4 w-4" /> Asistentes
+            </Link>
+          </div>
         </div>
         {detalle.descripcion && (
           <p className="relative mt-4 max-w-3xl text-sm leading-relaxed text-white/85">{detalle.descripcion}</p>

@@ -26,8 +26,10 @@ export class PonentesService {
           ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
           ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
           ...(dto.pais !== undefined ? { pais: dto.pais } : {}),
+          // null = "quitar el país". Por eso no basta con !== undefined: hay
+          // que cuidar el toUpperCase() de un null.
           ...(dto.pais_codigo !== undefined
-            ? { pais_codigo: dto.pais_codigo.toUpperCase() }
+            ? { pais_codigo: dto.pais_codigo ? dto.pais_codigo.toUpperCase() : null }
             : {}),
           ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
@@ -43,7 +45,15 @@ export class PonentesService {
 
       return tx.ponente.findMany({
         where: { congreso_id: congresoId },
-        orderBy: { nombre: 'asc' },
+        // Primero el orden que eligió el admin; los que no tienen, por nombre.
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+        // Las charlas de cada ponente (Bloque 8.4): el panel muestra "dicta 2
+        // charlas" y avisa antes de borrar a alguien que tiene charlas.
+        include: {
+          sesiones: {
+            include: { sesion: { select: { id: true, titulo: true, inicio: true } } },
+          },
+        },
       });
     });
   }
@@ -63,8 +73,10 @@ export class PonentesService {
           ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
           ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
           ...(dto.pais !== undefined ? { pais: dto.pais } : {}),
+          // null = "quitar el país". Por eso no basta con !== undefined: hay
+          // que cuidar el toUpperCase() de un null.
           ...(dto.pais_codigo !== undefined
-            ? { pais_codigo: dto.pais_codigo.toUpperCase() }
+            ? { pais_codigo: dto.pais_codigo ? dto.pais_codigo.toUpperCase() : null }
             : {}),
           ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },

@@ -37,7 +37,7 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/congresos', texto: 'Congresos', Icono: CalendarDays },
   { href: '/usuarios', texto: 'Usuarios', Icono: Users },
   { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard, proximamente: true },
-  { href: '/speakers', texto: 'Speakers', Icono: Mic2, proximamente: true },
+  { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake, proximamente: true },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell, proximamente: true },
   { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle, proximamente: true },
