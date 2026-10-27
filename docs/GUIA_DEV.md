@@ -1,8 +1,8 @@
 # Guía de desarrollo — Nexvio
 
-> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.3 cerrados, más el sprint
-> de la **feria** (§ 23), que adelantó partes del 8.4 y del 8.7. Lo siguiente es
-> el **Bloque 8.4 — Agenda + Speakers**.
+> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.4 cerrados, más el sprint
+> de la **feria** (§ 23). El 8.4 (§ 24) dejó listas la agenda, los speakers y
+> Supabase Storage. Lo siguiente es el **Bloque 8.5 — Sponsors + Personalización**.
 
 > **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
 > **Fase 8** (identidad visual + panel del administrador + producto completo).
@@ -558,6 +558,10 @@ node prisma/setup/09_cambiar_password.js <email> <passwordNueva>
 
 # Fase 8 - Bloque 8.3: usuarios e importacion de Excel (requiere el backend corriendo)
 node prisma/tests/e2e_fase8_3_usuarios.js <orgEmail> <orgPass>
+
+# Fase 8 - Bloque 8.4: agenda, speakers y foto (requiere el backend corriendo
+# y el bucket de Storage creado con prisma/setup/13_storage_bucket.sql)
+node prisma/tests/e2e_fase8_4_agenda.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -2003,3 +2007,273 @@ manual**, en claro y en oscuro:
 5. Networking y chat entre dos asistentes en dos dispositivos.
 6. Panel: detalle del congreso con la misma agenda; cambiar de organización
    estando dentro de un congreso → vuelve a la lista sin error.
+
+---
+
+## 24. Agenda y Speakers en el panel (Bloque 8.4)
+
+El organizador ya puede armar **toda la agenda** de su congreso desde el panel:
+crear ponentes con su ficha y su foto, crear sesiones día por día, asignar
+quién dicta cada charla y reorganizar horarios sin tener que mover una por una.
+
+| Sub-paso | Qué | Dónde |
+|---|---|---|
+| 8.4.a | Reglas de la agenda y horas en la zona del evento | Backend |
+| 8.4.b | Pantalla de Speakers | Panel |
+| 8.4.c | Pantalla de Agenda, aviso de cruces y "correr la agenda" | Panel + Backend |
+| 8.4.d | Foto del ponente con **Supabase Storage** | Backend + Panel |
+| 8.4.e | Prueba de cierre + esta documentación | — |
+
+### 24.1. La zona horaria: el acuerdo
+
+La pregunta era **qué significa "09:00"** cuando el organizador la escribe. El
+acuerdo (decidido con Sebastián):
+
+| Quién | En qué zona ve o escribe las horas |
+|---|---|
+| **Panel** (organizador) | La **del lugar del evento** (`congreso.zona_horaria`), esté donde esté |
+| **Backend** | Convierte a UTC con la zona del congreso y guarda el instante exacto |
+| **App** (asistente) | La **de su teléfono**. En un congreso virtual, cada quien ve su hora |
+
+**Ejemplo:** congreso en Ciudad de México (UTC-6), admin en Bogotá. Escribe
+"09:00" → se guarda `15:00Z` → el asistente en México ve 09:00, el de Bogotá
+ve 10:00 y el de Madrid ve 16:00. En un congreso presencial todos están en el
+lugar, así que todos ven 09:00.
+
+En la práctica:
+- El formulario del panel muestra al lado de las horas *"Hora del evento
+  (Bogota · GMT-5), estés donde estés"*, y la agenda dice *"Horas del
+  evento: …"*.
+- La app muestra 🌐 *"Horas en tu zona horaria (Bogota)"* debajo de la agenda.
+- **Al crear el congreso** se elige su zona (`datos/zonas.ts`). El **país del
+  evento la predefine** (México → Ciudad de México) y se puede cambiar a mano
+  para países con varias zonas o congresos virtuales. Por defecto, Bogotá.
+
+### 24.2. Cómo convierte el backend (`src/congresos/zona-horaria.util.ts`)
+
+```ts
+aInstante('2026-11-12T09:00', 'America/Mexico_City')          // → 15:00Z
+aInstante('2026-11-12T10:00:00-05:00', 'America/Mexico_City') // → 15:00Z (trae zona: se respeta)
+```
+
+- **Sin zona** (`"2026-11-12T09:00"`): es hora del evento y se convierte. Es
+  lo que manda el panel.
+- **Con zona** (`Z` o `-05:00` al final): se respeta tal cual. Es lo que mandan
+  el seed y los scripts. Así no se rompió nada de lo anterior.
+
+**El truco para convertir:** se le pregunta a `Intl` (lo que trae JavaScript
+para fechas) qué hora "marca el reloj" en esa zona para un instante dado. Si
+leemos esa hora como si fuera UTC y le restamos el instante real, la diferencia
+es el desfase de la zona (−6 h en México). Se hace en **dos pasadas** por los
+días de **cambio de horario de verano**, en los que el desfase cambia a mitad
+del día (Madrid, por ejemplo). Se probó con 8 casos, incluidos esos dos días y
+un 31 de febrero.
+
+`diaEnZona(instante, zona)` devuelve el día del calendario en esa zona
+(`"2026-11-12"`). Se usa para la regla de "dentro de las fechas del congreso".
+
+**Validación en los DTOs:**
+- `inicio` y `fin` usan `@Matches(FORMATO_FECHA_HORA)`. Antes usaban
+  `@IsDateString()`, que dejaba pasar una fecha sin hora (`"2026-11-12"`), que
+  habría quedado a medianoche.
+- `zona_horaria` del congreso usa `@IsTimeZone()` (de `class-validator`). Una
+  zona inventada responde 400 en vez de guardarse y romper la conversión después.
+
+### 24.3. Las reglas de la agenda (`sesiones.service.ts`)
+
+| # | Regla | Si no se cumple |
+|---|---|---|
+| 1 | Las horas sin zona son hora del evento | (se convierten) |
+| 2 | La sesión termina **después** de empezar | 400 |
+| 3 | Cae **dentro de las fechas del congreso** | 400 |
+| 4 | Un **break no lleva ponentes** | 400 al asignar · 409 si se convierte en break una charla que los tiene |
+| 5 | El ponente es **del mismo congreso** que la sesión | 400 |
+
+Tres detalles finos:
+
+- **La regla 3 se cuenta en la zona del evento.** Una cena a las 21:00 del
+  último día en México ya es el día siguiente en UTC (03:00Z). Comparando en
+  UTC la rechazaríamos sin razón.
+- **Al editar se valida la sesión completa.** Si solo llega el `fin`, se
+  compara contra el `inicio` que ya estaba guardado.
+- **La regla 5 tapó un hueco.** Antes bastaba con que el ponente fuera de la
+  misma *organización*, pero una organización puede tener varios congresos: se
+  podía colgar al ponente de un congreso en la agenda de otro.
+
+`TIPOS_SESION` (`charla`, `break`, `taller`, `plenaria`) vive en un solo lugar,
+`crear-sesion.dto.ts`.
+
+### 24.4. Cruces de horario y "correr la agenda"
+
+**Los cruces se avisan, no se bloquean.** En los congresos es normal tener
+charlas **en paralelo** en salas distintas; si el sistema lo prohibiera, no se
+podría armar una agenda de dos salas. Así que:
+
+- En el **formulario**, mientras se escriben las horas, un recuadro ámbar
+  lista con qué se cruza (hora, título y sala).
+- En la **lista**, cada sesión que se cruza muestra *"⚠ Se cruza con «X» y N más"*.
+
+La regla para saber si dos franjas se cruzan: **cada una empieza antes de que
+la otra termine**.
+
+```ts
+a.ini < b.fin && b.ini < a.fin
+```
+
+Se compara con las horas en la zona del evento (`"09:30" < "10:00"`), que es
+como el organizador piensa su agenda.
+
+**Correr la agenda.** Al editar una sesión y cambiar su hora de fin, el
+formulario ofrece *"Correr también las N sesiones siguientes de este día
++30 min"*, marcado por defecto y con vista previa de las horas nuevas. También
+funciona al acortar (las siguientes se adelantan).
+
+- Las **"siguientes"** son las del mismo congreso y el mismo día (en la zona
+  del evento) que empezaban a partir del fin **anterior** de la sesión.
+- El panel manda `correr_siguientes: true` en el mismo `PATCH`. No es un campo
+  de la tabla: es una **orden** para el backend.
+- **El backend lo hace en la misma transacción** que la edición
+  (`correrSiguientes()`), y valida cada sesión movida como si fuera nueva. Si
+  una sola quedara fuera de las fechas del congreso (una cena que pasaría a la
+  madrugada del día siguiente), responde 400 y **no se mueve nada**. Si el panel
+  moviera las sesiones una por una y fallara a la mitad, la agenda quedaría
+  medio corrida.
+
+### 24.5. El panel: Speakers y Agenda
+
+**Piezas reutilizables nuevas:**
+
+| Archivo | Qué es |
+|---|---|
+| `components/panel/elegir-congreso.tsx` | El "¿en qué congreso quieres trabajar?" que nació en Usuarios (8.3), ahora componente. Si hay un solo congreso, entra directo |
+| `components/panel/avatar-ponente.tsx` | Foto o iniciales del ponente, más `bandera("CO")` → 🇨🇴 |
+| `lib/zona.ts` | `horaEnZona`, `diaEnZona`, `etiquetaZona`, `diasDelCongreso`, `etiquetaDia`, `enVivo` |
+
+**Rutas.** Igual que Usuarios, viven dentro de cada congreso:
+`/agenda` → elige congreso → `/congresos/:id/agenda`; lo mismo con `/speakers`.
+El detalle del congreso tiene botones a Agenda, Speakers y Asistentes.
+
+**Speakers** (`congresos/[id]/speakers/page.tsx`):
+- Tarjetas con foto o iniciales, cargo · empresa, bandera, biografía y una
+  etiqueta: **"2 charlas"** (violeta) o **"Sin charlas asignadas"** (coral), para
+  ver de un vistazo a quién le falta charla. Para eso la lista del backend trae
+  las charlas de cada ponente.
+- Un solo formulario para crear y editar, con `key={ponente.id}` para que
+  arranque limpio al pasar de un ponente a otro.
+- **Los campos vacíos se mandan como `null`, no como `""`**, para que "borrar el
+  cargo" deje la columna realmente vacía. Por eso el service cuida
+  `pais_codigo`: un `null.toUpperCase()` se caería.
+- Al borrar, si dicta charlas, el aviso lo dice (las charlas no se borran).
+
+**Agenda** (`congresos/[id]/agenda/page.tsx`):
+- Pestañas con **todos** los días del congreso, también los vacíos (hacen falta
+  para poder crear en ellos), con el número de sesiones de cada uno.
+- Las horas se pintan **en la zona del evento** (`lib/zona.ts`). El detalle del
+  congreso se cambió también para que el panel sea coherente en todas partes.
+- Las charlas sin ponente dicen *"Sin ponente asignado"* en coral.
+- Menú ⋮: Editar, Moderar en vivo (no en los breaks) y Borrar.
+
+**El formulario de sesión asigna los ponentes** con casillas. Al guardar
+compara los que tenía con los marcados y solo crea o quita **la diferencia**,
+en este orden:
+
+```
+1. quitar los que ya no están   ← primero, por si se está convirtiendo en break
+2. guardar la sesión (PATCH)    ← con correr_siguientes si aplica
+3. agregar los nuevos
+```
+
+**El menú lateral.** Por su ruta, `/congresos/:id/agenda` encajaría en
+"Congresos". `seccionDelMenu()` traduce `/congresos/:id/agenda` → `/agenda` (y
+`speakers` → `/speakers`, `asistentes` → `/usuarios`) antes de comparar, para
+que se resalte la entrada desde la que llegó el organizador.
+
+### 24.6. Supabase Storage: la foto del ponente
+
+**Qué es.** El "disco en la nube" que viene con Supabase. La base de datos
+guarda textos, no imágenes: la imagen vive en Storage y en la base solo
+anotamos su **dirección** (`ponente.foto_url`). Se adelantó del 8.5 porque el
+8.5 necesita exactamente la misma pieza para los logos.
+
+**El bucket** `nexvio-publico` (`prisma/setup/13_storage_bucket.sql`, se corre
+una vez en el SQL Editor):
+- **Público:** cualquiera con la URL puede **ver** la imagen. Fotos de ponentes
+  y logos están hechos para mostrarse. **Ahí no va ningún dato de asistentes.**
+- **2 MB y solo JPG/PNG/WebP**, configurado en el propio bucket: es el segundo
+  cerrojo, por si algo se saltara el backend.
+- **Nadie más puede subir:** no hay políticas de escritura. Solo el backend,
+  con la clave `service_role`.
+
+**Por qué sube el backend y no el navegador:** la suplantación del superadmin
+(`X-Organizacion-Id`) solo la entiende el backend, el aislamiento sigue en un
+solo lugar y la clave secreta nunca sale del servidor.
+
+**`src/storage/storage.service.ts`** (módulo exportable; el 8.5 lo importará):
+- **`validarImagen()`** no confía en el `mimetype`, que lo declara quien sube y
+  se puede falsificar (un `.exe` renombrado a `foto.jpg`). Revisa la **firma**,
+  los primeros bytes que lleva cada formato: `FF D8 FF` (JPG), `‰PNG` (PNG),
+  `RIFF…WEBP` (WebP).
+- **`subirImagen()`** guarda en `<org>/<congreso>/ponentes/<id>-a8f3c2d1.jpg`.
+  El sufijo aleatorio hace que, al cambiar la foto, la dirección sea otra: la
+  app no sigue mostrando la vieja que tenía en caché.
+- **`borrarPorUrl()`** nunca lanza error: si la limpieza falla queda un archivo
+  huérfano, pero el cambio que pidió el admin ya está hecho.
+- Habla con la API REST de Storage con `fetch`, como `SupabaseAdminService`:
+  sin SDK nuevo.
+
+**Las rutas:** `POST /ponentes/:id/foto` (multipart, campo `archivo`; Multer
+corta en 2 MB) y `DELETE /ponentes/:id/foto`.
+
+**El orden al subir** (`PonentesService.subirFoto`), para que nada quede a medias:
+1. Buscar al ponente (con RLS: si es de otra organización, 404).
+2. Subir la foto **nueva**, **fuera** de la transacción, para no tener una
+   conexión a la base esperando mientras la imagen viaja por internet.
+3. Guardar la URL. Si falla, se borra la foto recién subida.
+4. Solo al final, borrar la foto **vieja**.
+
+**Al borrar un ponente** se borra también su foto, después de la transacción
+(solo si el borrado en la base salió bien).
+
+**En el panel**, la foto se elige con vista previa y se sube **al pulsar
+Guardar**, no al elegirla: así "Cancelar" de verdad no cambia nada. Si al crear
+un ponente se guarda la ficha pero falla la foto, el siguiente intento edita
+ese ponente en vez de crear uno repetido.
+
+> **Pendiente menor:** si se borra un congreso **entero**, las fotos de sus
+> ponentes quedan huérfanas en Storage. No afecta nada visible.
+
+### 24.7. Gotchas del bloque
+
+- **404 en páginas que sí existen / aviso "(stale)" de hydration.** Desde Next 16,
+  la caché de desarrollo se guarda en disco (`apps/web/.next`) y puede quedar
+  desactualizada: páginas nuevas dentro de `[id]` respondían 404 aunque el
+  archivo estaba ahí, y reiniciar no bastaba. **Arreglo:** detener el panel,
+  `rmdir /s /q .next` y `npm run dev`. Es caché pura y no está en Git.
+- **El aviso de hydration** ("A tree hydrated but some attributes… didn't match")
+  apareció por lo mismo: el servidor tenía una versión vieja del menú en memoria.
+- **Finales de línea:** Git marcó un archivo como modificado sin cambio real
+  (`CRLF` vs `LF`). Se descarta con `git restore <archivo>`. Sigue pendiente el
+  `.gitattributes`.
+
+### 24.8. Prueba de cierre
+
+`prisma/tests/e2e_fase8_4_agenda.js` — **37 verificaciones** contra el backend
+real, con un congreso en **Ciudad de México** a propósito (así se nota si la
+hora se interpreta en la zona del evento y no en la del PC):
+
+1. **Zona horaria:** "09:00" sin zona → 15:00Z; con zona, se respeta.
+2. **Reglas:** fin antes del inicio, fuera de fechas, 21:00 del último día
+   (válida), formato inválido, 31 de febrero, PATCH parcial.
+3. **Correr la agenda:** mueve las siguientes del mismo día, no toca otros días,
+   no mueve nada si una quedaría fuera (todo o nada), y sin la orden no corre.
+4. **Breaks y ponentes:** break con ponente, conversión a break con ponentes,
+   ponente de otro congreso, tipo desconocido, `pais_codigo` en mayúsculas.
+5. **Foto:** subir, archivo con firma falsa, reemplazar (la vieja se borra),
+   quitar, y borrar el ponente borra su foto. **Requiere el bucket creado.**
+6. Ponentes por sesión en el detalle y zona horaria inventada en el congreso.
+
+Al final borra los congresos de prueba.
+
+```bash
+node prisma/tests/e2e_fase8_4_agenda.js <orgEmail> <orgPass>
+```

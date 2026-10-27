@@ -10,7 +10,9 @@
 //      (contadas en la zona del evento), formatos y fechas imposibles.
 //      Correr la agenda: mueve las siguientes del mismo día, todo o nada.
 //   3. Breaks sin ponentes; un ponente solo en SU congreso.
-//   4. Ficha del ponente (pais_codigo en mayúsculas) y ponentes por sesión.
+//   4. Ficha del ponente (pais_codigo en mayúsculas), ponentes por sesión y
+//      FOTO en Supabase Storage (subir, firma falsa, reemplazar, quitar, borrar).
+//      Requiere el bucket: prisma/setup/13_storage_bucket.sql.
 //   5. Zona horaria inválida en el congreso -> 400.
 //   6. Limpieza: borra los congresos de prueba.
 //
@@ -61,6 +63,33 @@ async function api(method, path, token, body) {
 }
 
 const iso = (s) => (s ? new Date(s).toISOString() : null);
+
+// Un PNG real de 1x1 píxel (sirve para probar la subida sin archivos externos).
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/** Sube un archivo como multipart/form-data (igual que el panel). */
+async function subirFoto(ponenteId, token, buffer, tipo, nombre) {
+  const form = new FormData();
+  form.append('archivo', new Blob([buffer], { type: tipo }), nombre);
+  const r = await fetch(`${API}/ponentes/${ponenteId}/foto`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  let data = null;
+  try { data = await r.json(); } catch {}
+  return { status: r.status, body: data };
+}
+
+/**
+ * ¿La URL pública responde? (la foto existe en Storage)
+ * El "?v=..." evita que una copia guardada en la caché (CDN) responda por un
+ * archivo que ya se borró.
+ */
+const existe = async (url) => (await fetch(`${url}?v=${Date.now()}`)).ok;
 
 (async () => {
   const token = await login(orgEmail, orgPass);
@@ -179,6 +208,30 @@ const iso = (s) => (s ? new Date(s).toISOString() : null);
       titulo: 'Tipo raro', tipo: 'fiesta', inicio: '2026-11-12T12:00', fin: '2026-11-12T13:00',
     });
     check('Tipo de sesión desconocido -> 400', tipoMalo.status === 400, JSON.stringify(tipoMalo.body));
+
+    // ---------- 3b. Foto del ponente (Supabase Storage) ----------
+    const f1 = await subirFoto(p1.body.id, token, PNG_1X1, 'image/png', 'foto.png');
+    check('Subir foto PNG -> 201', f1.status === 201, JSON.stringify(f1.body));
+    const url1 = f1.body?.foto_url;
+    check('foto_url apunta al bucket público', !!url1 && url1.includes('/storage/v1/object/public/nexvio-publico/'), url1);
+    check('La foto existe en Storage', !!url1 && (await existe(url1)), url1);
+
+    const falsa = await subirFoto(p1.body.id, token, Buffer.from('esto no es una imagen'), 'image/png', 'falsa.png');
+    check('Archivo que dice ser PNG pero no lo es -> 400', falsa.status === 400, JSON.stringify(falsa.body));
+
+    const f2 = await subirFoto(p1.body.id, token, PNG_1X1, 'image/png', 'otra.png');
+    const url2 = f2.body?.foto_url;
+    check('Cambiar la foto -> URL nueva', f2.status === 201 && !!url2 && url2 !== url1, url2);
+    check('...y la foto vieja se borró de Storage', !(await existe(url1)), url1);
+
+    const q = await api('DELETE', `/ponentes/${p1.body.id}/foto`, token);
+    check('Quitar la foto -> foto_url null', q.status === 200 && q.body?.foto_url === null, JSON.stringify(q.body));
+    check('...y el archivo se borró de Storage', !(await existe(url2)), url2);
+
+    const pTemp = await api('POST', `/congresos/${cid}/ponentes`, token, { nombre: 'Ponente temporal' });
+    const fT = await subirFoto(pTemp.body.id, token, PNG_1X1, 'image/png', 'temp.png');
+    await api('DELETE', `/ponentes/${pTemp.body.id}`, token);
+    check('Borrar un ponente borra también su foto', !!fT.body?.foto_url && !(await existe(fT.body.foto_url)), fT.body?.foto_url);
 
     // ---------- 4. Detalle ----------
     const det = await api('GET', `/congresos/${cid}`, token);

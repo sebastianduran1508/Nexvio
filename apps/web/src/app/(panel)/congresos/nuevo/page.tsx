@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { SelectorBuscable } from '@/components/ui/selector-buscable';
 import { PAISES, paisPorNombre } from '@/datos/paises';
 import { ciudadesDe } from '@/datos/ciudades';
+import { ZONAS, ZONA_POR_PAIS } from '@/datos/zonas';
+import { etiquetaZona } from '@/lib/zona';
 
 /**
  * Alta de un congreso (el objetivo principal del Bloque 8.2).
@@ -32,6 +34,7 @@ export default function NuevoCongresoPage() {
     pais: '',
     ciudad: '',
     lugar: '',
+    zona_horaria: 'America/Bogota',
     descripcion: '',
   });
   const [guardando, setGuardando] = useState(false);
@@ -79,6 +82,7 @@ export default function NuevoCongresoPage() {
         ...(form.pais ? { pais: form.pais } : {}),
         ...(codigoPais ? { pais_codigo: codigoPais } : {}),
         ...(form.lugar ? { lugar: form.lugar } : {}),
+        zona_horaria: form.zona_horaria,
         ...(form.descripcion ? { descripcion: form.descripcion } : {}),
       });
       router.push(`/congresos/${creado.id}`);
@@ -139,6 +143,9 @@ export default function NuevoCongresoPage() {
                   pais: v,
                   // Cambió el país -> la ciudad anterior ya no aplica.
                   ciudad: v === f.pais ? f.ciudad : '',
+                  // El país predefine la zona horaria (se puede cambiar abajo).
+                  zona_horaria:
+                    ZONA_POR_PAIS[PAISES.find((p) => p.nombre === v)?.codigo ?? ''] ?? f.zona_horaria,
                 }))
               }
             />
@@ -162,6 +169,26 @@ export default function NuevoCongresoPage() {
               alElegir={(v) => setForm((f) => ({ ...f, ciudad: v }))}
             />
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="zona_horaria">Zona horaria del evento</Label>
+          <select
+            id="zona_horaria"
+            value={form.zona_horaria}
+            onChange={(e) => setForm((f) => ({ ...f, zona_horaria: e.target.value }))}
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            {ZONAS.map((z) => (
+              <option key={z.valor} value={z.valor} className="bg-card">
+                {z.etiqueta} · {etiquetaZona(z.valor).split(' · ')[1] ?? ''}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Las horas de la agenda se escriben en esta zona. Se elige sola al poner el país; cámbiala si
+            el país tiene varias zonas o si el congreso es virtual.
+          </p>
         </div>
 
         <div className="space-y-1.5">

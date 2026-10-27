@@ -365,7 +365,7 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 - **8.1** ✅ Modelo de datos: perfil de asistente, sponsor, personalización, notificaciones, campos de speaker, tipo de sesión (break).
 - **8.2** ✅ Superadmin: crear congresos (+ asignar admin) + layout del panel.
 - **8.3** ✅ Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
-- **8.4** Admin · Agenda + Speakers. *(Parcial desde la feria: la API ya acepta los campos y el panel muestra la agenda en solo lectura.)*
+- **8.4** ✅ Admin · Agenda + Speakers (+ Supabase Storage adelantado del 8.5).
 - **8.5** Admin · Sponsors + Personalización (reflejada en la app).
 - **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
 - **8.7** App móvil: *(el diseño ya se hizo en la feria)* + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
@@ -764,6 +764,57 @@ cambios le dieron mucha vida al proyecto.
   seed; si se pierde una, `09_cambiar_password.js`. Para moderar preguntas en una
   demo, usar el **organizador** (no el superadmin, por el pendiente de Socket.io).
 
+## Estado actual (Fase 8 · Bloque 8.4 — Agenda + Speakers) ✅ COMPLETO
+
+El organizador arma toda la agenda desde el panel. Detalle en `GUIA_DEV.md` § 24.
+
+### Decisiones tomadas con Sebastián
+
+- **Zona horaria:** en el **panel**, las horas son las **del lugar del evento**
+  (`congreso.zona_horaria`), esté donde esté el admin, y se muestran así en todo
+  el panel. El **backend** convierte a UTC. La **app** muestra la zona **del
+  teléfono** (congresos virtuales), con el aviso "Horas en tu zona horaria".
+- **Supabase Storage se adelantó** del 8.5: sube el backend (por la
+  suplantación) a un bucket **público** de imágenes; en la base solo va la URL.
+- **Los cruces de horario se avisan, no se bloquean** (hay charlas en paralelo
+  en salas distintas).
+- **"Correr la agenda"** al cambiar el fin de una sesión: las siguientes del
+  mismo día se mueven igual, en una sola transacción (todo o nada).
+- Agenda y Speakers viven **dentro de cada congreso**, como Usuarios.
+
+### Lo construido
+
+- [x] **8.4.a — Backend:** `zona-horaria.util.ts` (`aInstante`, `diaEnZona`),
+  `@Matches(FORMATO_FECHA_HORA)` en inicio/fin, `@IsTimeZone()` en el congreso,
+  y 5 reglas en `sesiones.service.ts` (fin > inicio, dentro de fechas contadas
+  en la zona del evento, break sin ponentes, ponente del mismo congreso).
+- [x] **8.4.b — Speakers:** `/speakers` y `/congresos/:id/speakers`. Piezas
+  nuevas: `ElegirCongreso` y `AvatarPonente`. La lista del backend trae las
+  charlas de cada ponente.
+- [x] **8.4.c — Agenda:** `/agenda` y `/congresos/:id/agenda`, `lib/zona.ts`,
+  formulario con tipo, día, horas, sala, descripción y ponentes (sincroniza la
+  diferencia). Aviso de cruces, `correr_siguientes` y `seccionDelMenu()` para
+  el menú lateral. Selector de **zona horaria** al crear el congreso
+  (`datos/zonas.ts`: el país la predefine).
+- [x] **8.4.d — Foto:** `src/storage/` (`StorageService` exportable),
+  `POST/DELETE /ponentes/:id/foto`, validación por **firma** del archivo,
+  borrado de la foto vieja y de la del ponente borrado. Bucket:
+  `prisma/setup/13_storage_bucket.sql` (**ya creado en Supabase**).
+- [x] **8.4.e — Prueba de cierre** `prisma/tests/e2e_fase8_4_agenda.js`
+  (37 verificaciones) + GUIA § 24.
+
+### Gotchas del 8.4
+
+- **Next 16 guarda la caché de desarrollo en disco** (`apps/web/.next`). Si
+  aparecen 404 en páginas que existen o avisos "(stale)": detener el panel,
+  `rmdir /s /q .next`, `npm run dev`.
+- **`IsDateString` dejaba pasar fechas sin hora**; por eso inicio/fin usan
+  `@Matches`.
+- **Vacío = `null`, no `""`**, en los formularios del panel (y cuidado con
+  `null.toUpperCase()` en el backend).
+- La prueba de cierre **necesita el bucket creado**; sin él, los casos de foto
+  fallan con "No existe el bucket de imágenes".
+
 ## Pendientes arrastrados (consolidado, oct-2026)
 
 - [x] Ojito "ver contraseña" en el **login de la app** (feria).
@@ -771,8 +822,14 @@ cambios le dieron mucha vida al proyecto.
   el cambio de contraseña al primer ingreso (8.7).
 - [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
   § 23.7). Se notó en la feria.
-- [ ] Validaciones de negocio de la agenda: `fin > inicio`, dentro de las fechas
-  del congreso, break sin ponentes (**8.4**).
+- [x] Validaciones de negocio de la agenda (**8.4**).
+- [ ] Fotos huérfanas en Storage al borrar un congreso **entero** (menor).
+- [ ] Campo **modalidad** del congreso (presencial / virtual / híbrido) para
+  ajustar textos como el de la zona horaria (idea, sin prisa).
+- [x] Elegir la `zona_horaria` al **crear** el congreso (8.4: el país la
+  predefine con `datos/zonas.ts`).
+- [ ] Pantalla para **editar** un congreso existente (nombre, fechas, lugar,
+  zona horaria). Hoy solo se edita por API.
 - [ ] Que `e2e_onboarding_aislamiento.js` borre sus organizaciones al terminar.
 - [ ] Límite de intentos por IP en `/auth/resolver-usuario` (**Fase 9**).
 - [ ] Pantallas móviles de login por usuario y cambio de contraseña al primer
@@ -784,20 +841,13 @@ cambios le dieron mucha vida al proyecto.
 - [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
   el equipo).
 
-**SIGUIENTE EN DESARROLLO: Bloque 8.4 — Admin · Agenda + Speakers (lo que
-falta).** Ya hecho: la API acepta los campos y el panel muestra la agenda en solo
-lectura. Falta: (1) validaciones de negocio en el backend; (2) las pantallas de
-**gestión** en el panel (crear, editar y borrar sesiones y ponentes, asignar
-ponentes a charlas), activando "Agenda" y "Speakers" en el menú lateral; (3) la
-**foto del ponente**; (4) prueba de cierre e2e + docs.
-
-Decisiones abiertas a resolver al arrancar el 8.4:
-- **¿Adelantar Supabase Storage** (previsto para el 8.5) para la foto del
-  ponente? Recomendación: sí, como último paso del bloque, subiendo por el
-  backend (para que funcione la suplantación) a un bucket **público**
-  (fotos y logos están hechos para mostrarse; ahí no van datos de asistentes).
-- **Zona horaria en los formularios de agenda:** recomendación, que el backend
-  interprete "09:00" en la `zona_horaria` del congreso cuando la fecha llegue sin
-  zona, y respete las que ya traen `Z` u offset (como el seed).
+**SIGUIENTE EN DESARROLLO: Bloque 8.5 — Admin · Sponsors + Personalización
+(reflejada en la app).** Las tablas ya existen desde el 8.1 (`sponsor`:
+nombre, logo, sitio web, nivel oro/plata/bronce/general y orden;
+`personalizacion_congreso`: logo, portada, colores y tema, 1:1 con el congreso).
+**Storage ya está listo**: el `StorageService` del 8.4 se reutiliza para los
+logos y la portada. Falta: backend (CRUD de sponsors, subir logos, guardar la
+personalización), las pantallas del panel (activar "Sponsors" en el menú) y
+mostrarlo en la app.
 
 Mismo método de siempre.
