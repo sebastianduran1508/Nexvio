@@ -68,6 +68,8 @@ export class CongresosService {
           // 8.5: los sponsors van en el detalle para que la app pinte la franja
           // "Con el apoyo de" sin otra llamada. El orden por nivel se hace abajo.
           sponsors: true,
+          // 8.5: la marca del evento (logo, portada, colores). null si aún no la tiene.
+          personalizacion: true,
         },
       }),
     );

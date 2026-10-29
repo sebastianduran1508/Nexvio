@@ -6,6 +6,8 @@ import { SesionesService } from './sesiones.service';
 import { PonentesController } from './ponentes.controller';
 import { PonentesService } from './ponentes.service';
 import { StorageModule } from '../storage/storage.module';
+import { PersonalizacionController } from './personalizacion.controller';
+import { PersonalizacionService } from './personalizacion.service';
 
 /**
  * Módulo Congresos (Fase 3): agrupa las tres piezas del dominio —
@@ -13,9 +15,9 @@ import { StorageModule } from '../storage/storage.module';
  * controller (rutas) y su service (lógica).
  */
 @Module({
-  // StorageModule: la foto de los ponentes (Bloque 8.4.d).
+  // StorageModule: la foto de los ponentes (8.4.d) y el logo/portada del congreso (8.5.c).
   imports: [StorageModule],
-  controllers: [CongresosController, SesionesController, PonentesController],
-  providers: [CongresosService, SesionesService, PonentesService],
+  controllers: [CongresosController, SesionesController, PonentesController, PersonalizacionController],
+  providers: [CongresosService, SesionesService, PonentesService, PersonalizacionService],
 })
 export class CongresosModule {}

@@ -29,6 +29,7 @@ type Entrada = {
 const SECCIONES_DE_CONGRESO: Record<string, string> = {
   agenda: '/agenda',
   speakers: '/speakers',
+  sponsors: '/sponsors',
   asistentes: '/usuarios',
 };
 
@@ -51,7 +52,7 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/usuarios', texto: 'Usuarios', Icono: Users },
   { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard },
   { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
-  { href: '/sponsors', texto: 'Sponsors', Icono: Handshake, proximamente: true },
+  { href: '/sponsors', texto: 'Sponsors', Icono: Handshake },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell, proximamente: true },
   { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle, proximamente: true },
 ];
