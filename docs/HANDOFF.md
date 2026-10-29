@@ -874,5 +874,19 @@ personalización; (f) prueba de cierre + docs.
    - En el panel, el orden dentro de cada nivel se cambia con flechas ↑↓.
 5. **Idea para el 8.7 (no ahora):** "Patrocinado por…" en una charla
    específica. Necesita un dato nuevo (qué sponsor patrocina qué sesión).
+6. **Contraste de los colores (detalle del punto 2, al construir el 8.5.d):**
+   - **Color principal:** lleva texto BLANCO encima (cabeceras, botones), así
+     que el panel mide el contraste (fórmula WCAG) y avisa: ≥4.5 bien, 3–4.5
+     "justo", <3 "no se lee". La paleta sugerida son 8 colores que superan 5:1.
+     Es un aviso, no un bloqueo.
+   - **Color de acento:** el color del texto encima (blanco u oscuro) **se
+     elige solo** según el contraste (`textoSobre()`), así que cualquier acento
+     funciona y no necesita aviso. Motivo: el propio coral de Nexvio da 2.6:1
+     con texto blanco.
+   - La cabecera usa un degradado del color principal hacia una versión 30 %
+     más oscura (`oscurecer()`), como el violeta → morado de Nexvio.
+   - La personalización se edita en **"Apariencia"** (`/congresos/:id/apariencia`),
+     con vista previa del celular. No tiene entrada propia en el menú: se llega
+     desde el detalle del congreso.
 
 Mismo método de siempre.

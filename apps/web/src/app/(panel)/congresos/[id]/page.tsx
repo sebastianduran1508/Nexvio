@@ -9,6 +9,7 @@ import {
   Coffee,
   MapPin,
   MessageSquare,
+  Palette,
   Handshake,
   Mic2,
   Users,
@@ -177,6 +178,12 @@ export default function CongresoDetallePage() {
               className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
             >
               <Handshake className="h-4 w-4" /> Sponsors
+            </Link>
+            <Link
+              href={`/congresos/${detalle.id}/apariencia`}
+              className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/25"
+            >
+              <Palette className="h-4 w-4" /> Apariencia
             </Link>
             <Link
               href={`/congresos/${detalle.id}/asistentes`}
