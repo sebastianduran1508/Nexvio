@@ -22,7 +22,7 @@ import {
   rangoFechas,
   zonaDelTelefono,
 } from '../lib/formato';
-import type { CongresoDetalle, Inscripcion, Ponente, Sesion, Sponsor } from '../lib/tipos';
+import type { Aviso, CongresoDetalle, Inscripcion, Ponente, Sesion, Sponsor } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import {
   Avatar,
@@ -37,6 +37,7 @@ import {
 } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 import { useFijarMarca, useMarca } from '../context/MarcaContext';
+import { ultimoAvisoVisto } from '../lib/push';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 
@@ -71,13 +72,21 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const [cargando, setCargando] = useState(true);
   const [accion, setAccion] = useState(false); // true mientras inscribe/cancela
   const [diaElegido, setDiaElegido] = useState<string | null>(null);
+  // 8.6: cuántos avisos hay y cuántos no ha visto la persona.
+  const [avisos, setAvisos] = useState({ total: 0, nuevos: 0 });
 
   const cargar = useCallback(async () => {
     try {
-      const [d, mias] = await Promise.all([
+      const [d, mias, lista, visto] = await Promise.all([
         api<CongresoDetalle>('GET', `/congresos/${id}`),
         api<Inscripcion[]>('GET', '/inscripciones/mias'),
+        api<Aviso[]>('GET', `/congresos/${id}/avisos`).catch(() => [] as Aviso[]),
+        ultimoAvisoVisto(id),
       ]);
+      setAvisos({
+        total: lista.length,
+        nuevos: lista.filter((a) => !visto || a.enviado_en > visto).length,
+      });
       setDetalle(d);
       // Guardar la marca de ESTE congreso para sus pantallas hijas (8.5).
       fijarMarca({
@@ -210,6 +219,31 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
             onPress={() => navigation.navigate('Patrocinadores', { congresoId: id, nombre: detalle.nombre })}
           />
         )}
+
+        {/* ---------- Avisos (8.6) ---------- */}
+        <Tarjeta
+          style={est.networking}
+          onPress={() => navigation.navigate('Avisos', { congresoId: id, nombre: detalle.nombre })}
+        >
+          <View style={[est.netIcono, { backgroundColor: marca.primarioSuave }]}>
+            <Ionicons name="notifications-outline" size={20} color={marca.primarioTexto} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[est.netTitulo, { color: t.texto }]}>Avisos del congreso</Text>
+            <Text style={[est.netTexto, { color: t.textoTenue }]}>
+              {avisos.total === 0
+                ? 'Aquí llegan los mensajes del organizador'
+                : `${avisos.total} aviso${avisos.total === 1 ? '' : 's'}`}
+            </Text>
+          </View>
+          {avisos.nuevos > 0 && (
+            <Etiqueta
+              texto={`${avisos.nuevos} NUEVO${avisos.nuevos === 1 ? '' : 'S'}`}
+              colores={[marca.acento, marca.textoAcento]}
+            />
+          )}
+          <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+        </Tarjeta>
 
         {/* ---------- Networking ---------- */}
         <Tarjeta

@@ -589,6 +589,12 @@ node prisma/tests/e2e_onboarding_aislamiento.js <adminEmail> <adminPass>
 > NO relee el `.env`, y verías un 500 *"Falta SUPABASE_SERVICE_ROLE_KEY"* aunque la
 > clave esté en el archivo.
 
+> **Gotcha de Prisma 7 (Bloque 8.6):** desde Prisma 7, `migrate dev` **ya no
+> regenera el cliente** automáticamente. Después de una migración que cambia el
+> `schema.prisma` hay que correr **`npx prisma generate`** (con el backend
+> detenido). Síntoma si se olvida: *"Object literal may only specify known
+> properties, and 'campo_nuevo' does not exist in type …CreateInput"*.
+
 > **Gotcha de Windows (Fase 3):** tras cambiar el `schema.prisma`, si el
 > `start:dev` está corriendo tiene bloqueados los archivos del cliente de Prisma y
 > `migrate dev` **no logra regenerarlo** (se salta el paso en silencio). Síntoma:

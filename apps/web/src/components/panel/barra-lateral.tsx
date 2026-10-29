@@ -30,6 +30,7 @@ const SECCIONES_DE_CONGRESO: Record<string, string> = {
   agenda: '/agenda',
   speakers: '/speakers',
   sponsors: '/sponsors',
+  notificaciones: '/notificaciones',
   asistentes: '/usuarios',
 };
 
@@ -53,7 +54,7 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard },
   { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake },
-  { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell, proximamente: true },
+  { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell },
   { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle, proximamente: true },
 ];
 

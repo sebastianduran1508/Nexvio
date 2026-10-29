@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { olvidarTelefono } from '../lib/push';
 
 /**
  * "Contexto de sesion": una memoria compartida por TODA la app que sabe si hay
@@ -52,6 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    // 8.6: ANTES de cerrar (todavía hay token para hablar con la API), este
+    // teléfono deja de recibir avisos de esta persona.
+    await olvidarTelefono();
     await supabase.auth.signOut();
   }
 

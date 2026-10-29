@@ -103,3 +103,12 @@ export type MensajesResp = {
   usados: number;
   mensajes: MensajeChat[];
 };
+
+// --- Bloque 8.6: la bandeja "Avisos" ---
+export type Aviso = {
+  id: string;
+  titulo: string;
+  cuerpo: string;
+  enviado_en: string;
+  sesion: { id: string; titulo: string } | null;
+};

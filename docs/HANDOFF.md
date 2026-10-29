@@ -922,7 +922,27 @@ enviar desde el backend (API de Expo Push), la pantalla "Notificaciones" del
 panel (redactar, enviar a todo el congreso o a una sesión, historial) y la
 sección "Ayuda" (guía de uso del panel para admins no técnicos).
 
-Decisiones a resolver al arrancar el 8.6:
+### Decisiones del 8.6 (tomadas con Sebastián, oct-2026)
+
+1. **Envío:** lo prioritario es **enviar al momento**; además se podrán
+   **programar** (p. ej. recordatorio antes de una charla).
+2. **Ayuda:** contenido **editable por el superadmin** (para poder cambiarlo
+   sin tocar código).
+3. **Compilación (development build):** verificado en la documentación de Expo
+   (SDK 54): Expo Go NO recibe push remotas en Android; hace falta compilar.
+   Compilar es una vez (los cambios de JS no obligan a recompilar), pero sí hay
+   que recompilar al agregar librerías nativas o cambiar `app.json`, y el 8.7 va
+   a tocar mucho la app. **Se deja la compilación y la prueba de push real para
+   el final** (después del 8.7).
+
+4. **Cómo se construye sin compilar (aprobado):** todo el envío se hace ahora
+   (backend, panel, registro del token); en Expo Go la app **se salta** el
+   registro sin fallar; y se agrega una bandeja **"Avisos"** en la app con las
+   notificaciones enviadas al congreso, que funciona en Expo Go y permite probar
+   el flujo panel → backend → app. Plan: 8.6.a backend · 8.6.b panel ·
+   8.6.c app · 8.6.d Ayuda editable · 8.6.e pruebas + docs.
+
+Decisiones que quedaban abiertas (ya resueltas arriba):
 - **⚠️ Expo Go y las push:** desde el SDK 53, **Expo Go ya no recibe
   notificaciones push remotas en Android**. Para probarlas de verdad hace falta
   un *development build* (compilar la app con EAS) o un APK de prueba. Hay que

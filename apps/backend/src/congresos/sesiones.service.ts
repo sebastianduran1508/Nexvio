@@ -188,13 +188,27 @@ export class SesionesService {
     }
   }
 
-  /** Borrar una sesión del tenant (y sus vínculos con ponentes). */
+  /** Borrar una sesión del tenant (con sus ponentes asignados, su participación y el enlace de sus avisos). */
   async borrar(orgId: string, id: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sesion.findFirst({ where: { id } });
       if (!existe) throw new NotFoundException('Sesión no encontrada');
 
       await tx.sesionPonente.deleteMany({ where: { sesion_id: id } });
+      // Fase 5: la participación cuelga de la sesión (encuestas -> opciones y
+      // votos; preguntas). Se borra en orden, de las hojas hacia la raíz.
+      // (Antes del 8.6 esto faltaba: borrar una charla con preguntas fallaba.)
+      const encuestas = await tx.encuesta.findMany({ where: { sesion_id: id }, select: { id: true } });
+      const encuestaIds = encuestas.map((e) => e.id);
+      if (encuestaIds.length > 0) {
+        await tx.respuestaEncuesta.deleteMany({ where: { encuesta_id: { in: encuestaIds } } });
+        await tx.opcionEncuesta.deleteMany({ where: { encuesta_id: { in: encuestaIds } } });
+      }
+      await tx.encuesta.deleteMany({ where: { sesion_id: id } });
+      await tx.pregunta.deleteMany({ where: { sesion_id: id } });
+      // 8.6: los avisos SOBRE esta sesión se conservan en el historial (ya se
+      // enviaron); solo pierden el enlace, para no chocar con la clave foránea.
+      await tx.notificacion.updateMany({ where: { sesion_id: id }, data: { sesion_id: null } });
       await tx.sesion.delete({ where: { id } });
       return { borrado: true };
     });

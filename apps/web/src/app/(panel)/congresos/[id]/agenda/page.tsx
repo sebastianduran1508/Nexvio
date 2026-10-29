@@ -281,7 +281,7 @@ export default function AgendaCongresoPage() {
       <DialogoConfirmar
         abierto={aBorrar !== null}
         titulo={`¿Borrar «${aBorrar?.titulo}»?`}
-        mensaje="Se borra de la agenda junto con su asignación de ponentes. Los ponentes no se borran."
+        mensaje="Se borra de la agenda con sus preguntas y encuestas. Los ponentes no se borran, y los avisos ya enviados siguen en el historial."
         textoConfirmar="Borrar"
         peligroso
         alConfirmar={borrar}

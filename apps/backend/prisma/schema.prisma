@@ -469,12 +469,15 @@ model Notificacion {
   cuerpo          String
   destino         String    @default("todos") // todos | sesion
   sesion_id       String?   @db.Uuid // solo si destino = sesion
-  estado          String    @default("borrador") // borrador | enviada | fallida
+  // borrador | programada | enviando | enviada | fallida (8.6)
+  estado          String    @default("borrador")
   enviados        Int       @default(0)
   fallidos        Int       @default(0)
   creado_por_id   String?   @db.Uuid
   creado_en       DateTime  @default(now())
   enviado_en      DateTime?
+  // Bloque 8.6: si tiene fecha, se envía sola a esa hora (estado "programada").
+  programada_para DateTime?
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso     @relation(fields: [congreso_id], references: [id])
@@ -483,5 +486,6 @@ model Notificacion {
 
   @@index([organizacion_id])
   @@index([congreso_id])
+  @@index([estado, programada_para]) // el programador busca "programadas ya vencidas"
   @@map("notificacion")
 }

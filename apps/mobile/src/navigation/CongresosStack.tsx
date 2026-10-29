@@ -6,6 +6,7 @@ import SesionScreen from '../screens/SesionScreen';
 import NetworkingScreen from '../screens/NetworkingScreen';
 import ChatScreen from '../screens/ChatScreen';
 import PatrocinadoresScreen from '../screens/PatrocinadoresScreen';
+import AvisosScreen from '../screens/AvisosScreen';
 
 /** Pantallas (y parametros) de la pestana Congresos: lista -> detalle. */
 export type CongresosStackParamList = {
@@ -15,6 +16,7 @@ export type CongresosStackParamList = {
   Networking: { congresoId: string; nombre: string };
   Chat: { conexionId: string; nombre: string };
   Patrocinadores: { congresoId: string; nombre: string };
+  Avisos: { congresoId: string; nombre: string };
 };
 
 const Stack = createNativeStackNavigator<CongresosStackParamList>();
@@ -32,6 +34,7 @@ export function CongresosStack() {
       <Stack.Screen name="Networking" component={NetworkingScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="Patrocinadores" component={PatrocinadoresScreen} />
+      <Stack.Screen name="Avisos" component={AvisosScreen} />
     </Stack.Navigator>
   );
 }
