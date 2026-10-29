@@ -1,8 +1,9 @@
 # Guía de desarrollo — Nexvio
 
-> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.4 cerrados, más el sprint
-> de la **feria** (§ 23). El 8.4 (§ 24) dejó listas la agenda, los speakers y
-> Supabase Storage. Lo siguiente es el **Bloque 8.5 — Sponsors + Personalización**.
+> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.5 cerrados, más el sprint
+> de la **feria** (§ 23). El 8.4 (§ 24) dejó la agenda, los speakers y Supabase
+> Storage; el 8.5 (§ 25), los sponsors y la marca de cada congreso. Lo siguiente
+> es el **Bloque 8.6 — Notificaciones push + Ayuda**.
 
 > **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
 > **Fase 8** (identidad visual + panel del administrador + producto completo).
@@ -562,6 +563,10 @@ node prisma/tests/e2e_fase8_3_usuarios.js <orgEmail> <orgPass>
 # Fase 8 - Bloque 8.4: agenda, speakers y foto (requiere el backend corriendo
 # y el bucket de Storage creado con prisma/setup/13_storage_bucket.sql)
 node prisma/tests/e2e_fase8_4_agenda.js <orgEmail> <orgPass>
+
+# Fase 8 - Bloque 8.5: sponsors y personalización (backend corriendo + bucket)
+node prisma/tests/e2e_fase8_5_sponsors.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_5_personalizacion.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -2277,3 +2282,178 @@ Al final borra los congresos de prueba.
 ```bash
 node prisma/tests/e2e_fase8_4_agenda.js <orgEmail> <orgPass>
 ```
+
+---
+
+## 25. Sponsors y personalización (Bloque 8.5)
+
+Cada congreso tiene ahora **su propia marca** en la app (logo, portada y colores)
+y **sus patrocinadores**, visibles para los asistentes. Todo se gestiona desde el
+panel.
+
+| Sub-paso | Qué | Dónde |
+|---|---|---|
+| 8.5.a | Sponsors con logo + **fix del borrado de congresos** | Backend |
+| 8.5.b | Pantalla Sponsors (por nivel, flechas ↑↓) | Panel |
+| 8.5.c | Personalización: logo, portada y colores | Backend |
+| 8.5.d | Pantalla "Apariencia" con vista previa del celular y aviso de contraste | Panel |
+| 8.5.e | La app muestra sponsors y la marca de cada congreso | App |
+| 8.5.f | Esta documentación | — |
+
+Las decisiones del bloque están en el `HANDOFF.md` ("Decisiones del 8.5").
+
+### 25.1. El fix del borrado de congresos
+
+`CongresosService.borrar()` se escribió en la Fase 3, antes de que existieran las
+tablas del 8.1 (`sponsor`, `personalizacion_congreso`, `notificacion`). En cuanto
+un congreso tuviera un sponsor, borrarlo habría fallado por la clave foránea.
+Ahora:
+
+- Borra también esas tres tablas. Las **notificaciones van antes que las
+  sesiones**, porque pueden apuntar a una.
+- **Anota las imágenes antes de borrar** (fotos de ponentes, logos de sponsors,
+  logo y portada) y las limpia de Storage **después** de la transacción, solo si
+  el borrado salió bien. Así se cerró también el pendiente de fotos huérfanas
+  del 8.4.
+
+> **Lección:** cada vez que se agrega una tabla que cuelga del congreso, hay que
+> sumarla a `borrar()`. La prueba del 8.5 borra un congreso con sponsors y
+> logos para que, si se olvida, se note.
+
+### 25.2. Sponsors (`src/sponsors/`)
+
+| Ruta | Qué hace |
+|---|---|
+| `POST/GET /congresos/:id/sponsors` | Crear y listar (leer: todos los roles; la app los muestra) |
+| `POST /congresos/:id/sponsors/orden` | Reordenar un nivel en una sola llamada |
+| `PATCH/DELETE /sponsors/:id` | Editar y borrar (borra también el logo) |
+| `POST/DELETE /sponsors/:id/logo` | Logo en Storage (`StorageService` del 8.4) |
+
+- **El orden por nivel se hace en código, no en SQL.** Alfabéticamente,
+  "bronce" iría antes que "oro". `ordenarSponsors()` usa la posición en
+  `NIVELES_SPONSOR = ['oro','plata','bronce','general']`: el orden de esa lista es
+  el orden en pantalla. Desempata por `orden` y luego por nombre.
+- **El sitio web se normaliza:** `www.empresa.com` → `https://www.empresa.com/`.
+  Si no parece una dirección, 400; si llega vacío, se quita.
+- **Reordenar:** el panel manda los ids de un nivel en el orden nuevo y el
+  backend pone `orden = 0, 1, 2…`. Si algún id es de otro congreso, no toca nada.
+- Al crear, o al cambiar de nivel, el sponsor va **de último** en su nivel.
+- El **detalle del congreso** trae los sponsors ya ordenados, y la app no
+  necesita otra llamada para la franja.
+
+### 25.3. Personalización (`congresos/personalizacion.*`)
+
+La tabla es 1:1 con el congreso, pero **la fila no se crea con el congreso**:
+nace la primera vez que el organizador guarda algo.
+
+- **Leer** devuelve valores vacíos si aún no existe (no 404): para la app,
+  "sin personalización" no es un error, es "usar Nexvio".
+- **Guardar usa `upsert`** (*update + insert*): "si existe, actualízala; si no,
+  créala", en una operación. Por eso la ruta es `PUT` (deja esto así) y no
+  `PATCH` (modifica algo que existe).
+- **Colores:** `#RRGGBB` (6 dígitos), guardados en mayúsculas. `null` = el de
+  Nexvio.
+- **Logo y portada:** `POST/DELETE /congresos/:id/personalizacion/:cual`, donde
+  `ParseEnumPipe` solo deja pasar `logo` o `portada`. Van a
+  `<org>/<congreso>/marca/`.
+- El **tema por defecto** existe en la tabla pero no en la API: se dejó para el 8.7.
+- El **detalle del congreso** trae la personalización.
+
+### 25.4. El contraste de los colores (`lib/color.ts`, en web y en móvil)
+
+El organizador elige el color y la app pone **texto encima**. Si elige un
+amarillo claro, el texto blanco no se lee. Se mide con la **fórmula WCAG**
+(la de los navegadores y las pautas de accesibilidad), de 1:1 a 21:1:
+
+| Contraste | Significa |
+|---|---|
+| ≥ 4.5 | Se lee bien en cualquier tamaño (WCAG AA) |
+| 3 – 4.5 | Solo títulos grandes |
+| < 3 | No se lee |
+
+La fórmula pondera los canales según la sensibilidad del ojo (el verde pesa
+`0.7152`, el azul `0.0722`): por eso un verde y un azul "igual de brillantes" no
+se ven igual de claros.
+
+**Cómo se usa cada color:**
+- **Principal** (lleva texto blanco: cabeceras, botones): el panel **mide y
+  avisa** (verde, ámbar o rojo). Es aviso, no bloqueo. La paleta sugerida son 8
+  colores que superan 5:1.
+- **Acento** ("EN CURSO", lo que está en vivo): el texto encima **se elige solo**
+  con `textoSobre()`, blanco u oscuro, el que se lea mejor. Motivo: el propio
+  coral de Nexvio da 2.6:1 con blanco. Por eso "EN CURSO" ahora va con texto oscuro.
+- **Degradado de la cabecera:** el principal hacia una versión 30 % más oscura
+  (`oscurecer()`).
+- **Textos de color en la app** (`legibleSobre()`, solo móvil): si el color no
+  se lee sobre el fondo actual, se aclara (modo oscuro) u oscurece (modo claro)
+  de a 10 % hasta 4.5:1. Un azul muy oscuro sigue leyéndose en modo oscuro. Los
+  **rellenos** mantienen el color exacto de la marca.
+
+### 25.5. El panel
+
+**Sponsors** (`/sponsors` → `/congresos/:id/sponsors`): agrupados por nivel con
+su etiqueta de color, logos **sobre recuadro blanco también en modo oscuro**
+(casi todos los logos están hechos para fondo blanco), flechas ↑↓ que
+intercambian dos vecinos y mandan el nivel completo a `/orden` (se bloquean
+mientras guarda). El formulario sigue el patrón de Speakers: el logo se sube al
+guardar y no se duplica si falla.
+
+**Apariencia** (`/congresos/:id/apariencia`, desde el detalle del congreso;
+sin entrada propia en el menú):
+- Logo, portada (16:9), color principal (con el aviso de contraste) y acento.
+  Cada color: paleta de 8 + selector propio + código hexadecimal (solo se acepta
+  cuando está completo). Elegir el color de Nexvio guarda `null`, no un hex fijo.
+- **Vista previa del celular** que cambia en vivo: una imitación en HTML del
+  detalle del congreso, con los sponsors reales. En pantallas anchas queda fija
+  mientras se baja por los controles.
+- "Guardar cambios" (solo con cambios) y "Usar la de Nexvio".
+
+### 25.6. La app: `MarcaContext`
+
+**El problema:** Sesión, Networking y Chat solo reciben un id al navegar; no saben
+de qué congreso son ni qué colores tiene.
+
+**La solución,** con el mismo patrón que `AuthContext`: una memoria compartida.
+
+```tsx
+// CongresoDetalleScreen, al cargar:
+fijarMarca({ congresoId: d.id, color_primario: ..., logo_url: ..., ... });
+
+// Cualquier pantalla del congreso:
+const marca = useMarca();
+<Cabecera colores={marca.degradado} logo={marca.logo} />
+<Boton color={marca.primario} ... />
+```
+
+`useMarca()` entrega los colores listos y adaptados al modo claro u oscuro:
+`primario` (rellenos), `degradado`, `primarioTexto` (legible sobre el fondo),
+`primarioSuave`, `acento`, `textoAcento`, `logo` y `portada`. Sin
+personalización, son exactamente los de Nexvio.
+
+Los componentes base aceptan la marca: `<Cabecera colores logo>`,
+`<Boton color>` y `<Etiqueta colores={[fondo, texto]}>`.
+
+**Lo que ve el asistente:**
+- **Detalle:** cabecera con degradado y logo, portada arriba, color del evento en
+  la inscripción, pestañas de días y agenda (EN VIVO con el acento).
+- **Franja "Con el apoyo de"** después de la inscripción: logos sobre blanco,
+  deslizables, Oro primero y más anchos, con "Ver todos ›".
+- **Patrocinadores** (pantalla nueva): Oro a lo ancho, Plata de a 2, Bronce y
+  General de a 3. "Visitar sitio web" abre el navegador (`Linking.openURL`).
+  La rejilla usa anchos en porcentaje con margen negativo en la fila, sin
+  calcular píxeles.
+- **Sesión, Networking y Chat** con los colores del congreso.
+- **Login, lista y Mis congresos** siguen con la marca Nexvio (decisión del 8.5).
+
+### 25.7. Pruebas de cierre
+
+- `prisma/tests/e2e_fase8_5_sponsors.js` — **16 verificaciones:** niveles,
+  normalización del sitio web, orden, reordenar (y rechazar un sponsor ajeno),
+  cambio de nivel, logo en Storage y **borrar un congreso con sponsors y logos**.
+- `prisma/tests/e2e_fase8_5_personalizacion.js` — **16 verificaciones:** valores
+  vacíos sin personalización, colores (mayúsculas, formatos inválidos, `null`),
+  logo y portada (subir, reemplazar, quitar uno sin tocar el otro, ruta
+  inválida), detalle con la marca y borrado del congreso con su portada.
+
+Lo visual se probó a mano: panel (Sponsors y Apariencia, en claro y oscuro) y app
+(marca, franja, Patrocinadores y modo oscuro).

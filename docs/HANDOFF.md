@@ -366,7 +366,7 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 - **8.2** ✅ Superadmin: crear congresos (+ asignar admin) + layout del panel.
 - **8.3** ✅ Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
 - **8.4** ✅ Admin · Agenda + Speakers (+ Supabase Storage adelantado del 8.5).
-- **8.5** Admin · Sponsors + Personalización (reflejada en la app).
+- **8.5** ✅ Admin · Sponsors + Personalización (reflejada en la app).
 - **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
 - **8.7** App móvil: *(el diseño ya se hizo en la feria)* + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
 
@@ -815,45 +815,10 @@ El organizador arma toda la agenda desde el panel. Detalle en `GUIA_DEV.md` § 2
 - La prueba de cierre **necesita el bucket creado**; sin él, los casos de foto
   fallan con "No existe el bucket de imágenes".
 
-## Pendientes arrastrados (consolidado, oct-2026)
+## Estado actual (Fase 8 · Bloque 8.5 — Sponsors + Personalización) ✅ COMPLETO
 
-- [x] Ojito "ver contraseña" en el **login de la app** (feria).
-- [ ] Ojito en el **panel web** (login) y en todo formulario con clave, incluido
-  el cambio de contraseña al primer ingreso (8.7).
-- [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
-  § 23.7). Se notó en la feria.
-- [x] Validaciones de negocio de la agenda (**8.4**).
-- [ ] Fotos huérfanas en Storage al borrar un congreso **entero** (menor).
-- [ ] Campo **modalidad** del congreso (presencial / virtual / híbrido) para
-  ajustar textos como el de la zona horaria (idea, sin prisa).
-- [x] Elegir la `zona_horaria` al **crear** el congreso (8.4: el país la
-  predefine con `datos/zonas.ts`).
-- [ ] Pantalla para **editar** un congreso existente (nombre, fechas, lugar,
-  zona horaria). Hoy solo se edita por API.
-- [ ] Que `e2e_onboarding_aislamiento.js` borre sus organizaciones al terminar.
-- [ ] Límite de intentos por IP en `/auth/resolver-usuario` (**Fase 9**).
-- [ ] Pantallas móviles de login por usuario y cambio de contraseña al primer
-  ingreso (**8.7**; el backend ya está listo).
-- [ ] `.gitattributes` para normalizar finales de línea.
-- [ ] Suite de Jest (`clearMocksOnScope`).
-- [ ] Actualizar ERD y C4 (`diagramas.html` y `NEXVIO_Vfinal.md`) al cerrar el
-  Módulo 8.
-- [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
-  el equipo).
-
-**SIGUIENTE EN DESARROLLO: Bloque 8.5 — Admin · Sponsors + Personalización
-(reflejada en la app).** Las tablas ya existen desde el 8.1 (`sponsor`:
-nombre, logo, sitio web, nivel oro/plata/bronce/general y orden;
-`personalizacion_congreso`: logo, portada, colores y tema, 1:1 con el congreso).
-**Storage ya está listo**: el `StorageService` del 8.4 se reutiliza para los
-logos y la portada. Falta: backend (CRUD de sponsors, subir logos, guardar la
-personalización), las pantallas del panel (activar "Sponsors" en el menú) y
-mostrarlo en la app.
-
-Plan del 8.5: (a) backend de sponsors + logo; (b) pantalla Sponsors en el
-panel; (c) backend de personalización; (d) pantalla "Apariencia" dentro del
-congreso con vista previa del celular; (e) la app muestra sponsors y aplica la
-personalización; (f) prueba de cierre + docs.
+Cada congreso tiene su marca en la app y sus patrocinadores visibles. Detalle
+en `GUIA_DEV.md` § 25.
 
 ### Decisiones del 8.5 (tomadas con Sebastián, oct-2026)
 
@@ -888,5 +853,83 @@ personalización; (f) prueba de cierre + docs.
    - La personalización se edita en **"Apariencia"** (`/congresos/:id/apariencia`),
      con vista previa del celular. No tiene entrada propia en el menú: se llega
      desde el detalle del congreso.
+
+### Lo construido
+
+- [x] **8.5.a — Backend de sponsors** (`src/sponsors/`): CRUD, logo en Storage,
+  reordenar por nivel (`/sponsors/orden`), sitio web normalizado. **Fix:** el
+  borrado de congresos no conocía `sponsor`, `personalizacion_congreso` ni
+  `notificacion` (habría fallado por clave foránea) y ahora también limpia las
+  imágenes del congreso en Storage.
+- [x] **8.5.b — Panel · Sponsors:** por nivel, flechas ↑↓, logo sobre blanco.
+- [x] **8.5.c — Backend de personalización** (`congresos/personalizacion.*`):
+  `GET`/`PUT` (upsert) de colores, `POST`/`DELETE` de logo y portada.
+- [x] **8.5.d — Panel · Apariencia** (`/congresos/:id/apariencia`): paletas,
+  color propio, aviso de contraste WCAG y vista previa del celular en vivo.
+  `lib/color.ts` (contraste, `textoSobre`, `oscurecer`).
+- [x] **8.5.e — App:** `MarcaContext` (`useMarca`/`useFijarMarca`), los
+  componentes base aceptan colores y logo, franja "Con el apoyo de",
+  pantalla **Patrocinadores**, y la marca en Detalle, Sesión, Networking y
+  Chat. `legibleSobre()` mantiene legibles los textos de color en modo oscuro.
+- [x] **8.5.f — Docs:** GUIA § 25. Pruebas: `e2e_fase8_5_sponsors.js` (16) y
+  `e2e_fase8_5_personalizacion.js` (16).
+
+### Gotchas del 8.5
+
+- **Cada tabla nueva que cuelga del congreso hay que sumarla a
+  `CongresosService.borrar()`.** Ya pasó una vez.
+- **"EN CURSO" ahora va con texto oscuro** sobre el coral: es `textoSobre()`
+  eligiendo lo que se lee (2.6:1 con blanco contra 7:1 con oscuro).
+- En RN, un ancho en porcentaje construido con plantilla necesita
+  ``as `${number}%` `` para que TypeScript lo acepte como `DimensionValue`.
+
+
+## Pendientes arrastrados (consolidado, oct-2026)
+
+- [x] Ojito "ver contraseña" en el **login de la app** (feria).
+- [ ] Ojito en el **panel web** (login) y en todo formulario con clave, incluido
+  el cambio de contraseña al primer ingreso (8.7).
+- [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
+  § 23.7). Se notó en la feria.
+- [x] Validaciones de negocio de la agenda (**8.4**).
+- [x] Fotos huérfanas en Storage al borrar un congreso entero (8.5).
+- [ ] Campo **modalidad** del congreso (presencial / virtual / híbrido) para
+  ajustar textos como el de la zona horaria (idea, sin prisa).
+- [x] Elegir la `zona_horaria` al **crear** el congreso (8.4: el país la
+  predefine con `datos/zonas.ts`).
+- [ ] Pantalla para **editar** un congreso existente (nombre, fechas, lugar,
+  zona horaria). Hoy solo se edita por API.
+- [ ] Que `e2e_onboarding_aislamiento.js` borre sus organizaciones al terminar.
+- [ ] Límite de intentos por IP en `/auth/resolver-usuario` (**Fase 9**).
+- [ ] Pantallas móviles de login por usuario y cambio de contraseña al primer
+  ingreso (**8.7**; el backend ya está listo).
+- [ ] `.gitattributes` para normalizar finales de línea.
+- [ ] Suite de Jest (`clearMocksOnScope`).
+- [ ] **Tema por defecto** del congreso (`tema_default`) en la app (**8.7**).
+- [ ] "Patrocinado por…" en una charla específica (idea para el **8.7**).
+- [ ] Actualizar ERD y C4 (`diagramas.html` y `NEXVIO_Vfinal.md`) al cerrar el
+  Módulo 8.
+- [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
+  el equipo).
+
+**SIGUIENTE EN DESARROLLO: Bloque 8.6 — Admin · Notificaciones push (Expo) +
+Información/ayuda.** Las tablas ya existen desde el 8.1: `dispositivo_push`
+(token de Expo por instalación de la app, `@@unique([usuario_id,
+expo_push_token])`, `activo`) y `notificacion` (titulo, cuerpo, destino
+`todos`|`sesion`, `estado` borrador/enviada/fallida, contadores
+enviados/fallidos, `enviado_en`). Falta: registrar el token desde la app,
+enviar desde el backend (API de Expo Push), la pantalla "Notificaciones" del
+panel (redactar, enviar a todo el congreso o a una sesión, historial) y la
+sección "Ayuda" (guía de uso del panel para admins no técnicos).
+
+Decisiones a resolver al arrancar el 8.6:
+- **⚠️ Expo Go y las push:** desde el SDK 53, **Expo Go ya no recibe
+  notificaciones push remotas en Android**. Para probarlas de verdad hace falta
+  un *development build* (compilar la app con EAS) o un APK de prueba. Hay que
+  decidir cómo se prueba (y verificar la situación actual en la documentación
+  de Expo antes de empezar).
+- ¿Las notificaciones se envían al momento, o también se pueden **programar**
+  (por ejemplo, "recordatorio 15 min antes de la charla")?
+- ¿"Ayuda" es una página estática del panel o contenido que el superadmin edita?
 
 Mismo método de siempre.
