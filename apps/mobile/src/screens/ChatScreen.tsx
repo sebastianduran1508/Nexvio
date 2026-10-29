@@ -20,6 +20,7 @@ import type { MensajeChat, MensajesResp } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import { Avatar, Cabecera, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
+import { useMarca } from '../context/MarcaContext';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Chat'>;
 
@@ -36,6 +37,7 @@ export default function ChatScreen({ route, navigation }: Props) {
   const { session } = useAuth();
   const miId = session?.user?.id;
   const t = useTema();
+  const marca = useMarca(); // colores del congreso (8.5)
   const insets = useSafeAreaInsets();
 
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
@@ -101,6 +103,7 @@ export default function ChatScreen({ route, navigation }: Props) {
         titulo={nombre}
         subtitulo="Conexión de networking"
         onAtras={() => navigation.goBack()}
+        colores={marca.degradado}
         derecha={<Avatar nombre={nombre} tamano={38} />}
       />
 
@@ -124,7 +127,7 @@ export default function ChatScreen({ route, navigation }: Props) {
                 style={[
                   est.burbuja,
                   mio
-                    ? { backgroundColor: t.primario, borderBottomRightRadius: 6 }
+                    ? { backgroundColor: marca.primario, borderBottomRightRadius: 6 }
                     : { backgroundColor: t.tarjeta, borderBottomLeftRadius: 6, ...sombra(t) },
                 ]}
               >
@@ -152,7 +155,7 @@ export default function ChatScreen({ route, navigation }: Props) {
           multiline
         />
         <TouchableOpacity
-          style={[est.enviar, { backgroundColor: t.primario }, bloqueado && { opacity: 0.5 }]}
+          style={[est.enviar, { backgroundColor: marca.primario }, bloqueado && { opacity: 0.5 }]}
           onPress={enviar}
           disabled={bloqueado}
         >

@@ -16,6 +16,7 @@ import type { DirectorioItem } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import { Avatar, Boton, Cabecera, Cargando, Etiqueta, Tarjeta, Vacio } from '../components/ui';
 import { F, useTema } from '../tema/tema';
+import { useMarca } from '../context/MarcaContext';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Networking'>;
 
@@ -29,6 +30,7 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Networking'>;
 export default function NetworkingScreen({ route, navigation }: Props) {
   const { congresoId, nombre } = route.params;
   const t = useTema();
+  const marca = useMarca(); // colores del congreso (8.5)
   const [items, setItems] = useState<DirectorioItem[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -62,7 +64,14 @@ export default function NetworkingScreen({ route, navigation }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
-      <Cabecera compacta titulo="Networking" subtitulo={nombre} onAtras={() => navigation.goBack()} />
+      <Cabecera
+        compacta
+        titulo="Networking"
+        subtitulo={nombre}
+        onAtras={() => navigation.goBack()}
+        colores={marca.degradado}
+        logo={marca.logo}
+      />
       <FlatList
         contentContainerStyle={{ padding: 20, paddingBottom: 32 }}
         data={items}
@@ -97,9 +106,9 @@ export default function NetworkingScreen({ route, navigation }: Props) {
                           : 'Asistente del congreso'}
                   </Text>
                 </View>
-                {!botonAbajo && accionDerecha(item, conectar, t)}
+                {!botonAbajo && accionDerecha(item, conectar, marca)}
               </View>
-              {botonAbajo && accionAbajo(item, conectar, navigation)}
+              {botonAbajo && accionAbajo(item, conectar, navigation, marca.primario)}
             </Tarjeta>
           );
         }}
@@ -112,16 +121,16 @@ export default function NetworkingScreen({ route, navigation }: Props) {
 function accionDerecha(
   item: DirectorioItem,
   conectar: (id: string) => void,
-  t: ReturnType<typeof useTema>,
+  marca: ReturnType<typeof useMarca>,
 ) {
   if (item.estado === 'enviado') return <Etiqueta texto="ENVIADO" tono="gris" />;
   return (
     <TouchableOpacity
       onPress={() => conectar(item.usuario.id)}
-      style={[est.mas, { borderColor: t.primario }]}
+      style={[est.mas, { borderColor: marca.primario }]}
       accessibilityLabel="Conectar"
     >
-      <Ionicons name="add" size={22} color={t.primarioTexto} />
+      <Ionicons name="add" size={22} color={marca.primarioTexto} />
     </TouchableOpacity>
   );
 }
@@ -131,6 +140,7 @@ function accionAbajo(
   item: DirectorioItem,
   conectar: (id: string) => void,
   navigation: Props['navigation'],
+  colorMarca: string,
 ) {
   if (item.estado === 'correspondido') {
     return (
@@ -149,7 +159,7 @@ function accionAbajo(
     );
   }
   return (
-    <Boton texto="Aceptar conexión" style={est.botonAbajo} onPress={() => conectar(item.usuario.id)} />
+    <Boton texto="Aceptar conexión" color={colorMarca} style={est.botonAbajo} onPress={() => conectar(item.usuario.id)} />
   );
 }
 

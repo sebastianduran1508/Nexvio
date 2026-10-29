@@ -34,9 +34,27 @@ export type Sesion = {
   ponentes?: { ponente: Ponente }[];
 };
 
+// --- Bloque 8.5: sponsors y marca del congreso ---
+export type Sponsor = {
+  id: string;
+  nombre: string;
+  logo_url: string | null;
+  sitio_web: string | null;
+  nivel: string; // oro | plata | bronce | general (ya vienen ordenados así)
+};
+
+export type Personalizacion = {
+  logo_url: string | null;
+  imagen_portada_url: string | null;
+  color_primario: string | null;
+  color_secundario: string | null;
+};
+
 export type CongresoDetalle = Congreso & {
   sesiones: Sesion[];
   ponentes: Ponente[];
+  sponsors: Sponsor[];
+  personalizacion: Personalizacion | null;
 };
 
 export type Inscripcion = {

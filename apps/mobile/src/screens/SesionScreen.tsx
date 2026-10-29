@@ -21,6 +21,7 @@ import type { EncuestaResultado, Pregunta } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import { Avatar, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
 import { F, useTema } from '../tema/tema';
+import { useMarca } from '../context/MarcaContext';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Sesion'>;
 
@@ -36,6 +37,7 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Sesion'>;
 export default function SesionScreen({ route, navigation }: Props) {
   const { sesionId, titulo } = route.params;
   const t = useTema();
+  const marca = useMarca(); // colores del congreso (8.5)
   const insets = useSafeAreaInsets();
   const [preguntas, setPreguntas] = useState<Pregunta[]>([]);
   const [encuestas, setEncuestas] = useState<EncuestaResultado[]>([]);
@@ -121,6 +123,8 @@ export default function SesionScreen({ route, navigation }: Props) {
         titulo={titulo}
         subtitulo="Preguntas y encuestas en vivo"
         onAtras={() => navigation.goBack()}
+        colores={marca.degradado}
+        logo={marca.logo}
       />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, paddingBottom: 24 }}>
@@ -176,7 +180,7 @@ export default function SesionScreen({ route, navigation }: Props) {
           multiline
         />
         <TouchableOpacity
-          style={[est.enviar, { backgroundColor: t.primario }, enviando && { opacity: 0.6 }]}
+          style={[est.enviar, { backgroundColor: marca.primario }, enviando && { opacity: 0.6 }]}
           onPress={enviarPregunta}
           disabled={enviando}
         >
@@ -197,6 +201,7 @@ function EncuestaCard({
   onVotar: (encuestaId: string, opcionId: string) => void;
 }) {
   const t = useTema();
+  const marca = useMarca();
   const yaVote = encuesta.miVoto !== null;
 
   return (
@@ -225,7 +230,7 @@ function EncuestaCard({
                   <Text
                     style={[
                       est.resultadoTexto,
-                      { color: esMio ? t.primarioTexto : t.texto, fontFamily: esMio ? F.negrita : F.medio },
+                      { color: esMio ? marca.primarioTexto : t.texto, fontFamily: esMio ? F.negrita : F.medio },
                     ]}
                   >
                     {o.texto} {esMio ? '✓' : ''}
@@ -236,7 +241,7 @@ function EncuestaCard({
                   <View
                     style={[
                       est.barra,
-                      { width: `${pct}%`, backgroundColor: esMio ? t.primario : t.textoTenue },
+                      { width: `${pct}%`, backgroundColor: esMio ? marca.primario : t.textoTenue },
                     ]}
                   />
                 </View>

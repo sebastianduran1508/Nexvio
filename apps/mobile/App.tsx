@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { AuthProvider } from './src/context/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { MarcaProvider } from './src/context/MarcaContext';
 
 /**
  * Punto de entrada de la app. Envolvemos todo en:
@@ -43,7 +44,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        {/* La marca del congreso abierto (8.5): la fija el detalle y la leen sus pantallas hijas. */}
+        <MarcaProvider>
+          <RootNavigator />
+        </MarcaProvider>
         {/* Texto blanco en la barra de estado: todas las pantallas tienen cabecera violeta. */}
         <StatusBar style="light" />
       </AuthProvider>

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -37,6 +38,10 @@ type CabeceraProps = {
   derecha?: React.ReactNode;
   /** compacta = para pantallas internas (sesión, chat...). */
   compacta?: boolean;
+  /** Degradado del congreso (8.5). Si no viene, el de Nexvio. */
+  colores?: readonly [string, string];
+  /** Logo del congreso (8.5): se pinta sobre un recuadro blanco junto al título. */
+  logo?: string | null;
   children?: React.ReactNode;
 };
 
@@ -47,13 +52,15 @@ export function Cabecera({
   onAtras,
   derecha,
   compacta,
+  colores,
+  logo,
   children,
 }: CabeceraProps) {
   // insets.top = alto de la barra de estado / notch, para no tapar la hora.
   const insets = useSafeAreaInsets();
   return (
     <LinearGradient
-      colors={DEGRADADO}
+      colors={colores ?? DEGRADADO}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[
@@ -72,6 +79,11 @@ export function Cabecera({
             <Ionicons name="chevron-back" size={20} color="#fff" />
           </TouchableOpacity>
         )}
+        {logo ? (
+          <View style={est.logoCaja}>
+            <Image source={{ uri: logo }} style={est.logoImg} resizeMode="contain" />
+          </View>
+        ) : null}
         <View style={{ flex: 1 }}>
           {antetitulo ? <Text style={est.antetitulo}>{antetitulo}</Text> : null}
           <Text
@@ -146,9 +158,20 @@ export function Tarjeta({
 
 export type Tono = 'violeta' | 'coral' | 'verde' | 'rojo' | 'gris' | 'coralSolido';
 
-export function Etiqueta({ texto, tono = 'violeta', punto }: { texto: string; tono?: Tono; punto?: boolean }) {
+export function Etiqueta({
+  texto,
+  tono = 'violeta',
+  punto,
+  colores,
+}: {
+  texto: string;
+  tono?: Tono;
+  punto?: boolean;
+  /** [fondo, texto]: colores del congreso (8.5). Gana sobre `tono`. */
+  colores?: readonly [string, string];
+}) {
   const t = useTema();
-  const colores: Record<Tono, [string, string]> = {
+  const paleta: Record<Tono, [string, string]> = {
     violeta: [t.primarioSuave, t.primarioTexto],
     coral: [t.coralSuave, t.coral],
     verde: [t.verdeSuave, t.verde],
@@ -156,7 +179,7 @@ export function Etiqueta({ texto, tono = 'violeta', punto }: { texto: string; to
     gris: [t.barraFondo, t.textoSuave],
     coralSolido: ['rgba(255,122,89,0.95)', '#fff'],
   };
-  const [fondo, color] = colores[tono];
+  const [fondo, color] = colores ?? paleta[tono];
   return (
     <View style={[est.etiqueta, { backgroundColor: fondo }]}>
       {punto && <View style={[est.punto, { backgroundColor: color }]} />}
@@ -223,17 +246,20 @@ export function Boton({
   variante = 'primario',
   icono,
   style,
+  color: colorMarca,
 }: {
   texto: string;
   onPress: () => void;
   cargando?: boolean;
   variante?: Variante;
+  /** Color del congreso (8.5) para la variante primaria. */
+  color?: string;
   icono?: React.ComponentProps<typeof Ionicons>['name'];
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTema();
   const v: Record<Variante, { fondo: string; color: string; borde?: string }> = {
-    primario: { fondo: t.primario, color: '#fff' },
+    primario: { fondo: colorMarca ?? t.primario, color: '#fff' },
     peligro: { fondo: 'transparent', color: t.rojo, borde: t.rojo },
     suave: { fondo: t.primarioSuave, color: t.primarioTexto },
     verde: { fondo: t.verdeSuave, color: t.verde },
@@ -248,7 +274,7 @@ export function Boton({
         est.boton,
         { backgroundColor: fondo },
         borde ? { borderWidth: 1.5, borderColor: borde } : null,
-        variante === 'primario' && !t.oscuro ? est.botonSombra : null,
+        variante === 'primario' && !t.oscuro ? [est.botonSombra, colorMarca ? { shadowColor: colorMarca } : null] : null,
         cargando && { opacity: 0.6 },
         style,
       ]}
@@ -327,6 +353,16 @@ const est = StyleSheet.create({
   },
   cabeceraCompacta: { paddingBottom: 16, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   circulo: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.09)' },
+  logoCaja: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImg: { width: '100%', height: '100%' },
   cabeceraFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   antetitulo: { color: 'rgba(255,255,255,0.78)', fontFamily: F.medio, fontSize: 13 },
   cabeceraTitulo: { color: '#fff', fontFamily: F.titulo, fontSize: 23, letterSpacing: -0.3 },
