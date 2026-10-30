@@ -12,9 +12,10 @@ import { SuperadminModule } from './superadmin/superadmin.module';
 import { AuthModule } from './auth/auth.module';
 import { SponsorsModule } from './sponsors/sponsors.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
+import { AyudaModule } from './ayuda/ayuda.module';
 
 @Module({
-  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule, AuthModule, SponsorsModule, NotificacionesModule],
+  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule, AuthModule, SponsorsModule, NotificacionesModule, AyudaModule],
   controllers: [AppController],
   providers: [AppService],
 })

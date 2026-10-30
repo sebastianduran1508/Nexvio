@@ -489,3 +489,25 @@ model Notificacion {
   @@index([estado, programada_para]) // el programador busca "programadas ya vencidas"
   @@map("notificacion")
 }
+
+// ---------------------------------------------------------------------------
+// FASE 8 · Bloque 8.6 — Ayuda del panel
+// ---------------------------------------------------------------------------
+
+// Artículos de ayuda: la guía de uso del panel para organizadores no técnicos.
+//
+// ⚠️ ES LA ÚNICA TABLA SIN organizacion_id, a propósito: la ayuda es de TODA la
+// plataforma, no de un cliente. Su RLS es distinto (ver la migración
+// fase8_ayuda): todos pueden LEER, y solo se puede ESCRIBIR si la base sabe
+// que quien escribe es el superadmin (app.rol = 'admin').
+model ArticuloAyuda {
+  id             String   @id @default(uuid()) @db.Uuid
+  titulo         String
+  contenido      String // en Markdown: # títulos, - listas, **negrita**
+  orden          Int      @default(0)
+  publicado      Boolean  @default(true) // false = borrador, solo lo ve el superadmin
+  creado_en      DateTime @default(now())
+  actualizado_en DateTime @updatedAt
+
+  @@map("articulo_ayuda")
+}

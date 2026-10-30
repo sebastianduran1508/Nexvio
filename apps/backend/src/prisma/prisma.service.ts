@@ -44,15 +44,22 @@ export class PrismaService
    * (que llenará el guard con el valor del JWT).
    *
    * Si no hay orgId => se fija '' => el RLS no devuelve nada (fail-closed).
+   *
+   * Desde el 8.6 fija también `app.rol` (el rol del token). Sin rol -> '' ->
+   * las políticas que lo piden no dejan escribir (también fail-closed).
    */
   async runInTenant<T>(
     orgId: string | undefined,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     const org = orgId ?? tenantStorage.getStore()?.orgId ?? '';
+    // 8.6: también el ROL, con el valor del token firmado. Hoy solo lo usa la
+    // política de escritura de articulo_ayuda (solo 'admin' escribe).
+    const rol = tenantStorage.getStore()?.rol ?? '';
     return this.$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.org_id', ${org}, true)`;
+        // Las dos en UNA sola consulta: runInTenant corre en cada petición.
+        await tx.$executeRaw`SELECT set_config('app.org_id', ${org}, true), set_config('app.rol', ${rol}, true)`;
         return fn(tx);
       },
       {
