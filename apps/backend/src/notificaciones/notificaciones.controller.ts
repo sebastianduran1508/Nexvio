@@ -15,6 +15,7 @@ import { OrgId } from '../auth/org-id.decorator';
 import { UserId } from '../auth/user-id.decorator';
 import { NotificacionesService } from './notificaciones.service';
 import { CrearNotificacionDto, RegistrarDispositivoDto } from './dto/notificacion.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de avisos y dispositivos (Bloque 8.6):
@@ -26,7 +27,7 @@ import { CrearNotificacionDto, RegistrarDispositivoDto } from './dto/notificacio
  *   POST   /dispositivos/desactivar                al cerrar sesión (app)
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class NotificacionesController {
   constructor(private readonly notificaciones: NotificacionesService) {}
 
@@ -48,6 +49,7 @@ export class NotificacionesController {
   }
 
   @Get('congresos/:congresoId/avisos')
+  @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   avisos(@OrgId() orgId: string, @Param('congresoId', ParseUUIDPipe) congresoId: string) {
     return this.notificaciones.avisos(orgId, congresoId);

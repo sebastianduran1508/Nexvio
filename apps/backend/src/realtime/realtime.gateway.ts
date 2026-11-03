@@ -60,9 +60,20 @@ export class RealtimeGateway implements OnGatewayInit {
   async joinSesion(@ConnectedSocket() client: Socket, @MessageBody() sesionId: string) {
     const user = client.data.user;
     if (!user?.orgId) return { ok: false, error: 'no autorizado' };
-    const sesion = await this.prisma.runInTenant(user.orgId, (tx) =>
-      tx.sesion.findFirst({ where: { id: sesionId } }),
-    );
+    if (typeof sesionId !== 'string' || !/^[0-9a-f-]{36}$/i.test(sesionId)) {
+      return { ok: false, error: 'sesion no encontrada' };
+    }
+    // 8.7.b: el asistente solo entra a la sala en vivo de una charla de SU
+    // congreso (mismo criterio que AccesoCongresoGuard en las rutas HTTP).
+    const sesion = await this.prisma.runInTenant(user.orgId, async (tx) => {
+      const s = await tx.sesion.findFirst({ where: { id: sesionId } });
+      if (!s || user.rol !== 'participante') return s;
+      const ins = await tx.inscripcion.findFirst({
+        where: { congreso_id: s.congreso_id, usuario_id: user.sub, estado: 'confirmada' },
+        select: { id: true },
+      });
+      return ins ? s : null;
+    });
     if (!sesion) return { ok: false, error: 'sesion no encontrada' };
     client.join(`sesion:${sesionId}`);
     return { ok: true };

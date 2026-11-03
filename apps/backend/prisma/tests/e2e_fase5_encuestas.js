@@ -16,6 +16,7 @@
 // ==========================================================================
 
 require('dotenv/config');
+const { inscribirComoStaff } = require('./_inscribir');
 
 const [, , emailOrg, passOrg, emailAsis, passAsis] = process.argv;
 const SUPA = process.env.SUPABASE_URL;
@@ -57,6 +58,8 @@ async function api(method, path, token, body) {
     nombre: 'Congreso E2E Encuestas', fecha_inicio: '2026-11-11', fecha_fin: '2026-11-11',
   });
   const congresoId = congreso.body?.id;
+  // 8.7.b: el asistente debe estar inscrito (lo hace el staff).
+  await inscribirComoStaff(congresoId, tAsis);
   const sesion = await api('POST', `/congresos/${congresoId}/sesiones`, tOrg, {
     titulo: 'Sesion encuestas', inicio: '2026-11-11T14:00:00Z', fin: '2026-11-11T15:00:00Z',
   });

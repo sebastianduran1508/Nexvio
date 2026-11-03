@@ -15,6 +15,7 @@
 // ==========================================================================
 
 require('dotenv/config');
+const { inscribirComoStaff } = require('./_inscribir');
 
 const [, , emailOrg, passOrg, emailA, passA] = process.argv;
 const SUPA = process.env.SUPABASE_URL;
@@ -64,8 +65,9 @@ async function api(method, path, token, body) {
     nombre: 'Congreso E2E Networking', fecha_inicio: '2026-11-20', fecha_fin: '2026-11-20',
   });
   const congresoId = congreso.body?.id;
-  const iA = await api('POST', `/congresos/${congresoId}/inscripciones`, tA);
-  const iB = await api('POST', `/congresos/${congresoId}/inscripciones`, tB);
+  // 8.7.b: el staff inscribe (el asistente ya no puede solo).
+  const iA = await inscribirComoStaff(congresoId, tA);
+  const iB = await inscribirComoStaff(congresoId, tB);
   check('Congreso + 2 inscripciones', congreso.status === 201 && iA.status === 201 && iB.status === 201);
 
   // id de cada asistente (desde el directorio del otro)

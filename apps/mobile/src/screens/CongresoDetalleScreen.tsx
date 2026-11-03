@@ -22,11 +22,10 @@ import {
   rangoFechas,
   zonaDelTelefono,
 } from '../lib/formato';
-import type { Aviso, CongresoDetalle, Inscripcion, Ponente, Sesion, Sponsor } from '../lib/tipos';
+import type { Aviso, CongresoDetalle, Ponente, Sesion, Sponsor } from '../lib/tipos';
 import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import {
   Avatar,
-  Boton,
   Cabecera,
   Cargando,
   Etiqueta,
@@ -42,9 +41,12 @@ import { ultimoAvisoVisto } from '../lib/push';
 type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 
 /**
- * Detalle de un congreso: su agenda (sesiones con sus ponentes) y el boton de
- * inscripcion. Para saber si el asistente YA esta inscrito, ademas del detalle
- * pedimos "/inscripciones/mias" y buscamos este congreso.
+ * "Mi congreso": la pantalla principal del asistente (agenda, sponsors, avisos,
+ * networking).
+ *
+ * 8.7.b: ya NO hay botón de inscribirse/cancelar (la inscripción la hace la
+ * organización con el Excel) y es la PRIMERA pantalla de la pestaña, así que
+ * no lleva flecha de volver.
  *
  * Rediseño (mockup "A · Detalle"):
  *  - Cabecera con degradado y el estado del congreso.
@@ -68,18 +70,15 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const marca = useMarca();
   const fijarMarca = useFijarMarca();
   const [detalle, setDetalle] = useState<CongresoDetalle | null>(null);
-  const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [accion, setAccion] = useState(false); // true mientras inscribe/cancela
   const [diaElegido, setDiaElegido] = useState<string | null>(null);
   // 8.6: cuántos avisos hay y cuántos no ha visto la persona.
   const [avisos, setAvisos] = useState({ total: 0, nuevos: 0 });
 
   const cargar = useCallback(async () => {
     try {
-      const [d, mias, lista, visto] = await Promise.all([
+      const [d, lista, visto] = await Promise.all([
         api<CongresoDetalle>('GET', `/congresos/${id}`),
-        api<Inscripcion[]>('GET', '/inscripciones/mias'),
         api<Aviso[]>('GET', `/congresos/${id}/avisos`).catch(() => [] as Aviso[]),
         ultimoAvisoVisto(id),
       ]);
@@ -96,7 +95,6 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         logo_url: d.personalizacion?.logo_url ?? null,
         imagen_portada_url: d.personalizacion?.imagen_portada_url ?? null,
       });
-      setInscripcion(mias.find((i) => i.congreso.id === id) ?? null);
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'No se pudo cargar el congreso');
     } finally {
@@ -109,33 +107,6 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
       cargar();
     }, [cargar]),
   );
-
-  async function inscribirme() {
-    setAccion(true);
-    try {
-      await api('POST', `/congresos/${id}/inscripciones`);
-      await cargar();
-      Alert.alert('Listo', 'Te inscribiste a este congreso.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo inscribir');
-    } finally {
-      setAccion(false);
-    }
-  }
-
-  async function cancelar() {
-    if (!inscripcion) return;
-    setAccion(true);
-    try {
-      await api('DELETE', `/inscripciones/${inscripcion.id}`);
-      await cargar();
-      Alert.alert('Inscripcion cancelada', 'Ya no estas inscrito.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo cancelar');
-    } finally {
-      setAccion(false);
-    }
-  }
 
   // ---- Agrupar la agenda por día (solo presentación) ----------------------
   // useMemo: solo se recalcula cuando cambian las sesiones, no en cada render.
@@ -160,7 +131,6 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
 
   if (cargando || !detalle) return <Cargando />;
 
-  const inscrito = !!inscripcion;
   const vivo = enCurso(detalle.fecha_inicio, detalle.fecha_fin);
 
   return (
@@ -168,7 +138,8 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
       <Cabecera
         compacta
         titulo={detalle.nombre}
-        onAtras={() => navigation.goBack()}
+        // 8.7.b: el congreso es la PRIMERA pantalla de la pestaña: sin flecha.
+        onAtras={navigation.canGoBack() ? () => navigation.goBack() : undefined}
         derecha={vivo ? <Etiqueta texto="EN CURSO" colores={[marca.acento, marca.textoAcento]} /> : undefined}
         colores={marca.degradado}
         logo={marca.logo}
@@ -196,21 +167,6 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         {detalle.descripcion ? (
           <Text style={[est.descripcion, { color: t.textoSuave }]}>{detalle.descripcion}</Text>
         ) : null}
-
-        {/* ---------- Inscripción ---------- */}
-        {inscrito && (
-          <View style={{ marginTop: 14 }}>
-            <Etiqueta texto="ESTÁS INSCRITO" tono="verde" punto />
-          </View>
-        )}
-        <Boton
-          texto={inscrito ? 'Cancelar inscripción' : 'Inscribirme'}
-          variante={inscrito ? 'peligro' : 'primario'}
-          onPress={inscrito ? cancelar : inscribirme}
-          cargando={accion}
-          style={{ marginTop: 14 }}
-          color={marca.primario}
-        />
 
         {/* ---------- Sponsors (8.5) ---------- */}
         {detalle.sponsors.length > 0 && (

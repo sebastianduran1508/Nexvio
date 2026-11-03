@@ -975,8 +975,9 @@ técnico en GUIA § 26.
 - [ ] ⚖️ **Texto de la política de datos** (`src/legal/politica-datos.ts`): es un
   borrador técnico; lo debe revisar y aprobar el cliente o su asesor legal antes
   de producción. Si cambia, subir `POLITICA_DATOS_VERSION`.
-- [ ] ⚖️ **Menores de edad** (documento `TI`): la Ley 1581 exige la autorización
-  del representante legal. Decidir con el cliente cómo se maneja.
+- [—] ⚖️ **Menores de edad** (documento `TI`): **descartado por ahora**
+  (decisión de Sebastián, 3-nov-2026: no es necesario de momento). Si algún
+  cliente lo requiere, la Ley 1581 exige la autorización del representante legal.
 - [ ] ⚖️ **Revocar autorización / pedir supresión** desde la app (derecho del
   art. 8). Encaja en el Perfil (**8.7.c**).
 - [ ] ⚖️ Aceptación de la política para el **staff** en el panel web.
@@ -1020,6 +1021,25 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
    a quienes marcaron una charla.
 6. **"Patrocinado por…" en una charla: sí, en este bloque** (campo nuevo +
    selector en la agenda del panel + se muestra en la app).
+
+### Decisiones del 8.7.b (3-nov-2026)
+
+7. **Seguridad ante todo** (Sebastián: "todo lo que podamos hacer para manejar
+   bien la información es bien recibido"). El "solo su congreso" se hace
+   cumplir en el **backend**, no solo ocultando botones en la app:
+   - `AccesoCongresoGuard` + `@SoloInscritos(...)`: un asistente solo llega a
+     las rutas de un congreso (y de sus sesiones y encuestas) si tiene una
+     inscripción **confirmada** ahí. Si no, **404** (no 403: no se confirma
+     que existe). El staff pasa (el RLS ya lo acota a su organización).
+   - La sala en vivo de Socket.io (`join_sesion`) aplica la misma regla.
+   - `GET /congresos` le devuelve al asistente solo los suyos.
+   - **Se cerró la auto-inscripción**: el asistente ya no puede inscribirse
+     ni darse de baja solo (403). Solo el staff inscribe (Excel o panel).
+8. **Navegación: pestañas abajo + Perfil como menú de "todo lo demás"** (y no
+   un menú lateral): lo diario a la vista y al alcance del pulgar; ajustes,
+   privacidad, ayuda, cambiar de congreso y salir dentro de Perfil. Barra final:
+   🏠 Congreso · 📅 Mi agenda (8.7.e) · 🤝 Networking (8.7.d) · 👤 Perfil.
+9. **Menores de edad:** no se tienen en cuenta por ahora.
 
 ### Plan del 8.7
 

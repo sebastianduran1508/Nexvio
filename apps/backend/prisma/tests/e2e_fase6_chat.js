@@ -14,6 +14,7 @@
 // ==========================================================================
 
 require('dotenv/config');
+const { inscribirComoStaff } = require('./_inscribir');
 const { io } = require('socket.io-client');
 
 const [, , emailOrg, passOrg, emailA, passA] = process.argv;
@@ -59,8 +60,9 @@ function esperarEvento(socket, ev, ms = 4000) {
     nombre: 'Congreso E2E Chat', fecha_inicio: '2026-11-21', fecha_fin: '2026-11-21',
   });
   const congresoId = congreso.body?.id;
-  await api('POST', `/congresos/${congresoId}/inscripciones`, tA);
-  await api('POST', `/congresos/${congresoId}/inscripciones`, tB);
+  // 8.7.b: el staff inscribe (el asistente ya no puede solo).
+  await inscribirComoStaff(congresoId, tA);
+  await inscribirComoStaff(congresoId, tB);
   const dirA = await api('GET', `/congresos/${congresoId}/networking`, tA);
   const bId = dirA.body?.find((x) => x.usuario)?.usuario?.id;
   const dirB = await api('GET', `/congresos/${congresoId}/networking`, tB);

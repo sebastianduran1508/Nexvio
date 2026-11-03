@@ -18,6 +18,7 @@ import { RolActual } from '../auth/rol.decorator';
 import { CrearEncuestaDto } from './dto/crear-encuesta.dto';
 import { ActualizarEncuestaDto } from './dto/actualizar-encuesta.dto';
 import { VotarDto } from './dto/votar.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de encuestas en vivo (Fase 5):
@@ -28,7 +29,7 @@ import { VotarDto } from './dto/votar.dto';
  *   GET   /encuestas/:id/resultados      -> resultados actuales (cualquiera)
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class EncuestasController {
   constructor(private readonly encuestas: EncuestasService) {}
 
@@ -43,6 +44,7 @@ export class EncuestasController {
   }
 
   @Get('sesiones/:sesionId/encuestas')
+  @SoloInscritos('sesion', 'sesionId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   listar(
     @OrgId() orgId: string,
@@ -64,6 +66,7 @@ export class EncuestasController {
   }
 
   @Post('encuestas/:id/votar')
+  @SoloInscritos('encuesta', 'id')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   votar(
     @OrgId() orgId: string,
@@ -75,6 +78,7 @@ export class EncuestasController {
   }
 
   @Get('encuestas/:id/resultados')
+  @SoloInscritos('encuesta', 'id')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   resultados(
     @OrgId() orgId: string,

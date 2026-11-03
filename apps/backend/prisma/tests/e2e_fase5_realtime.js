@@ -21,6 +21,7 @@
 // ==========================================================================
 
 require('dotenv/config');
+const { inscribirComoStaff } = require('./_inscribir');
 const { io } = require('socket.io-client');
 
 const [, , emailOrg, passOrg, emailAsis, passAsis] = process.argv;
@@ -71,6 +72,8 @@ function esperarEvento(socket, ev, ms = 4000) {
     nombre: 'Congreso E2E Realtime', fecha_inicio: '2026-11-12', fecha_fin: '2026-11-12',
   });
   const congresoId = congreso.body?.id;
+  // 8.7.b: el asistente debe estar inscrito (lo hace el staff).
+  await inscribirComoStaff(congresoId, tAsis);
   const sesion = await api('POST', `/congresos/${congresoId}/sesiones`, tOrg, {
     titulo: 'Sesion realtime', inicio: '2026-11-12T14:00:00Z', fin: '2026-11-12T15:00:00Z',
   });

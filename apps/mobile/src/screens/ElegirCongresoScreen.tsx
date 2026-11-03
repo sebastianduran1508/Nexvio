@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -9,90 +9,85 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { api } from '../lib/api';
 import { enCurso, mesDia, rangoFechas } from '../lib/formato';
 import type { Congreso } from '../lib/tipos';
-import type { CongresosStackParamList } from '../navigation/CongresosStack';
 import { useAuth } from '../context/AuthContext';
-import { BotonCristal, Cabecera, Cargando, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
+import { useMiCongreso } from '../context/MiCongresoContext';
+import { BotonCristal, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 
-type Props = NativeStackScreenProps<CongresosStackParamList, 'Congresos'>;
-
 /**
- * Lista de congresos de la organizacion del asistente. Los trae de GET /congresos
- * (el backend, con el RLS, solo devuelve los de su tenant). Al tocar uno, navega
- * al detalle.
+ * ELEGIR CONGRESO (8.7.b) — solo aparece en el caso raro de que la persona
+ * esté inscrita en DOS o más congresos (y no haya elegido uno todavía, o haya
+ * tocado "Cambiar de congreso" en su Perfil). Con uno solo, entra directo.
  *
- * Rediseño (mockup "A · Congresos"): el congreso más relevante (el que está en
- * curso o, si no, el más próximo) va DESTACADO arriba con banner; el resto, en
- * filas compactas con un cuadrito de calendario.
+ * Antes (Fase 4) esta era la lista de TODOS los congresos de la organización;
+ * desde el 8.7.b el backend solo trae aquellos en los que está inscrita.
+ * Se conserva el diseño de la feria: el más relevante (en curso o el más
+ * próximo) destacado arriba y el resto en filas compactas.
  */
-export default function CongresosScreen({ navigation }: Props) {
-  const { signOut } = useAuth();
+export default function ElegirCongresoScreen() {
+  const { signOut, yo } = useAuth();
+  const { congresos, elegir, recargar } = useMiCongreso();
   const t = useTema();
-  const [congresos, setCongresos] = useState<Congreso[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await api<Congreso[]>('GET', '/congresos');
-      setCongresos(data);
-    } catch (e: any) {
-      setError(e.message ?? 'No se pudieron cargar los congresos');
-    } finally {
-      setCargando(false);
-    }
-  }, []);
-
-  // useFocusEffect: recarga cada vez que la pantalla vuelve a estar visible.
-  useFocusEffect(
-    useCallback(() => {
-      cargar();
-    }, [cargar]),
-  );
-
-  const abrir = (c: Congreso) =>
-    navigation.navigate('CongresoDetalle', { id: c.id, nombre: c.nombre });
-
-  if (cargando) return <Cargando />;
-
-  // Destacado: el que está en curso; si ninguno, el primero (ya vienen por fecha).
   const destacado = congresos.find((c) => enCurso(c.fecha_inicio, c.fecha_fin)) ?? congresos[0];
   const resto = congresos.filter((c) => c.id !== destacado?.id);
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
-        antetitulo="Hola de nuevo"
-        titulo="Tus congresos"
+        antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
+        titulo="Elige tu congreso"
+        subtitulo="Estás inscrito en más de uno"
         derecha={<BotonCristal icono="log-out-outline" onPress={signOut} />}
       />
-
       <FlatList
         contentContainerStyle={est.lista}
         data={resto}
         keyExtractor={(c) => c.id}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={t.primario} />}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={recargar} tintColor={t.primario} />}
         ListHeaderComponent={
           destacado ? (
             <>
-              <Destacado congreso={destacado} onPress={() => abrir(destacado)} />
-              {resto.length > 0 && <TituloSeccion texto="Más congresos" />}
+              <Destacado congreso={destacado} onPress={() => elegir(destacado.id)} />
+              {resto.length > 0 && <TituloSeccion texto="También estás en" />}
             </>
           ) : null
         }
-        ListEmptyComponent={
-          destacado ? null : (
-            <Vacio texto={error ?? 'Aún no hay congresos disponibles.'} icono="calendar-outline" />
-          )
-        }
-        renderItem={({ item }) => <FilaCongreso congreso={item} onPress={() => abrir(item)} />}
+        renderItem={({ item }) => <FilaCongreso congreso={item} onPress={() => elegir(item.id)} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      />
+    </View>
+  );
+}
+
+/**
+ * SIN CONGRESO (8.7.b): la cuenta existe pero no tiene ninguna inscripción
+ * confirmada (p. ej. el organizador la quitó). No es un error de la app.
+ */
+export function SinCongresoScreen() {
+  const { signOut, yo } = useAuth();
+  const { recargar } = useMiCongreso();
+  const t = useTema();
+  return (
+    <View style={{ flex: 1, backgroundColor: t.fondo }}>
+      <Cabecera
+        antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
+        titulo="Tu congreso"
+        derecha={<BotonCristal icono="log-out-outline" onPress={signOut} />}
+      />
+      <FlatList
+        data={[]}
+        renderItem={null}
+        contentContainerStyle={est.lista}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={recargar} tintColor={t.primario} />}
+        ListEmptyComponent={
+          <Vacio
+            icono="calendar-outline"
+            texto={'Aún no tienes un congreso asignado.\nSi ya te inscribiste, escríbele al organizador del evento.\n\nDesliza hacia abajo para actualizar.'}
+          />
+        }
       />
     </View>
   );

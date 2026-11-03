@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { OrgId } from '../auth/org-id.decorator';
 import { CrearSesionDto } from './dto/crear-sesion.dto';
 import { ActualizarSesionDto } from './dto/actualizar-sesion.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de la agenda (sesiones) y de la asignación de ponentes a sesiones.
@@ -29,7 +30,7 @@ import { ActualizarSesionDto } from './dto/actualizar-sesion.dto';
  *      POST/DELETE  /sesiones/:sesionId/ponentes/:ponenteId
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class SesionesController {
   constructor(private readonly sesiones: SesionesService) {}
 
@@ -44,6 +45,7 @@ export class SesionesController {
   }
 
   @Get('congresos/:congresoId/sesiones')
+  @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   listar(
     @OrgId() orgId: string,

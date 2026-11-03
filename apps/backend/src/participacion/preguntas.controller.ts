@@ -17,6 +17,7 @@ import { UserId } from '../auth/user-id.decorator';
 import { RolActual } from '../auth/rol.decorator';
 import { CrearPreguntaDto } from './dto/crear-pregunta.dto';
 import { ModerarPreguntaDto } from './dto/moderar-pregunta.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de preguntas en vivo (Fase 5):
@@ -25,11 +26,12 @@ import { ModerarPreguntaDto } from './dto/moderar-pregunta.dto';
  *   PATCH /preguntas/:id                  -> moderar (solo staff)
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class PreguntasController {
   constructor(private readonly preguntas: PreguntasService) {}
 
   @Post('sesiones/:sesionId/preguntas')
+  @SoloInscritos('sesion', 'sesionId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   crear(
     @OrgId() orgId: string,
@@ -41,6 +43,7 @@ export class PreguntasController {
   }
 
   @Get('sesiones/:sesionId/preguntas')
+  @SoloInscritos('sesion', 'sesionId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   listar(
     @OrgId() orgId: string,

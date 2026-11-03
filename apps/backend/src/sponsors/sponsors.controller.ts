@@ -19,6 +19,7 @@ import { OrgId } from '../auth/org-id.decorator';
 import { LIMITE_IMAGEN } from '../storage/storage.service';
 import { SponsorsService } from './sponsors.service';
 import { ActualizarSponsorDto, CrearSponsorDto, OrdenarSponsorsDto } from './dto/sponsor.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de sponsors (Bloque 8.5.a). Mismo esquema que ponentes:
@@ -31,7 +32,7 @@ import { ActualizarSponsorDto, CrearSponsorDto, OrdenarSponsorsDto } from './dto
  * escribir, solo admin y organizador.
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class SponsorsController {
   constructor(private readonly sponsors: SponsorsService) {}
 
@@ -46,6 +47,7 @@ export class SponsorsController {
   }
 
   @Get('congresos/:congresoId/sponsors')
+  @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   listar(@OrgId() orgId: string, @Param('congresoId', ParseUUIDPipe) congresoId: string) {
     return this.sponsors.listar(orgId, congresoId);

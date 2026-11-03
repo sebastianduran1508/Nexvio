@@ -20,6 +20,7 @@ import { OrgId } from '../auth/org-id.decorator';
 import { LIMITE_IMAGEN } from '../storage/storage.service';
 import { PersonalizacionService, type ImagenMarca } from './personalizacion.service';
 import { GuardarPersonalizacionDto } from './dto/personalizacion.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /** Las dos imágenes válidas en la ruta. ParseEnumPipe responde 400 con cualquier otra. */
 const IMAGENES = { logo: 'logo', portada: 'portada' } as const;
@@ -36,11 +37,12 @@ const IMAGENES = { logo: 'logo', portada: 'portada' } as const;
  * si no existía). Es la forma de decir "deja la personalización así".
  */
 @Controller('congresos/:congresoId/personalizacion')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class PersonalizacionController {
   constructor(private readonly personalizacion: PersonalizacionService) {}
 
   @Get()
+  @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   obtener(@OrgId() orgId: string, @Param('congresoId', ParseUUIDPipe) congresoId: string) {
     return this.personalizacion.obtener(orgId, congresoId);

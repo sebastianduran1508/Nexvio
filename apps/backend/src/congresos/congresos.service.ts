@@ -42,10 +42,17 @@ export class CongresosService {
     );
   }
 
-  /** Listar los congresos del tenant (el RLS filtra solo). */
-  listar(orgId: string) {
+  /**
+   * Listar los congresos del tenant (el RLS filtra la organización).
+   * 8.7.b: con `soloDeUsuario` (un asistente) devuelve SOLO aquellos en los que
+   * tiene una inscripción confirmada: "ve solo su congreso".
+   */
+  listar(orgId: string, soloDeUsuario?: string) {
     return this.prisma.runInTenant(orgId, (tx) =>
       tx.congreso.findMany({
+        where: soloDeUsuario
+          ? { inscripciones: { some: { usuario_id: soloDeUsuario, estado: 'confirmada' } } }
+          : undefined,
         orderBy: { fecha_inicio: 'asc' },
       }),
     );

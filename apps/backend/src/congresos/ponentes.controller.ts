@@ -20,6 +20,7 @@ import { Roles } from '../auth/roles.decorator';
 import { OrgId } from '../auth/org-id.decorator';
 import { CrearPonenteDto } from './dto/crear-ponente.dto';
 import { ActualizarPonenteDto } from './dto/actualizar-ponente.dto';
+import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
 
 /**
  * Rutas de ponentes.
@@ -31,7 +32,7 @@ import { ActualizarPonenteDto } from './dto/actualizar-ponente.dto';
  *      POST/DELETE   /ponentes/:id/foto
  */
 @Controller()
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, AccesoCongresoGuard)
 export class PonentesController {
   constructor(private readonly ponentes: PonentesService) {}
 
@@ -46,6 +47,7 @@ export class PonentesController {
   }
 
   @Get('congresos/:congresoId/ponentes')
+  @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
   listar(
     @OrgId() orgId: string,

@@ -30,10 +30,12 @@ import { UserId } from '../auth/user-id.decorator';
 export class InscripcionesController {
   constructor(private readonly inscripciones: InscripcionesService) {}
 
-  // Cualquier rol del tenant puede inscribirse a si mismo (el asistente es
-  // 'participante', pero el staff tambien puede registrarse a un congreso).
+  // 8.7.b: el ASISTENTE ya no se inscribe ni se da de baja solo. El modelo
+  // acordado con el cliente: paga con la organización, ella envía el Excel y el
+  // staff lo importa. Si pudiera inscribirse solo, entraría gratis a cualquier
+  // congreso de la organización. (El staff sí puede, para sus propias pruebas.)
   @Post('congresos/:congresoId/inscripciones')
-  @Roles('admin', 'organizador', 'coordinador', 'participante')
+  @Roles('admin', 'organizador', 'coordinador')
   inscribir(
     @OrgId() orgId: string,
     @UserId() usuarioId: string,
@@ -49,7 +51,7 @@ export class InscripcionesController {
   }
 
   @Delete('inscripciones/:id')
-  @Roles('admin', 'organizador', 'coordinador', 'participante')
+  @Roles('admin', 'organizador', 'coordinador')
   cancelar(
     @OrgId() orgId: string,
     @UserId() usuarioId: string,

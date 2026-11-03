@@ -18,6 +18,7 @@
 // ==========================================================================
 
 require('dotenv/config');
+const { inscribirComoStaff } = require('./_inscribir');
 
 const [, , orgEmail, orgPass, asisEmail, asisPass] = process.argv;
 if (!orgEmail || !orgPass || !asisEmail || !asisPass) {
@@ -78,8 +79,9 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
     const otro = await api('POST', '/congresos', org, { nombre: `E2E Avisos otro ${Date.now()}`, fecha_inicio: hoy, fecha_fin: pasado });
     const s1 = await api('POST', `/congresos/${cid}/sesiones`, org, { titulo: 'Charla con avisos', inicio: `${pasado}T10:00`, fin: `${pasado}T11:00` });
     const sOtra = await api('POST', `/congresos/${otro.body.id}/sesiones`, org, { titulo: 'Ajena', inicio: `${pasado}T10:00`, fin: `${pasado}T11:00` });
-    const ins = await api('POST', `/congresos/${cid}/inscripciones`, asis);
-    check('El asistente se inscribe al congreso', ins.status === 201, JSON.stringify(ins.body));
+    // 8.7.b: el staff inscribe (el asistente ya no puede solo).
+    const ins = await inscribirComoStaff(cid, asis);
+    check('El staff inscribe al asistente en el congreso', ins.status === 201);
 
     // ---------- 1. Dispositivos ----------
     const d1 = await api('POST', '/dispositivos', asis, { expo_push_token: TOKEN, plataforma: 'android' });
