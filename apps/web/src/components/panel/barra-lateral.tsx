@@ -55,7 +55,7 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell },
-  { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle, proximamente: true },
+  { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle },
 ];
 
 /**

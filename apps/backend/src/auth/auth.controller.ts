@@ -19,8 +19,15 @@ class CambiarPasswordDto {
   password: string;
 }
 
+class AceptarDatosDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(40)
+  version: string;
+}
+
 /**
- * Rutas de autenticación propias de Nexvio (Bloque 8.3).
+ * Rutas de autenticación propias de Nexvio (Bloque 8.3; 8.7.a: datos).
  */
 @Controller('auth')
 export class AuthController {
@@ -51,5 +58,23 @@ export class AuthController {
     @OrgIdOpcional() orgId?: string,
   ) {
     return this.auth.cambiarPassword(usuarioId, orgId, dto.password);
+  }
+
+  /** 8.7.a: la política de datos vigente (Ley 1581), con su versión. */
+  @Get('politica-datos')
+  @UseGuards(AuthGuard)
+  politica(@OrgIdOpcional() orgId?: string) {
+    return this.auth.politica(orgId);
+  }
+
+  /** 8.7.a: registrar la autorización (cuándo + qué versión). */
+  @Post('aceptar-datos')
+  @UseGuards(AuthGuard)
+  aceptarDatos(
+    @UserId() usuarioId: string,
+    @Body() dto: AceptarDatosDto,
+    @OrgIdOpcional() orgId?: string,
+  ) {
+    return this.auth.aceptarDatos(usuarioId, orgId, dto.version);
   }
 }

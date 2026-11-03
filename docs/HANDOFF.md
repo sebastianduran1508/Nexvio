@@ -367,7 +367,7 @@ Tras la reunión con el cliente (ver sección anterior), el orden es
 - **8.3** ✅ Admin · Usuarios: CRUD + importar Excel (nuevo login por usuario + contraseña temporal).
 - **8.4** ✅ Admin · Agenda + Speakers (+ Supabase Storage adelantado del 8.5).
 - **8.5** ✅ Admin · Sponsors + Personalización (reflejada en la app).
-- **8.6** Admin · Notificaciones push (Expo) + Información/ayuda.
+- **8.6** ✅ Admin · Notificaciones push (Expo, al momento y programadas) + Ayuda editable.
 - **8.7** App móvil: *(el diseño ya se hizo en la feria)* + perfil + networking mejorado + ver SOLO su congreso + reflejar personalización/speakers/sponsors/notifs.
 
 Luego **Fase 9** (pruebas, carga, seguridad, Ley 1581) y por último **Fase 7**
@@ -884,6 +884,64 @@ en `GUIA_DEV.md` § 25.
   ``as `${number}%` `` para que TypeScript lo acepte como `DimensionValue`.
 
 
+## Estado actual (Fase 8 · Bloque 8.6 — Notificaciones + Ayuda) ✅ COMPLETO
+
+El organizador envía avisos a los asistentes (al momento o programados) y el
+panel tiene una Ayuda que el superadmin edita sin tocar código. **Con esto el
+panel web queda completo: no hay más entradas "pronto" en el menú.** Detalle
+técnico en GUIA § 26.
+
+### Decisiones del 8.6 (tomadas con Sebastián, oct-2026)
+
+1. **Envío:** lo prioritario es **enviar al momento**; además se pueden
+   **programar** (p. ej. recordatorio antes de una charla).
+2. **Ayuda:** contenido **editable por el superadmin**.
+3. **Compilación (development build):** verificado en la documentación de Expo
+   (SDK 54): Expo Go NO recibe push remotas en Android. Como el 8.7 va a tocar
+   mucho la app (y librerías nativas obligan a recompilar), **la compilación y
+   la prueba de push real se dejan para después del 8.7**.
+4. **Construir sin compilar (aprobado):** todo el envío se hizo ya; en Expo Go
+   la app **se salta** el registro del teléfono sin fallar, y una bandeja
+   **"Avisos"** en la app muestra los avisos enviados (funciona en Expo Go y
+   prueba el flujo panel → backend → app).
+
+### Lo construido
+
+- **8.6.a Backend** (`src/notificaciones/`): `ExpoPushService` (lotes de 100,
+  apaga tokens `DeviceNotRegistered`), envío inmediato o programado (hora del
+  lugar del evento, 1 min a 1 año), cancelar, historial, bandeja `/avisos`,
+  registro de teléfonos. `ProgramadorService`: cada 60 s, "reclama" cada aviso
+  antes de enviarlo (nadie lo recibe dos veces). Migración
+  `fase8_notificaciones` (campo `programada_para` + 4ª función `SECURITY
+  DEFINER`: `nexvio_notificaciones_vencidas()`).
+- **8.6.b Panel:** `/notificaciones` → redactar con vista previa de pantalla
+  bloqueada, enviar ahora (con confirmación) o programar, historial con estados
+  y cancelar (se refresca cada 30 s).
+- **8.6.c App:** `lib/push.ts` (registro protegido para Expo Go, olvidar el
+  teléfono al cerrar sesión, tocar la push abre los Avisos), `AvisosScreen`
+  (NUEVO, "hace 5 min", enlace a la charla) y tarjeta "N NUEVOS" en el detalle
+  del congreso. Probado en tiempo real en Expo Go ✅.
+- **8.6.d Ayuda:** tabla `articulo_ayuda` (la **primera tabla de plataforma**,
+  sin `organizacion_id`), RLS por rol (`app.rol`, que ahora `runInTenant` fija
+  junto a `app.org_id`), 5 artículos iniciales, página `/ayuda` con buscador y
+  editor Markdown con vista previa en vivo (solo superadmin).
+- **Bugs corregidos:** borrar una sesión con preguntas/encuestas fallaba (ya
+  existía desde la Fase 5); los avisos de una sesión borrada se conservan sin
+  enlace.
+
+**Pruebas:** `e2e_fase8_6_notificaciones.js` **24/24** ✅ ·
+`e2e_fase8_6_ayuda.js` 10 verificaciones.
+
+### Gotchas del 8.6
+
+- **Prisma 7:** `migrate dev` ya NO regenera el cliente → `npx prisma generate`
+  con el backend detenido (error *"'campo' does not exist in type"*).
+- Librería nueva en el panel (`react-markdown`): instalar con `pnpm add` antes de
+  `npm run dev`; si queda "(stale)", borrar `.next`.
+- `setNotificationHandler` (SDK 54) usa `shouldShowBanner`/`shouldShowList`.
+- Un aviso puede quedar en **"enviando"** si el backend se cae justo a mitad
+  del envío (no se reintenta, a propósito: mejor perder uno que duplicarlo).
+
 ## Pendientes arrastrados (consolidado, oct-2026)
 
 - [x] Ojito "ver contraseña" en el **login de la app** (feria).
@@ -907,49 +965,72 @@ en `GUIA_DEV.md` § 25.
 - [ ] Suite de Jest (`clearMocksOnScope`).
 - [ ] **Tema por defecto** del congreso (`tema_default`) en la app (**8.7**).
 - [ ] "Patrocinado por…" en una charla específica (idea para el **8.7**).
+- [ ] **Development build + prueba de push real** (EAS, `projectId`, Firebase
+  FCM para Android). **Justo después del 8.7** (decisión 8.6).
+- [ ] Avisos atascados en "enviando" si el backend se cae a mitad del envío
+  (raro; se podría marcar como fallida tras X minutos). Fase 9.
+- [ ] Avisos "a los inscritos en una charla": hoy un aviso sobre una charla
+  llega a todo el congreso (no existe "a qué charlas voy"). Si el 8.7 agrega
+  "Mi agenda", se puede filtrar.
+- [ ] ⚖️ **Texto de la política de datos** (`src/legal/politica-datos.ts`): es un
+  borrador técnico; lo debe revisar y aprobar el cliente o su asesor legal antes
+  de producción. Si cambia, subir `POLITICA_DATOS_VERSION`.
+- [ ] ⚖️ **Menores de edad** (documento `TI`): la Ley 1581 exige la autorización
+  del representante legal. Decidir con el cliente cómo se maneja.
+- [ ] ⚖️ **Revocar autorización / pedir supresión** desde la app (derecho del
+  art. 8). Encaja en el Perfil (**8.7.c**).
+- [ ] ⚖️ Aceptación de la política para el **staff** en el panel web.
 - [ ] Actualizar ERD y C4 (`diagramas.html` y `NEXVIO_Vfinal.md`) al cerrar el
   Módulo 8.
 - [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
   el equipo).
 
-**SIGUIENTE EN DESARROLLO: Bloque 8.6 — Admin · Notificaciones push (Expo) +
-Información/ayuda.** Las tablas ya existen desde el 8.1: `dispositivo_push`
-(token de Expo por instalación de la app, `@@unique([usuario_id,
-expo_push_token])`, `activo`) y `notificacion` (titulo, cuerpo, destino
-`todos`|`sesion`, `estado` borrador/enviada/fallida, contadores
-enviados/fallidos, `enviado_en`). Falta: registrar el token desde la app,
-enviar desde el backend (API de Expo Push), la pantalla "Notificaciones" del
-panel (redactar, enviar a todo el congreso o a una sesión, historial) y la
-sección "Ayuda" (guía de uso del panel para admins no técnicos).
+**SIGUIENTE EN DESARROLLO: Bloque 8.7 — App móvil completa.** El panel ya está
+terminado; ahora la app refleja todo lo que el organizador configura. El diseño
+base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
 
-### Decisiones del 8.6 (tomadas con Sebastián, oct-2026)
+- **Login por usuario** y **cambio de contraseña al primer ingreso** (el backend
+  ya está listo desde el 8.3), con ojito en ambos. De paso, el **ojito del
+  login del panel web**.
+- **Ver SOLO su congreso:** el asistente entra directo a su congreso (hoy ve una
+  lista).
+- **Perfil** del asistente (datos del `perfil_asistente` del 8.1, foto).
+- **Networking mejorado.**
+- **Reflejar el panel:** speakers (ya), sponsors (ya), personalización (ya) y
+  el **tema por defecto** (`tema_default`), con selector claro/oscuro manual
+  (NativeWind `darkMode: 'class'`) y fuentes con `expo-font`.
+- Idea: "Patrocinado por…" en una charla.
+- **Después del 8.7:** development build + prueba de push real.
 
-1. **Envío:** lo prioritario es **enviar al momento**; además se podrán
-   **programar** (p. ej. recordatorio antes de una charla).
-2. **Ayuda:** contenido **editable por el superadmin** (para poder cambiarlo
-   sin tocar código).
-3. **Compilación (development build):** verificado en la documentación de Expo
-   (SDK 54): Expo Go NO recibe push remotas en Android; hace falta compilar.
-   Compilar es una vez (los cambios de JS no obligan a recompilar), pero sí hay
-   que recompilar al agregar librerías nativas o cambiar `app.json`, y el 8.7 va
-   a tocar mucho la app. **Se deja la compilación y la prueba de push real para
-   el final** (después del 8.7).
+### Decisiones del 8.7 (tomadas con Sebastián, 30-oct-2026)
 
-4. **Cómo se construye sin compilar (aprobado):** todo el envío se hace ahora
-   (backend, panel, registro del token); en Expo Go la app **se salta** el
-   registro sin fallar; y se agrega una bandeja **"Avisos"** en la app con las
-   notificaciones enviadas al congreso, que funciona en Expo Go y permite probar
-   el flujo panel → backend → app. Plan: 8.6.a backend · 8.6.b panel ·
-   8.6.c app · 8.6.d Ayuda editable · 8.6.e pruebas + docs.
+1. **Legal (Ley 1581):** al primer ingreso, junto al cambio de contraseña, el
+   asistente **acepta el tratamiento de datos** (`acepto_datos_en`). Regla
+   general: todo lo legal se cubre y se cumple.
+2. **Ver solo su congreso:** inscrito en **uno** → entra directo y solo ve ese.
+   Inscrito en **varios** (raro) → una pantalla para **elegir** cuál ver.
+3. **Perfil editable por el asistente:** foto, cargo, empresa, teléfono y país.
+   Nombre y documento NO (vienen del Excel de la organización). ⚠️ Si el
+   cliente pide más campos, el diseño debe permitir sumarlos fácil.
+4. **Networking mejorado:** las 4 ideas: (a) tarjetas con foto/cargo/empresa/
+   bandera, (b) buscador y filtro por empresa o país, (c) interruptor "no
+   aparecer en networking", (d) ver el perfil completo antes de mostrar
+   interés. **Visualmente muy llamativo, con la foto como protagonista.**
+5. **"Mi agenda" (charlas favoritas): sí.** Además permite enviar un aviso solo
+   a quienes marcaron una charla.
+6. **"Patrocinado por…" en una charla: sí, en este bloque** (campo nuevo +
+   selector en la agenda del panel + se muestra en la app).
 
-Decisiones que quedaban abiertas (ya resueltas arriba):
-- **⚠️ Expo Go y las push:** desde el SDK 53, **Expo Go ya no recibe
-  notificaciones push remotas en Android**. Para probarlas de verdad hace falta
-  un *development build* (compilar la app con EAS) o un APK de prueba. Hay que
-  decidir cómo se prueba (y verificar la situación actual en la documentación
-  de Expo antes de empezar).
-- ¿Las notificaciones se envían al momento, o también se pueden **programar**
-  (por ejemplo, "recordatorio 15 min antes de la charla")?
-- ¿"Ayuda" es una página estática del panel o contenido que el superadmin edita?
+### Plan del 8.7
+
+- **8.7.a** Entrada: login por usuario, primer ingreso (nueva contraseña +
+  aceptar datos), ojito en la app y en el login del panel.
+- **8.7.b** "Mi congreso": directo si es uno; selector si son varios.
+- **8.7.c** Perfil: ver y editar (foto incluida).
+- **8.7.d** Networking llamativo (las 4 ideas).
+- **8.7.e** Mi agenda + avisos "a quienes marcaron la charla".
+- **8.7.f** "Patrocinado por…" (backend + panel + app).
+- **8.7.g** Tema por defecto + selector claro/oscuro + fuentes.
+- **8.7.h** Pruebas + documentación.
 
 Mismo método de siempre.

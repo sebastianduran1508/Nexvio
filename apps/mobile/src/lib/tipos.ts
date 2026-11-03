@@ -112,3 +112,26 @@ export type Aviso = {
   enviado_en: string;
   sesion: { id: string; titulo: string } | null;
 };
+
+/** Lo que devuelve GET /auth/yo (8.7.a: el "portón" del primer ingreso). */
+export type Yo = {
+  id: string;
+  username: string | null;
+  nombre: string;
+  apellidos: string | null;
+  rol: string;
+  email: string;
+  organizacion_id: string | null;
+  debe_cambiar_password: boolean;
+  acepto_datos_en: string | null;
+  politica_datos_version: string | null;
+  requiere_aceptar_datos: boolean;
+};
+
+/** La política de datos vigente (GET /auth/politica-datos, Ley 1581). */
+export type PoliticaDatos = {
+  version: string;
+  responsable: string;
+  resumen: string[];
+  secciones: { titulo: string; parrafos: string[] }[];
+};

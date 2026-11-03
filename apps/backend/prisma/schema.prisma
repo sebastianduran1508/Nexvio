@@ -81,6 +81,7 @@ model Usuario {
   foto_url              String?
   debe_cambiar_password Boolean   @default(false) // contrasena temporal -> cambio al 1er ingreso
   acepto_datos_en       DateTime? // Ley 1581: cuando acepto el tratamiento de datos
+  politica_datos_version String? // 8.7: QUÉ versión de la política aceptó (prueba de la autorización)
 
   organizacion           Organizacion?       @relation(fields: [organizacion_id], references: [id])
   inscripciones          Inscripcion[]

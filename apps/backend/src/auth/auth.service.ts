@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from './supabase-admin.service';
+import { POLITICA_DATOS_VERSION, politicaDatos } from '../legal/politica-datos';
 
 /**
  * Las dos piezas de autenticación propias de Nexvio (Bloque 8.3).
@@ -72,7 +74,13 @@ export class AuthService {
     return { cambiada: true };
   }
 
-  /** Los datos del propio usuario autenticado (los usa la app al entrar). */
+  /**
+   * Los datos del propio usuario autenticado (los usa la app al entrar).
+   *
+   * 8.7.a: `requiere_aceptar_datos` es la otra mitad del "portón" del primer
+   * ingreso. Es true si nunca aceptó, o si aceptó una versión VIEJA de la
+   * política (la cambiamos -> hay que volver a pedirla).
+   */
   async yo(usuarioId: string, orgId: string | undefined) {
     const usuario = await this.prisma.runInTenant(orgId, (tx) =>
       tx.usuario.findFirst({
@@ -80,11 +88,52 @@ export class AuthService {
         select: {
           id: true, username: true, nombre: true, apellidos: true, rol: true,
           email: true, debe_cambiar_password: true, acepto_datos_en: true,
-          organizacion_id: true,
+          politica_datos_version: true, organizacion_id: true,
         },
       }),
     );
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    return usuario;
+    return {
+      ...usuario,
+      requiere_aceptar_datos:
+        !usuario.acepto_datos_en ||
+        usuario.politica_datos_version !== POLITICA_DATOS_VERSION,
+    };
+  }
+
+  /**
+   * La política vigente, con el nombre de la organización como responsable
+   * (8.7.a). La app la muestra antes de pedir la aceptación.
+   */
+  async politica(orgId: string | undefined) {
+    const org = orgId
+      ? await this.prisma.runInTenant(orgId, (tx) =>
+          tx.organizacion.findFirst({ where: { id: orgId }, select: { nombre: true } }),
+        )
+      : null;
+    return politicaDatos(org?.nombre ?? 'Nexvio');
+  }
+
+  /**
+   * Registra la autorización (Ley 1581): CUÁNDO y QUÉ versión.
+   *
+   * La app manda la versión que MOSTRÓ. Si no es la vigente (la política
+   * cambió mientras la persona leía), se rechaza con 409: nadie puede quedar
+   * "aceptando" un texto que no leyó.
+   */
+  async aceptarDatos(usuarioId: string, orgId: string | undefined, version: string) {
+    if (version !== POLITICA_DATOS_VERSION) {
+      throw new ConflictException(
+        'La política de datos se actualizó. Vuelve a leerla antes de aceptar.',
+      );
+    }
+    const ahora = new Date();
+    await this.prisma.runInTenant(orgId, (tx) =>
+      tx.usuario.updateMany({
+        where: { id: usuarioId },
+        data: { acepto_datos_en: ahora, politica_datos_version: version },
+      }),
+    );
+    return { aceptado: true, acepto_datos_en: ahora, version };
   }
 }

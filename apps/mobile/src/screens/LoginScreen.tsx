@@ -18,7 +18,8 @@ import { Boton } from '../components/ui';
 import { DEGRADADO, F, useTema } from '../tema/tema';
 
 /**
- * Pantalla de inicio de sesion del asistente. Pide correo y contrasena y llama
+ * Pantalla de inicio de sesion del asistente. Pide usuario (o correo, para el
+ * staff; 8.7.a) y contrasena y llama
  * a signIn() del contexto. Si el login funciona, la navegacion cambia sola a la
  * app (porque el contexto pasa a tener sesion).
  *
@@ -40,7 +41,7 @@ export default function LoginScreen() {
     setError(null);
     setCargando(true);
     try {
-      await signIn(email.trim(), password);
+      await signIn(email, password);
     } catch (e: any) {
       setError(e.message ?? 'No se pudo iniciar sesion');
     } finally {
@@ -88,13 +89,15 @@ export default function LoginScreen() {
         <View style={[est.hoja, { backgroundColor: t.tarjeta, paddingBottom: insets.bottom + 24 }]}>
           <Text style={[est.hojaTitulo, { color: t.texto }]}>Iniciar sesión</Text>
 
-          <Text style={[est.label, { color: t.textoSuave }]}>Correo</Text>
+          <Text style={[est.label, { color: t.textoSuave }]}>Usuario</Text>
           <TextInput
             style={campo}
-            placeholder="tu@correo.com"
+            placeholder="Ej. JPGarcia"
             placeholderTextColor={t.textoTenue}
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
+            textContentType="username"
             value={email}
             onChangeText={setEmail}
           />
@@ -130,7 +133,8 @@ export default function LoginScreen() {
           <Boton texto="Entrar" onPress={onSubmit} cargando={cargando} style={{ marginTop: 22 }} />
 
           <Text style={[est.ayuda, { color: t.textoTenue }]}>
-            ¿Problemas para entrar? Pide ayuda al organizador del evento.
+            Usa el usuario y la contraseña que te envió el organizador.{'\n'}
+            ¿Problemas para entrar? Pídele ayuda a él.
           </Text>
         </View>
       </ScrollView>

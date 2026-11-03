@@ -1,9 +1,10 @@
 # Guía de desarrollo — Nexvio
 
-> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.5 cerrados, más el sprint
+> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.6 cerrados, más el sprint
 > de la **feria** (§ 23). El 8.4 (§ 24) dejó la agenda, los speakers y Supabase
-> Storage; el 8.5 (§ 25), los sponsors y la marca de cada congreso. Lo siguiente
-> es el **Bloque 8.6 — Notificaciones push + Ayuda**.
+> Storage; el 8.5 (§ 25), los sponsors y la marca de cada congreso; el 8.6
+> (§ 26), los avisos push y la Ayuda. **El panel está completo.** Lo siguiente es
+> el **Bloque 8.7 — la app móvil completa**.
 
 > **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
 > **Fase 8** (identidad visual + panel del administrador + producto completo).
@@ -567,6 +568,11 @@ node prisma/tests/e2e_fase8_4_agenda.js <orgEmail> <orgPass>
 # Fase 8 - Bloque 8.5: sponsors y personalización (backend corriendo + bucket)
 node prisma/tests/e2e_fase8_5_sponsors.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_5_personalizacion.js <orgEmail> <orgPass>
+
+# Fase 8 - Bloque 8.6: avisos (necesita organizador Y asistente; tarda ~2 min
+# porque espera al programador) y ayuda (superadmin + organizador)
+node prisma/tests/e2e_fase8_6_notificaciones.js <orgEmail> <orgPass> <asisEmail> <asisPass>
+node prisma/tests/e2e_fase8_6_ayuda.js <adminEmail> <adminPass> <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -2463,3 +2469,228 @@ Los componentes base aceptan la marca: `<Cabecera colores logo>`,
 
 Lo visual se probó a mano: panel (Sponsors y Apariencia, en claro y oscuro) y app
 (marca, franja, Patrocinadores y modo oscuro).
+
+---
+
+## 26. Notificaciones push y Ayuda (Bloque 8.6)
+
+El organizador puede escribirles a los asistentes (al momento o programado) y
+el panel tiene una guía de uso que el superadmin edita sin tocar código.
+
+| Sub-paso | Qué | Dónde |
+|---|---|---|
+| 8.6.a | Avisos: envío por Expo Push, programados y registro de teléfonos | Backend |
+| 8.6.b | Pantalla Notificaciones (redactar, programar, historial) | Panel |
+| 8.6.c | Bandeja "Avisos" y registro del teléfono protegido para Expo Go | App |
+| 8.6.d | Ayuda editable por el superadmin | Backend + Panel |
+| 8.6.e | Esta documentación | — |
+
+Las decisiones del bloque están en el `HANDOFF.md` ("Decisiones del 8.6").
+
+### 26.1. Expo Go y las push: por qué no compilamos todavía
+
+Verificado en la documentación de Expo (SDK 54): **Expo Go ya no recibe
+notificaciones push remotas en Android** (desde el SDK 53). Para eso hace falta
+un *development build*: compilar nuestra propia versión de la app.
+
+- Se compila **una vez**; los cambios de JavaScript se siguen viendo al instante.
+- Hay que **recompilar** al instalar una librería nativa, cambiar `app.json` o
+  subir de SDK. El 8.7 va a tocar mucho la app, así que **la compilación y la
+  prueba de push real se dejaron para después del 8.7**.
+
+Mientras tanto, todo se construyó igual y se prueba sin compilar gracias a la
+bandeja **"Avisos"**.
+
+### 26.2. Cómo viaja un aviso
+
+```
+Panel ──POST /notificaciones──► Backend ──guarda──► tabla notificacion
+                                   │
+                                   ├──► Expo Push ──► Firebase / Apple ──► teléfonos
+                                   │       (solo los que tienen token registrado)
+                                   └──► GET /avisos ◄── bandeja "Avisos" de la app
+```
+
+**Todo aviso se guarda**, aunque ningún teléfono tenga la app compilada. Por eso
+la bandeja funciona en Expo Go, y quien no vio la notificación (o no dio
+permiso) igual la encuentra ahí.
+
+**Estados:** `programada` → `enviando` → `enviada` | `fallida`. "Fallida" =
+había teléfonos y no llegó a **ninguno**. Igual se muestra en la bandeja: el
+aviso es válido aunque la push haya fallado. Sin teléfonos registrados (Expo Go),
+queda `enviada` con 0 teléfonos.
+
+### 26.3. El backend (`src/notificaciones/`)
+
+| Pieza | Qué hace |
+|---|---|
+| `ExpoPushService` | Habla con `https://exp.host/--/api/v2/push/send` (Expo es el intermediario hacia Firebase y Apple). Lotes de 100. Cada mensaje devuelve un "ticket"; si el error es `DeviceNotRegistered`, el token se **apaga** (`activo = false`). `EXPO_ACCESS_TOKEN` opcional en el `.env` |
+| `NotificacionesService` | Crear (enviar ya o programar), despachar, historial, bandeja, cancelar y registrar/desactivar teléfonos |
+| `ProgramadorService` | El "despertador": cada minuto envía los programados vencidos |
+
+**Rutas:**
+
+| Ruta | Quién |
+|---|---|
+| `POST/GET /congresos/:id/notificaciones` | Crear: admin y organizador · Historial: + coordinador |
+| `GET /congresos/:id/avisos` | Todos (la bandeja de la app): `enviada` y `fallida`, lo más nuevo primero |
+| `DELETE /notificaciones/:id` | Cancelar un programado (uno enviado → 409) |
+| `POST /dispositivos` · `POST /dispositivos/desactivar` | La app, al entrar y al salir |
+
+**Destinatarios:** los **inscritos confirmados** del congreso con un teléfono
+activo, sin repetir tokens. Un aviso "sobre una charla" llega igual a todos
+(todavía no existe "a qué charlas va cada quien") y lleva el id de la sesión
+para que la app la abra.
+
+**La hora programada** sigue el acuerdo de la agenda (§ 24.1): `"2026-11-12T08:45"`
+es hora del lugar del evento y la convierte `aInstante()`. Mínimo 1 minuto en el
+futuro, máximo un año.
+
+**Despachar** busca los teléfonos dentro de la transacción, llama a Expo **fuera**
+de ella (es una llamada por internet) y guarda el resultado en otra.
+
+### 26.4. El programador y la cuarta ventanilla
+
+El "despertador" (`setInterval` de 60 s, más una revisión a los 5 s de
+arrancar) no viene de ninguna petición: **no hay tenant** y el RLS devolvería 0
+filas. Igual que con el superadmin (§ 21.2), se abrió una ventanilla:
+
+```sql
+nexvio_notificaciones_vencidas()  -- SECURITY DEFINER, STABLE (solo lee)
+-- devuelve SOLO id + organizacion_id de los avisos "programada" cuya hora pasó
+```
+
+Con eso el backend entra a cada organización con `runInTenant` y hace todo lo
+demás con el RLS de siempre. Es la **cuarta** función `SECURITY DEFINER` del
+proyecto, con los mismos candados (solo lectura, `search_path` fijo, `REVOKE` a
+`PUBLIC`, `GRANT` solo a `nexvio_app`).
+
+**Reclamar antes de enviar:**
+
+```ts
+updateMany({ where: { id, estado: 'programada' }, data: { estado: 'enviando' } })
+// count = 1 → lo tomé yo, lo envío.  count = 0 → otro proceso lo tomó: no hago nada.
+```
+
+Aunque en producción corrieran dos copias del backend, **nadie recibe un aviso
+dos veces**.
+
+Más detalles:
+- Si una revisión tarda más de un minuto, la siguiente no se monta encima (`ocupado`).
+- Un aviso con problemas no detiene a los demás.
+- Si el backend estuvo apagado a la hora de un aviso, lo envía al arrancar
+  (tarde, pero no se pierde).
+- Se apaga con `NOTIFICACIONES_PROGRAMADOR=off` en el `.env`.
+- Se eligió `setInterval` y no una librería de tareas: para "revisar cada
+  minuto" basta, y no suma dependencias.
+
+### 26.5. El panel: Notificaciones
+
+`/notificaciones` → `/congresos/:id/notificaciones`:
+- **Redactar:** título (65) y mensaje (240) con contadores, *Todo el congreso* o
+  *Una charla* (lista de charlas con día y hora; los breaks no), *Enviar ahora*
+  (pide confirmación con el número de inscritos) o *Programar* (fecha y hora del
+  evento).
+- **Vista previa** de la pantalla bloqueada del teléfono, que se escribe sola.
+- **Historial:** estado (Programado con botón Cancelar, Enviando, Enviado, Push
+  sin entregar), teléfonos alcanzados, charla y autor. **Se refresca cada 30 s**
+  para ver cuando un programado sale.
+
+### 26.6. La app: registro del teléfono y bandeja
+
+**`lib/push.ts`:**
+- `registrarTelefono()`, al haber sesión (`RootNavigator`): permiso → canal de
+  Android "Avisos del congreso" → token de Expo (necesita el `projectId` de EAS,
+  que existirá al compilar) → `POST /dispositivos`. **Nunca lanza error.**
+- **En Expo Go se salta todo, sin fallar** (`enExpoGo()` con
+  `Constants.executionEnvironment`). `expo-notifications` y `expo-device` se cargan
+  con `require()` **dentro de las funciones**, para que ni se inicialicen donde no
+  están soportados.
+- `olvidarTelefono()`: al cerrar sesión, **antes** de salir (todavía hay token
+  para la API), el teléfono deja de recibir avisos de esa persona.
+- `alTocarNotificacion()`: al tocar una push se abren los Avisos del congreso. Se
+  navega "desde afuera" con `createNavigationContainerRef`.
+
+**La bandeja (`AvisosScreen`):** lo más nuevo arriba, "hace 5 min"/"ayer",
+**NUEVO** en los no vistos y enlace a la charla. **"Nuevo"** = más reciente que el
+último aviso visto, una fecha guardada por congreso en el teléfono
+(`AsyncStorage`). En el **detalle del congreso**, la tarjeta *Avisos del congreso*
+muestra "2 NUEVOS".
+
+**Dependencias nuevas (móvil):** `expo-notifications`, `expo-device`.
+
+### 26.7. La Ayuda: la primera tabla de plataforma
+
+`articulo_ayuda` es la **única tabla sin `organizacion_id`**, a propósito: la
+ayuda es de toda la plataforma. Su RLS es distinto:
+
+```sql
+CREATE POLICY ayuda_lectura ON articulo_ayuda FOR SELECT USING (true);
+CREATE POLICY ayuda_escritura_superadmin ON articulo_ayuda FOR ALL
+  USING (current_setting('app.rol', true) = 'admin')
+  WITH CHECK (current_setting('app.rol', true) = 'admin');
+```
+
+Son dos políticas *permisivas*: Postgres deja pasar una fila si cualquiera lo
+permite. Para leer basta la primera; para escribir solo sirve la segunda.
+
+**`runInTenant` ahora fija también `app.rol`** con el rol del token firmado, en
+la **misma consulta** que `app.org_id` (corre en cada petición; no conviene un
+viaje más a la base). El `RolesGuard` ya impide que un organizador llegue a las
+rutas de escritura; la política es el **segundo cerrojo**. La prueba lo demuestra
+escribiendo directo en la base con `app.rol = 'organizador'`: Postgres lo rechaza.
+
+**Rutas** (`src/ayuda/`, sin `@OrgId()`): `GET /ayuda` (staff; los borradores
+solo los ve el superadmin), y `POST`, `PATCH`, `DELETE`, `POST /ayuda/orden` (solo
+superadmin).
+
+**Contenido inicial:** la migración `fase8_ayuda` inserta 5 artículos (Primeros
+pasos, Importar asistentes, Agenda y speakers, Sponsors y apariencia, Enviar
+avisos).
+
+**El panel (`/ayuda`):** índice con buscador (ignora tildes y mayúsculas y busca
+también en el texto) y el artículo formateado. El superadmin crea, edita (texto
+a la izquierda, **vista previa en vivo** a la derecha, chuleta de Markdown),
+publica o deja como borrador, reordena y borra.
+
+El Markdown se muestra con **`react-markdown`**, que **no ejecuta HTML** escrito
+dentro del texto (un `<script>` se vería como texto). Cada elemento se dibuja con
+las clases del panel, para que combine en claro y oscuro. Detalle: hay que
+filtrar la propiedad `node` que la librería pasa a cada componente, o React avisa.
+
+**Dependencia nueva (web):** `react-markdown`.
+
+### 26.8. Bugs del mismo tipo que el del 8.5
+
+Al **borrar una sesión**:
+- **Ya existía:** si la charla tenía **preguntas o encuestas** (Fase 5), el borrado
+  fallaba por la clave foránea. Ahora las borra en orden.
+- **Preventivo:** los **avisos** sobre esa sesión se conservan en el historial y
+  solo pierden el enlace (`sesion_id = null`).
+
+> La lección del 8.5 se amplía: cada tabla nueva que cuelga del congreso **o de
+> una sesión** hay que sumarla a su `borrar()`.
+
+### 26.9. Gotchas del bloque
+
+- **Prisma 7: `migrate dev` ya no regenera el cliente.** Después de migrar,
+  `npx prisma generate` (con el backend detenido). Síntoma: *"'campo_nuevo' does
+  not exist in type …CreateInput"*.
+- **Una librería nueva en el panel:** instalarla con `pnpm add` **antes** de
+  arrancar `npm run dev`. Si Next quedó "(stale)", borrar `.next`.
+- **`setNotificationHandler` en el SDK 54** usa `shouldShowBanner` y
+  `shouldShowList` (ya no `shouldShowAlert`).
+
+### 26.10. Pruebas de cierre
+
+- `prisma/tests/e2e_fase8_6_notificaciones.js` — **24 verificaciones**, con
+  organizador y asistente: dispositivos (registrar sin duplicar, formato), envío
+  inmediato (historial y bandeja), validaciones (sesión ajena, pasado, más de un
+  año, formato, 403 al asistente), programados (no salen en la bandeja, cancelar,
+  409 al cancelar uno enviado) y **uno real a ~70 s que la prueba espera a que el
+  programador envíe solo**. Además, borrar una sesión con preguntas y avisos, y
+  desactivar el teléfono. **Tarda ~2 minutos.** Usa un token falso: Expo lo
+  rechaza, y es lo esperado.
+- `prisma/tests/e2e_fase8_6_ayuda.js` — **10 verificaciones**: lectura y 403 del
+  organizador, borrador invisible, publicar, reordenar, borrar, y **el segundo
+  cerrojo directo en la base**.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, Plus } from 'lucide-react';
+import { Building2, Eye, EyeOff, Plus } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { usePanel } from '@/components/panel/panel-contexto';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,7 @@ function FormularioNueva({
     adminPassword: '',
   });
   const [guardando, setGuardando] = useState(false);
+  const [verClave, setVerClave] = useState(false); // 8.7.a: el "ojito"
   const [error, setError] = useState<string | null>(null);
 
   function campo(k: keyof typeof form) {
@@ -194,13 +195,25 @@ function FormularioNueva({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="adminPassword">Contraseña inicial</Label>
-            <Input
-              {...campo('adminPassword')}
-              type="password"
-              required
-              minLength={6}
-              placeholder="mínimo 6 caracteres"
-            />
+            <div className="relative">
+              <Input
+                {...campo('adminPassword')}
+                type={verClave ? 'text' : 'password'}
+                required
+                minLength={6}
+                placeholder="mínimo 6 caracteres"
+                className="pr-10"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setVerClave((v) => !v)}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                aria-label={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {verClave ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
