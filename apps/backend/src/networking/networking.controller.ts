@@ -50,11 +50,80 @@ export class NetworkingController {
     return this.networking.expresarInteres(orgId, usuarioId, congresoId, dto.receptor_id);
   }
 
+  // ---------------- 8.7.d: networking "tipo Tinder" ----------------
+
+  /** Las tarjetas del congreso, con mi relación con cada una. */
+  @Get('congresos/:congresoId/networking/personas')
+  @Roles(...TODOS)
+  personas(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+  ) {
+    return this.networking.personas(orgId, usuarioId, congresoId);
+  }
+
+  /** "¿Cómo me ven?": mi tarjeta tal como la ven los demás. */
+  @Get('congresos/:congresoId/networking/mi-tarjeta')
+  @Roles(...TODOS)
+  miTarjeta(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+  ) {
+    return this.networking.miTarjeta(orgId, usuarioId, congresoId);
+  }
+
+  /** "Ahora no". */
+  @Post('congresos/:congresoId/networking/pasar')
+  @Roles(...TODOS)
+  pasar(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+    @Body() dto: ExpresarInteresDto,
+  ) {
+    return this.networking.pasar(orgId, usuarioId, congresoId, dto.receptor_id);
+  }
+
+  /** Volver a ver a los que pasé. */
+  @Post('congresos/:congresoId/networking/restablecer')
+  @Roles(...TODOS)
+  restablecer(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+  ) {
+    return this.networking.restablecerPasados(orgId, usuarioId, congresoId);
+  }
+
+  /** Todos los speakers del congreso (Explorar -> Ponentes). */
+  @Get('congresos/:congresoId/networking/ponentes')
+  @Roles(...TODOS)
+  ponentes(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+  ) {
+    return this.networking.ponentes(orgId, usuarioId, congresoId);
+  }
+
   @Get('conexiones')
   @Roles(...TODOS)
   misConexiones(@OrgId() orgId: string, @UserId() usuarioId: string) {
     return this.networking.misConexiones(orgId, usuarioId);
   }
+  /** 8.7.d: el contacto que desbloquea el match (si la otra persona lo comparte). */
+  @Get('conexiones/:id/contacto')
+  @Roles(...TODOS)
+  contacto(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.networking.contactoDeConexion(orgId, usuarioId, id);
+  }
+
   @Get('conexiones/:id/mensajes')
   @Roles(...TODOS)
   mensajes(

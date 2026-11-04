@@ -27,7 +27,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Nexvio usa tus fotos para que elijas tu foto de perfil.",
+          "cameraPermission": "Nexvio usa la cámara para que tomes tu foto de perfil."
+        }
+      ]
     ]
   }
 }

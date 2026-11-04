@@ -975,6 +975,15 @@ técnico en GUIA § 26.
 - [ ] ⚖️ **Texto de la política de datos** (`src/legal/politica-datos.ts`): es un
   borrador técnico; lo debe revisar y aprobar el cliente o su asesor legal antes
   de producción. Si cambia, subir `POLITICA_DATOS_VERSION`.
+  **Revisado contra el Decreto 1377 de 2013, art. 13 (contenido mínimo)**
+  (3-nov-2026). Cumple: tratamiento y finalidades, derechos, procedimiento
+  general, lenguaje claro y aviso de cambios (versión). **Falta:**
+  (a) datos del responsable: razón social, NIT, domicilio, dirección, correo y
+  teléfono; (b) persona o área que atiende consultas y reclamos; (c) fecha de
+  entrada en vigencia y vigencia de la base de datos; (d) enlace opcional a la
+  política completa de la organización. Plan: campos de "datos legales" de la
+  organización (editables en el panel) que se insertan en el texto. Va con el
+  **8.7.c** junto con revocar/suprimir.
 - [—] ⚖️ **Menores de edad** (documento `TI`): **descartado por ahora**
   (decisión de Sebastián, 3-nov-2026: no es necesario de momento). Si algún
   cliente lo requiere, la Ley 1581 exige la autorización del representante legal.
@@ -1040,6 +1049,64 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
    privacidad, ayuda, cambiar de congreso y salir dentro de Perfil. Barra final:
    🏠 Congreso · 📅 Mi agenda (8.7.e) · 🤝 Networking (8.7.d) · 👤 Perfil.
 9. **Menores de edad:** no se tienen en cuenta por ahora.
+
+### Decisiones del 8.7.c (3-nov-2026)
+
+10. **Foto de perfil:** cámara **y** galería, con recorte cuadrado antes de subir.
+11. **Pedir supresión de datos:** la app **registra la solicitud**; el
+    organizador la ve en el panel y la atiende (no se borra al instante: la
+    organización puede tener deberes de conservar datos, p. ej. certificados).
+12. **Datos legales de la organización** (razón social, NIT, dirección, correo,
+    teléfono, área que atiende, enlace a su política): los editan **el
+    organizador y el superadmin**. Se insertan en el texto de la política
+    (cumple el art. 13 del Decreto 1377).
+13. **Revocar la autorización** (confirmado): queda registrado cuándo revocó,
+    desaparece del networking, se cierra la sesión y al volver a entrar se le
+    pide aceptar de nuevo. (Revocar = "deja de usar mis datos", reversible;
+    supresión = "bórralos", la atiende el organizador.)
+14. El 8.7.c se divide: **c1** backend · **c2** panel · **c3** app.
+15. **Ajustes tras probar el 8.7.c** (Sebastián, 3-nov):
+    - El perfil suma una **descripción** (párrafo largo: qué hace, qué le
+      gusta; máx. 500) y la **edad** opcional. La edad se guarda como **año de
+      nacimiento** y no como fecha completa (minimización, Ley 1581): basta
+      para mostrar "34 años". Como son datos nuevos que se muestran en el
+      networking, la política sube a la **v3**.
+    - El selector de congreso (inscrito en 2+) y la pantalla "sin congreso"
+      deben mostrar las **pestañas de abajo** y **no** el botón de salir
+      arriba (cerrar sesión vive en Perfil).
+16. **Networking tipo Tinder (8.7.d):** foto grande como protagonista, nombre,
+    edad, cargo/empresa y descripción; que sea llamativo. Más una **vista
+    previa de "cómo me ven los demás"** desde el perfil. Diseño libre ("tú
+    inventa, que quede chévere").
+17. **Diseño del 8.7.d aprobado** (3-nov):
+    - **Descubrir:** tarjeta grande por persona (foto a pantalla, degradado,
+      nombre + edad, bandera, cargo · empresa, descripción). Deslizar derecha =
+      "Me interesa", izquierda = "Ahora no" (sellos CONECTAR / PASAR), botones
+      ✕ y 💜, tocar = perfil completo, pantalla "¡Es un match!" con las dos
+      fotos. Sin foto: degradado con iniciales grandes. Los "Ahora no" se
+      guardan (no vuelven a salir) y se pueden restablecer.
+    - **Pestaña Networking:** Descubrir · Explorar (cuadrícula + buscador +
+      filtro país/empresa) · Conexiones (matches y chats).
+    - **Perfil:** solo "¿Cómo me ven?" (vista previa de la propia tarjeta, sin
+      consejos) + interruptor "Aparecer en networking".
+    - **Insignias:** PONENTE (dorada, con sus charlas), ORGANIZACIÓN,
+      COORDINADOR. Un speaker se puede **vincular a una cuenta** de la app desde
+      el panel; vinculado, aparece en Descubrir y se puede conectar. Sin cuenta,
+      su tarjeta sale en Explorar → Ponentes con "Ver sus charlas".
+    - Se divide en **d1** backend · **d2** panel · **d3** app.
+    - **Commit:** uno solo al final del 8.7.d (no uno por sub-paso).
+18. **Ajustes tras probar el 8.7.d** (3-nov): desde el chat se abre el perfil
+    tocando la foto o el nombre; el logo del congreso ya no lleva marco blanco
+    (se quitó el relleno del recuadro). Y **el match desbloquea más datos**:
+    "Son conexión desde…", mensajes usados y, **solo si la otra persona activa
+    "Compartir mi contacto"** (apagado por defecto), su WhatsApp, correo de
+    contacto y LinkedIn. Interruptor y no mostrar por defecto porque la
+    política decía que el teléfono no se mostraba: usarlo sin permiso sería una
+    finalidad no autorizada. La política sube a la **v4**.
+    **Consentimiento granular** (Sebastián, 3-nov): además del interruptor
+    principal, cada dato (teléfono, correo, LinkedIn) tiene el suyo. Al
+    encender el principal se encienden los tres; la persona apaga los que no
+    quiera. Un dato apagado no sale del servidor.
 
 ### Plan del 8.7
 

@@ -204,7 +204,8 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         {/* ---------- Networking ---------- */}
         <Tarjeta
           style={est.networking}
-          onPress={() => navigation.navigate('Networking', { congresoId: id, nombre: detalle.nombre })}
+          // 8.7.d: el networking tiene su propia pestaña.
+          onPress={() => navigation.getParent()?.navigate('NetworkingTab')}
         >
           <View style={[est.netIcono, { backgroundColor: t.coralSuave }]}>
             <Ionicons name="people-outline" size={20} color={t.coral} />

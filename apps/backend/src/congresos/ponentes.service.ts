@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearPonenteDto } from './dto/crear-ponente.dto';
 import { ActualizarPonenteDto } from './dto/actualizar-ponente.dto';
@@ -54,6 +54,8 @@ export class PonentesService {
         // Las charlas de cada ponente (Bloque 8.4): el panel muestra "dicta 2
         // charlas" y avisa antes de borrar a alguien que tiene charlas.
         include: {
+          // 8.7.d: la cuenta vinculada (para el panel: "Vinculado a …").
+          usuario: { select: { id: true, nombre: true, apellidos: true } },
           sesiones: {
             include: { sesion: { select: { id: true, titulo: true, inicio: true } } },
           },
@@ -67,6 +69,20 @@ export class PonentesService {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.ponente.findFirst({ where: { id } });
       if (!existe) throw new NotFoundException('Ponente no encontrado');
+
+      // 8.7.d: vincular la cuenta de la app. Solo una persona INSCRITA en el
+      // mismo congreso, y una cuenta no puede ser dos speakers a la vez.
+      if (dto.usuario_id) {
+        const inscrito = await tx.inscripcion.findFirst({
+          where: { congreso_id: existe.congreso_id, usuario_id: dto.usuario_id, estado: 'confirmada' },
+        });
+        if (!inscrito) throw new BadRequestException('Esa persona no está inscrita en este congreso');
+        const otra = await tx.ponente.findFirst({
+          where: { congreso_id: existe.congreso_id, usuario_id: dto.usuario_id, id: { not: id } },
+          select: { nombre: true },
+        });
+        if (otra) throw new ConflictException(`Esa cuenta ya está vinculada al speaker ${otra.nombre}`);
+      }
 
       return tx.ponente.update({
         where: { id },
@@ -83,7 +99,9 @@ export class PonentesService {
             ? { pais_codigo: dto.pais_codigo ? dto.pais_codigo.toUpperCase() : null }
             : {}),
           ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
+          ...(dto.usuario_id !== undefined ? { usuario_id: dto.usuario_id } : {}),
         },
+        include: { usuario: { select: { id: true, nombre: true, apellidos: true } } },
       });
     });
   }

@@ -12,6 +12,7 @@ import {
   Handshake,
   Bell,
   HelpCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { usePanel } from './panel-contexto';
@@ -55,6 +56,8 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
   { href: '/sponsors', texto: 'Sponsors', Icono: Handshake },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell },
+  // 8.7.c2: Ley 1581 (solicitudes de los asistentes + datos del responsable).
+  { href: '/privacidad', texto: 'Privacidad', Icono: ShieldCheck },
   { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle },
 ];
 

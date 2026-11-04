@@ -4,21 +4,25 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { CongresosStack } from './CongresosStack';
 import { PerfilStack } from './PerfilStack';
+import { NetworkingStack } from './NetworkingStack';
 import { MiCongresoProvider, useMiCongreso } from '../context/MiCongresoContext';
 import ElegirCongresoScreen, { SinCongresoScreen } from '../screens/ElegirCongresoScreen';
-import { Cargando } from '../components/ui';
+import { Cargando, Vacio } from '../components/ui';
 import { F, useTema } from '../tema/tema';
 
 /**
  * La app del asistente, una vez pasó la puerta del primer ingreso.
  *
- * Bloque 8.7.b — "ve SOLO su congreso":
- *  - 0 congresos -> SinCongreso; 2+ sin elegir -> ElegirCongreso;
- *  - con su congreso -> las pestañas.
+ * Bloque 8.7.b — "ve SOLO su congreso". Las pestañas se ven SIEMPRE (ajuste
+ * tras probar: así Perfil, y con él cerrar sesión, queda a mano); lo que cambia
+ * es lo que muestra la pestaña Congreso:
+ *  - 0 congresos -> SinCongreso;
+ *  - 2+ sin elegir -> ElegirCongreso;
+ *  - con su congreso -> el stack del congreso.
  *
  * Pestañas (decisión 8.7.b): lo de uso diario abajo, a la vista; lo demás en
- * Perfil. Se irán sumando: Mi agenda (8.7.e) y Networking (8.7.d).
- *   🏠 Congreso · 👤 Perfil
+ * Perfil. Se suma Mi agenda en el 8.7.e.
+ *   🏠 Congreso · 🤝 Networking (8.7.d) · 👤 Perfil
  *
  * Ninguna pantalla usa la cabecera nativa: cada una pinta la suya con
  * degradado (<Cabecera />). Por eso headerShown: false.
@@ -39,8 +43,6 @@ function Contenido() {
 
   if (cargando) return <Cargando />;
   if (error) return <ErrorCarga mensaje={error} onReintentar={recargar} />;
-  if (congresos.length === 0) return <SinCongresoScreen />;
-  if (!actual) return <ElegirCongresoScreen />;
 
   return (
     <Tab.Navigator
@@ -61,7 +63,32 @@ function Contenido() {
         }}
       >
         {/* key: si cambia de congreso, el stack arranca de cero en el nuevo. */}
-        {() => <CongresosStack key={actual.id} congreso={actual} />}
+        {() =>
+          actual ? (
+            <CongresosStack key={actual.id} congreso={actual} />
+          ) : congresos.length === 0 ? (
+            <SinCongresoScreen />
+          ) : (
+            <ElegirCongresoScreen />
+          )
+        }
+      </Tab.Screen>
+      <Tab.Screen
+        name="NetworkingTab"
+        options={{
+          title: 'Networking',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
+        }}
+      >
+        {() =>
+          actual ? (
+            <NetworkingStack key={actual.id} congresoId={actual.id} />
+          ) : (
+            <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
+              <Vacio icono="people-outline" texto="Elige tu congreso en la pestaña Congreso para ver su networking." />
+            </View>
+          )
+        }
       </Tab.Screen>
       <Tab.Screen
         name="PerfilTab"

@@ -106,12 +106,14 @@ export class AuthService {
    * (8.7.a). La app la muestra antes de pedir la aceptación.
    */
   async politica(orgId: string | undefined) {
+    // 8.7.c: con los DATOS LEGALES de la organización (responsable, contacto,
+    // área que atiende), que exige el art. 13 del Decreto 1377.
     const org = orgId
       ? await this.prisma.runInTenant(orgId, (tx) =>
-          tx.organizacion.findFirst({ where: { id: orgId }, select: { nombre: true } }),
+          tx.organizacion.findFirst({ where: { id: orgId } }),
         )
       : null;
-    return politicaDatos(org?.nombre ?? 'Nexvio');
+    return politicaDatos(org ?? { nombre: 'Nexvio' });
   }
 
   /**
@@ -128,12 +130,48 @@ export class AuthService {
       );
     }
     const ahora = new Date();
-    await this.prisma.runInTenant(orgId, (tx) =>
-      tx.usuario.updateMany({
+    await this.prisma.runInTenant(orgId, async (tx) => {
+      await tx.usuario.updateMany({
         where: { id: usuarioId },
         data: { acepto_datos_en: ahora, politica_datos_version: version },
-      }),
-    );
+      });
+      // 8.7.c: además, una fila en el HISTORIAL (la prueba completa).
+      if (orgId) {
+        await tx.consentimientoDatos.create({
+          data: { organizacion_id: orgId, usuario_id: usuarioId, accion: 'acepta', version, creado_en: ahora },
+        });
+      }
+    });
     return { aceptado: true, acepto_datos_en: ahora, version };
+  }
+
+  /**
+   * REVOCAR la autorización (8.7.c; art. 8 de la Ley 1581).
+   *
+   * Revocar = "dejen de usar mis datos" (reversible). Efectos, en UNA
+   * transacción:
+   *  - acepto_datos_en y la versión vuelven a NULL -> /auth/yo pedirá aceptar
+   *    de nuevo; mientras tanto la app no deja entrar.
+   *  - desaparece del networking (el directorio solo muestra a quien autorizó).
+   *  - sus teléfonos dejan de recibir avisos.
+   *  - queda la fila 'revoca' en el historial.
+   * La app, al recibir la respuesta, cierra la sesión.
+   */
+  async revocarDatos(usuarioId: string, orgId: string | undefined) {
+    if (!orgId) throw new BadRequestException('Solo aplica a usuarios de una organización');
+    const ahora = new Date();
+    await this.prisma.runInTenant(orgId, async (tx) => {
+      const u = await tx.usuario.findFirst({ where: { id: usuarioId }, select: { acepto_datos_en: true } });
+      if (!u?.acepto_datos_en) throw new ConflictException('No tienes una autorización vigente');
+      await tx.usuario.updateMany({
+        where: { id: usuarioId },
+        data: { acepto_datos_en: null, politica_datos_version: null },
+      });
+      await tx.dispositivoPush.updateMany({ where: { usuario_id: usuarioId }, data: { activo: false } });
+      await tx.consentimientoDatos.create({
+        data: { organizacion_id: orgId, usuario_id: usuarioId, accion: 'revoca', creado_en: ahora },
+      });
+    });
+    return { revocado: true, revoco_en: ahora };
   }
 }

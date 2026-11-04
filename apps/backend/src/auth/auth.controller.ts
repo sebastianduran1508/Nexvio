@@ -77,4 +77,11 @@ export class AuthController {
   ) {
     return this.auth.aceptarDatos(usuarioId, orgId, dto.version);
   }
+
+  /** 8.7.c: revocar la autorización (la app cierra la sesión después). */
+  @Post('revocar-datos')
+  @UseGuards(AuthGuard)
+  revocarDatos(@UserId() usuarioId: string, @OrgIdOpcional() orgId?: string) {
+    return this.auth.revocarDatos(usuarioId, orgId);
+  }
 }

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -16,13 +17,15 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
 import { crearSocket } from '../lib/socket';
 import { useAuth } from '../context/AuthContext';
-import type { MensajeChat, MensajesResp } from '../lib/tipos';
-import type { CongresosStackParamList } from '../navigation/CongresosStack';
+import type { MensajeChat, MensajesResp, TarjetaPersona } from '../lib/tipos';
+import { useMiCongreso } from '../context/MiCongresoContext';
+import type { NetworkingStackParamList } from '../navigation/NetworkingStack';
 import { Avatar, Cabecera, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 import { useMarca } from '../context/MarcaContext';
 
-type Props = NativeStackScreenProps<CongresosStackParamList, 'Chat'>;
+// 8.7.d: el chat se mudó a la pestaña Networking.
+type Props = NativeStackScreenProps<NetworkingStackParamList, 'Chat'>;
 
 /**
  * Chat de una conexion. Se une a la sala `conexion:<id>` por socket y refresca al
@@ -33,7 +36,28 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Chat'>;
  * contador de mensajes restantes y caja de texto con botón redondo.
  */
 export default function ChatScreen({ route, navigation }: Props) {
-  const { conexionId, nombre } = route.params;
+  const { conexionId, nombre, foto, otroId } = route.params;
+  const { actual } = useMiCongreso();
+
+  /**
+   * 8.7.d: tocar su nombre o su foto abre su perfil completo. Pedimos su
+   * tarjeta al networking del congreso (así se respeta todo: si esa persona
+   * se ocultó o revocó su autorización, ya no se muestra).
+   */
+  async function verPerfil() {
+    if (!otroId || !actual) return;
+    try {
+      const personas = await api<TarjetaPersona[]>('GET', `/congresos/${actual.id}/networking/personas`);
+      const persona = personas.find((x) => x.id === otroId);
+      if (!persona) {
+        Alert.alert('Perfil no disponible', 'Esta persona ocultó su perfil del networking.');
+        return;
+      }
+      navigation.navigate('PerfilPersona', { persona, congresoId: actual.id });
+    } catch (e: any) {
+      Alert.alert('No se pudo abrir el perfil', e?.message ?? 'Intenta de nuevo');
+    }
+  }
   const { session } = useAuth();
   const miId = session?.user?.id;
   const t = useTema();
@@ -101,10 +125,15 @@ export default function ChatScreen({ route, navigation }: Props) {
       <Cabecera
         compacta
         titulo={nombre}
-        subtitulo="Conexión de networking"
+        subtitulo={otroId ? 'Toca para ver su perfil' : 'Conexión de networking'}
         onAtras={() => navigation.goBack()}
+        alTocarTitulo={otroId ? verPerfil : undefined}
         colores={marca.degradado}
-        derecha={<Avatar nombre={nombre} tamano={38} />}
+        derecha={
+          <TouchableOpacity onPress={verPerfil} disabled={!otroId} accessibilityLabel={`Ver el perfil de ${nombre}`}>
+            <Avatar nombre={nombre} foto={foto} tamano={38} />
+          </TouchableOpacity>
+        }
       />
 
       <FlatList

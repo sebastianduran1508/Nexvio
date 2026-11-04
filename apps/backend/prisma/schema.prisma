@@ -37,7 +37,22 @@ model Organizacion {
   estado    String   @default("activa")
   creado_en DateTime @default(now())
 
+  // --- Datos legales (8.7.c): el RESPONSABLE del tratamiento (Ley 1581). ---
+  // El Decreto 1377 (art. 13) exige que la política diga quién es y cómo
+  // contactarlo. Los editan el organizador y el superadmin; se insertan en el
+  // texto de la política que ve el asistente.
+  legal_razon_social String?
+  legal_nit          String?
+  legal_direccion    String?
+  legal_ciudad       String? // domicilio
+  legal_correo       String? // canal para consultas y reclamos
+  legal_telefono     String?
+  legal_area         String? // persona o área que atiende ("Atención al asociado")
+  legal_url_politica String? // su política completa, si la tiene publicada
+
   // Relaciones inversas
+  consentimientos      ConsentimientoDatos[]
+  solicitudes_datos    SolicitudDatos[]
   usuarios             Usuario[]
   congresos            Congreso[]
   sesiones             Sesion[]
@@ -79,9 +94,22 @@ model Usuario {
   pais                  String? // nombre visible: "Colombia"
   pais_codigo           String? // ISO-3166 alpha-2 para la bandera: "CO"
   foto_url              String?
+  descripcion           String? // 8.7.c: "sobre mí" (máx. 500), se ve en networking
+  anio_nacimiento       Int? // 8.7.c: solo el AÑO (minimización): para mostrar la edad
+  visible_networking    Boolean   @default(true) // 8.7.d: interruptor "Aparecer en networking"
+  // 8.7.d: contacto que SOLO ven sus conexiones (match), y solo si lo activa.
+  compartir_contacto    Boolean   @default(false)
+  // ...y dato por dato (consentimiento granular): si el principal está
+  // encendido, se comparte cada uno que también lo esté.
+  compartir_telefono    Boolean   @default(true)
+  compartir_correo      Boolean   @default(true)
+  compartir_linkedin    Boolean   @default(true)
+  contacto_email        String? // su correo real (el de login puede ser sintético)
+  linkedin_url          String?
   debe_cambiar_password Boolean   @default(false) // contrasena temporal -> cambio al 1er ingreso
   acepto_datos_en       DateTime? // Ley 1581: cuando acepto el tratamiento de datos
   politica_datos_version String? // 8.7: QUÉ versión de la política aceptó (prueba de la autorización)
+  suprimido_en          DateTime? // 8.7.c: sus datos se suprimieron (fila anonimizada)
 
   organizacion           Organizacion?       @relation(fields: [organizacion_id], references: [id])
   inscripciones          Inscripcion[]
@@ -92,6 +120,10 @@ model Usuario {
   mensajes_chat          MensajeChat[]       @relation("mensajes_chat")
   dispositivos_push      DispositivoPush[]
   notificaciones_creadas Notificacion[]      @relation("notificaciones_creadas")
+  consentimientos        ConsentimientoDatos[]
+  solicitudes_datos      SolicitudDatos[]    @relation("solicitudes_titular")
+  solicitudes_atendidas  SolicitudDatos[]    @relation("solicitudes_atendidas")
+  fichas_ponente         Ponente[]           @relation("ponente_cuenta")
 
   // Evita importar dos veces a la misma persona en la misma organizacion.
   // Ojo: en Postgres los NULL no chocan entre si, asi que el staff (sin
@@ -181,10 +213,16 @@ model Ponente {
   pais_codigo String? // ISO-3166 alpha-2 -> la bandera la pinta el front
   orden       Int? // para ordenar la vitrina de speakers en la app
 
+  // 8.7.d: la CUENTA de la app de este speaker (opcional). Vinculado, aparece
+  // en el networking con la insignia PONENTE y se puede conectar con él.
+  usuario_id String? @db.Uuid
+
   organizacion Organizacion    @relation(fields: [organizacion_id], references: [id])
   congreso     Congreso        @relation(fields: [congreso_id], references: [id])
+  usuario      Usuario?        @relation("ponente_cuenta", fields: [usuario_id], references: [id], onDelete: SetNull)
   sesiones     SesionPonente[]
 
+  @@unique([congreso_id, usuario_id]) // una cuenta = una ficha por congreso
   @@index([organizacion_id])
   @@index([congreso_id])
   @@map("ponente")
@@ -340,7 +378,7 @@ model InteresNetworking {
   congreso_id     String   @db.Uuid
   emisor_id       String   @db.Uuid
   receptor_id     String   @db.Uuid
-  estado          String   @default("pendiente") // pendiente|correspondido|rechazado
+  estado          String   @default("pendiente") // pendiente|correspondido|rechazado|descartado (8.7.d: "Ahora no")
   creado_en       DateTime @default(now())
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
@@ -511,4 +549,56 @@ model ArticuloAyuda {
   actualizado_en DateTime @updatedAt
 
   @@map("articulo_ayuda")
+}
+
+// ---------------------------------------------------------------------------
+// FASE 8 · Bloque 8.7.c — Ley 1581: historial de autorizaciones y solicitudes
+// ---------------------------------------------------------------------------
+
+// Cada vez que alguien ACEPTA o REVOCA la política queda una fila. Es la prueba
+// completa ("aceptó el 30-oct, revocó el 5-nov, volvió a aceptar el 6-nov"), no
+// solo el último valor que guarda usuario.acepto_datos_en.
+// usuario_id queda NULL si sus datos se suprimen: el historial se conserva
+// anónimo (la organización puede necesitar demostrar que atendió todo bien).
+model ConsentimientoDatos {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizacion_id String   @db.Uuid
+  usuario_id      String?  @db.Uuid
+  accion          String // acepta | revoca
+  version         String? // versión de la política (en "acepta")
+  creado_en       DateTime @default(now())
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  usuario      Usuario?     @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
+
+  @@index([organizacion_id])
+  @@index([usuario_id])
+  @@map("consentimiento_datos")
+}
+
+// Solicitudes del titular sobre sus datos (hoy: supresión). Las atiende el
+// organizador desde el panel; el plazo legal de un reclamo es de 15 días
+// hábiles (art. 15, Ley 1581). Se guarda el nombre "foto" del titular porque,
+// si se suprime, su fila de usuario queda anónima.
+model SolicitudDatos {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizacion_id String    @db.Uuid
+  usuario_id      String?   @db.Uuid
+  titular_nombre  String // copia al crearla
+  tipo            String    @default("supresion") // supresion (a futuro: rectificacion, consulta)
+  motivo          String?
+  estado          String    @default("pendiente") // pendiente | atendida | rechazada
+  respuesta       String? // lo que el organizador le contesta (obligatorio al rechazar)
+  creado_en       DateTime  @default(now())
+  atendida_en     DateTime?
+  atendida_por_id String?   @db.Uuid
+
+  organizacion Organizacion @relation(fields: [organizacion_id], references: [id])
+  usuario      Usuario?     @relation("solicitudes_titular", fields: [usuario_id], references: [id], onDelete: SetNull)
+  atendida_por Usuario?     @relation("solicitudes_atendidas", fields: [atendida_por_id], references: [id], onDelete: SetNull)
+
+  @@index([organizacion_id])
+  @@index([usuario_id])
+  @@index([organizacion_id, estado])
+  @@map("solicitud_datos")
 }

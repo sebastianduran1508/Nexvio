@@ -34,6 +34,8 @@ type CabeceraProps = {
   subtitulo?: string;
   /** Si viene, se pinta la flecha de volver. */
   onAtras?: () => void;
+  /** 8.7.d: si está, el título (y el subtítulo) se pueden tocar. */
+  alTocarTitulo?: () => void;
   /** Lo que va a la derecha (un botón, una etiqueta...). */
   derecha?: React.ReactNode;
   /** compacta = para pantallas internas (sesión, chat...). */
@@ -50,6 +52,7 @@ export function Cabecera({
   antetitulo,
   subtitulo,
   onAtras,
+  alTocarTitulo,
   derecha,
   compacta,
   colores,
@@ -84,7 +87,12 @@ export function Cabecera({
             <Image source={{ uri: logo }} style={est.logoImg} resizeMode="contain" />
           </View>
         ) : null}
-        <View style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={alTocarTitulo}
+          disabled={!alTocarTitulo}
+          activeOpacity={0.7}
+        >
           {antetitulo ? <Text style={est.antetitulo}>{antetitulo}</Text> : null}
           <Text
             style={[est.cabeceraTitulo, compacta && { fontSize: 18 }]}
@@ -97,7 +105,7 @@ export function Cabecera({
               {subtitulo}
             </Text>
           ) : null}
-        </View>
+        </TouchableOpacity>
         {derecha}
       </View>
       {children}
@@ -211,7 +219,28 @@ export function iniciales(nombre: string): string {
   return (a + b).toUpperCase();
 }
 
-export function Avatar({ nombre, tamano = 44 }: { nombre: string; tamano?: number }) {
+/**
+ * Avatar: la FOTO si la hay (8.7.c) o, si no, las iniciales sobre un pastel
+ * que sale del nombre (siempre el mismo color para la misma persona).
+ */
+export function Avatar({
+  nombre,
+  tamano = 44,
+  foto,
+}: {
+  nombre: string;
+  tamano?: number;
+  foto?: string | null;
+}) {
+  if (foto) {
+    return (
+      <Image
+        source={{ uri: foto }}
+        style={{ width: tamano, height: tamano, borderRadius: tamano * 0.32, backgroundColor: '#E5E7EB' }}
+        accessibilityLabel={`Foto de ${nombre}`}
+      />
+    );
+  }
   let h = 0;
   for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   const [fondo, color] = PASTELES[h % PASTELES.length];
@@ -353,14 +382,14 @@ const est = StyleSheet.create({
   },
   cabeceraCompacta: { paddingBottom: 16, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
   circulo: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.09)' },
+  // Sin relleno: el logo llega hasta el borde (antes quedaba un marco blanco).
+  // El fondo blanco solo se nota si el logo tiene partes transparentes.
   logoCaja: {
     width: 42,
     height: 42,
     borderRadius: 12,
     backgroundColor: '#fff',
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
   },
   logoImg: { width: '100%', height: '100%' },
   cabeceraFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },

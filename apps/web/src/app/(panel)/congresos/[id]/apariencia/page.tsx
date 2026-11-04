@@ -206,12 +206,12 @@ export default function AparienciaPage() {
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         {/* ================= Controles ================= */}
         <div className="space-y-8">
-          <Bloque titulo="Logo del evento" ayuda="Se muestra en la cabecera del congreso, sobre un recuadro blanco. Mejor PNG con fondo transparente.">
+          <Bloque titulo="Logo del evento" ayuda="Se muestra en la cabecera del congreso, en un recuadro. Queda mejor cuadrado; si tiene fondo transparente, se ve sobre blanco.">
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white">
                 {logoVisible ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoVisible} alt="Logo" className="max-h-full max-w-full object-contain" />
+                  <img src={logoVisible} alt="Logo" className="h-full w-full object-contain" />
                 ) : (
                   <span className="text-xs text-slate-400">Sin logo</span>
                 )}
@@ -460,9 +460,9 @@ function VistaPreviaCelular({
               <ChevronLeft className="h-4 w-4 text-white" />
             </span>
             {logo && (
-              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white p-1">
+              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logo} alt="" className="max-h-full max-w-full object-contain" />
+                <img src={logo} alt="" className="h-full w-full object-contain" />
               </span>
             )}
             <p className="line-clamp-2 flex-1 font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold leading-tight text-white">

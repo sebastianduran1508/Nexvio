@@ -48,6 +48,9 @@ export class NetworkingService {
           congreso_id: congresoId,
           estado: 'confirmada',
           usuario_id: { not: usuarioId },
+          // 8.7.c (Ley 1581): solo aparece quien tiene una autorización de
+          // datos VIGENTE. Quien revocó (o nunca aceptó) no se muestra.
+          usuario: { acepto_datos_en: { not: null } },
         },
         include: { usuario: { select: { id: true, nombre: true } } },
       });
@@ -113,7 +116,13 @@ export class NetworkingService {
       await this.exigirInscrito(tx, congresoId, usuarioId);
 
       const receptorInsc = await tx.inscripcion.findFirst({
-        where: { congreso_id: congresoId, usuario_id: receptorId, estado: 'confirmada' },
+        where: {
+          congreso_id: congresoId,
+          usuario_id: receptorId,
+          estado: 'confirmada',
+          // 8.7.c: solo con autorización · 8.7.d: y si no se ocultó del networking.
+          usuario: { acepto_datos_en: { not: null }, visible_networking: true, suprimido_en: null },
+        },
       });
       if (!receptorInsc) throw new NotFoundException('Ese asistente no esta en el congreso');
 
@@ -130,11 +139,23 @@ export class NetworkingService {
             receptor_id: receptorId,
           },
         });
+      } else if (miInteres.estado === 'descartado') {
+        // 8.7.d: lo había pasado ("Ahora no") y cambió de opinión.
+        miInteres = await tx.interesNetworking.update({
+          where: { id: miInteres.id },
+          data: { estado: 'pendiente' },
+        });
       }
 
       // ¿Existe el interes reciproco (el otro ya me habia marcado)?
+      // 8.7.d: un "Ahora no" del otro NUNCA cuenta como interés.
       const reciproco = await tx.interesNetworking.findFirst({
-        where: { congreso_id: congresoId, emisor_id: receptorId, receptor_id: usuarioId },
+        where: {
+          congreso_id: congresoId,
+          emisor_id: receptorId,
+          receptor_id: usuarioId,
+          estado: { not: 'descartado' },
+        },
       });
 
       if (reciproco) {
@@ -171,8 +192,9 @@ export class NetworkingService {
         include: {
           interes: {
             include: {
-              emisor: { select: { id: true, nombre: true } },
-              receptor: { select: { id: true, nombre: true } },
+              // 8.7.d: con foto, para la lista de Conexiones.
+              emisor: { select: { id: true, nombre: true, apellidos: true, foto_url: true, cargo: true } },
+              receptor: { select: { id: true, nombre: true, apellidos: true, foto_url: true, cargo: true } },
             },
           },
           _count: { select: { mensajes: true } },
@@ -249,4 +271,238 @@ export class NetworkingService {
     this.realtime.mensajesCambiaron(conexionId);
     return mensaje;
   }
+
+  // =======================================================================
+  // 8.7.d — Networking "tipo Tinder"
+  // =======================================================================
+
+  /**
+   * Las PERSONAS del networking de un congreso, cada una como "tarjeta" y con
+   * mi relación con ella. La app arma con esto sus tres vistas:
+   *   Descubrir  -> estado 'ninguno' o 'recibido' (primero los 'recibido':
+   *                 ya les gusté, ¡más probabilidad de match!)
+   *   Explorar   -> todas (con buscador y filtros)
+   *   Conexiones -> 'correspondido'
+   * Solo aparece quien: está inscrito (confirmado), autorizó sus datos (Ley
+   * 1581), no se ocultó del networking y no fue suprimido.
+   */
+  async personas(orgId: string, usuarioId: string, congresoId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      const congreso = await tx.congreso.findFirst({ where: { id: congresoId } });
+      if (!congreso) throw new NotFoundException('Congreso no encontrado');
+      await this.exigirInscrito(tx, congresoId, usuarioId);
+
+      const inscritos = await tx.inscripcion.findMany({
+        where: {
+          congreso_id: congresoId,
+          estado: 'confirmada',
+          usuario_id: { not: usuarioId },
+          usuario: { acepto_datos_en: { not: null }, visible_networking: true, suprimido_en: null },
+        },
+        select: { usuario: { select: SELECT_TARJETA } },
+      });
+      const ponentes = await this.ponentesPorCuenta(tx, congresoId);
+
+      const intereses = await tx.interesNetworking.findMany({
+        where: { congreso_id: congresoId, OR: [{ emisor_id: usuarioId }, { receptor_id: usuarioId }] },
+        include: { conexion: { select: { id: true } } },
+      });
+      const mio = new Map<string, any>();
+      const suyo = new Map<string, any>();
+      for (const i of intereses) {
+        if (i.emisor_id === usuarioId) mio.set(i.receptor_id, i);
+        else suyo.set(i.emisor_id, i);
+      }
+
+      return inscritos.map(({ usuario: u }: any) => {
+        const m = mio.get(u.id);
+        const s = suyo.get(u.id);
+        const conexionId = m?.conexion?.id ?? s?.conexion?.id ?? null;
+        let estado = 'ninguno';
+        if (conexionId || m?.estado === 'correspondido') estado = 'correspondido';
+        else if (m?.estado === 'descartado') estado = 'descartado';
+        else if (m?.estado === 'pendiente') estado = 'enviado';
+        else if (s && s.estado === 'pendiente') estado = 'recibido';
+        return { ...tarjeta(u, ponentes.get(u.id)), estado, conexionId };
+      });
+    });
+  }
+
+  /**
+   * 8.7.d — Lo que DESBLOQUEA un match: el contacto de la otra persona, solo
+   * si ella activó "Compartir mi contacto". Además, desde cuándo están
+   * conectados y cuántos mensajes llevan.
+   */
+  async contactoDeConexion(orgId: string, usuarioId: string, conexionId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      const c = await this.conexionDelUsuario(tx, conexionId, usuarioId);
+      const interes = await tx.interesNetworking.findFirst({ where: { id: c.interes_id } });
+      const otroId = interes!.emisor_id === usuarioId ? interes!.receptor_id : interes!.emisor_id;
+      const otro = await tx.usuario.findFirst({
+        where: { id: otroId, suprimido_en: null },
+        select: {
+          compartir_contacto: true, compartir_telefono: true, compartir_correo: true, compartir_linkedin: true,
+          telefono: true, contacto_email: true, linkedin_url: true, acepto_datos_en: true,
+        },
+      });
+      const mensajes = await tx.mensajeChat.count({ where: { conexion_id: conexionId } });
+      const base = { conectados_desde: c.creado_en, mensajes, limite_mensajes: c.limite_mensajes };
+      // Sin autorización vigente o sin el interruptor: nada de contacto.
+      if (!otro?.compartir_contacto || !otro.acepto_datos_en) return { ...base, compartido: false };
+      // Consentimiento granular: un dato apagado ni siquiera sale del servidor.
+      return {
+        ...base,
+        compartido: true,
+        telefono: otro.compartir_telefono ? otro.telefono : null,
+        correo: otro.compartir_correo ? otro.contacto_email : null,
+        linkedin: otro.compartir_linkedin ? otro.linkedin_url : null,
+      };
+    });
+  }
+
+  /** Mi PROPIA tarjeta, tal como la ven los demás ("¿Cómo me ven?"). */
+  async miTarjeta(orgId: string, usuarioId: string, congresoId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      await this.exigirInscrito(tx, congresoId, usuarioId);
+      const u = await tx.usuario.findFirst({
+        where: { id: usuarioId },
+        select: { ...SELECT_TARJETA, visible_networking: true },
+      });
+      if (!u) throw new NotFoundException('Perfil no encontrado');
+      const ponentes = await this.ponentesPorCuenta(tx, congresoId);
+      return { ...tarjeta(u, ponentes.get(usuarioId)), visible_networking: u.visible_networking };
+    });
+  }
+
+  /**
+   * "Ahora no": no vuelve a salir en Descubrir. No se le avisa a nadie y se
+   * puede deshacer (dándole "Me interesa" desde Explorar, o restableciendo).
+   * Si ya hay match, no hace nada (un match no se "pasa").
+   */
+  async pasar(orgId: string, usuarioId: string, congresoId: string, receptorId: string) {
+    if (usuarioId === receptorId) throw new BadRequestException('No puedes pasarte a ti mismo');
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      await this.exigirInscrito(tx, congresoId, usuarioId);
+      const actual = await tx.interesNetworking.findFirst({
+        where: { congreso_id: congresoId, emisor_id: usuarioId, receptor_id: receptorId },
+      });
+      if (actual?.estado === 'correspondido') return { pasado: false, motivo: 'ya hay match' };
+      if (actual) {
+        await tx.interesNetworking.update({ where: { id: actual.id }, data: { estado: 'descartado' } });
+      } else {
+        const receptor = await tx.inscripcion.findFirst({
+          where: { congreso_id: congresoId, usuario_id: receptorId, estado: 'confirmada' },
+        });
+        if (!receptor) throw new NotFoundException('Ese asistente no esta en el congreso');
+        await tx.interesNetworking.create({
+          data: {
+            organizacion_id: orgId,
+            congreso_id: congresoId,
+            emisor_id: usuarioId,
+            receptor_id: receptorId,
+            estado: 'descartado',
+          },
+        });
+      }
+      return { pasado: true };
+    });
+  }
+
+  /** "Volver a ver a los que pasé": borra mis "Ahora no" de este congreso. */
+  async restablecerPasados(orgId: string, usuarioId: string, congresoId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      await this.exigirInscrito(tx, congresoId, usuarioId);
+      const r = await tx.interesNetworking.deleteMany({
+        where: { congreso_id: congresoId, emisor_id: usuarioId, estado: 'descartado' },
+      });
+      return { restablecidos: r.count };
+    });
+  }
+
+  /**
+   * TODOS los speakers del congreso (Explorar -> Ponentes), con sus charlas.
+   * `usuario_id` dice si tienen cuenta (se puede conectar) o no ("Ver sus
+   * charlas"). Lo público de un speaker (foto, bio, cargo) ya se ve en la
+   * agenda, así que aquí no hay datos nuevos.
+   */
+  async ponentes(orgId: string, usuarioId: string, congresoId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      await this.exigirInscrito(tx, congresoId, usuarioId);
+      const lista = await tx.ponente.findMany({
+        where: { congreso_id: congresoId },
+        orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
+        include: { sesiones: { include: { sesion: SELECT_CHARLA } } },
+      });
+      return lista.map((p: any) => ({
+        id: p.id,
+        nombre: p.nombre,
+        foto_url: p.foto_url,
+        cargo: p.cargo,
+        empresa: p.empresa,
+        pais: p.pais,
+        pais_codigo: p.pais_codigo,
+        bio: p.bio,
+        usuario_id: p.usuario_id,
+        charlas: charlasDe(p),
+      }));
+    });
+  }
+
+  /** usuario_id -> su ficha de ponente en este congreso (con charlas). */
+  private async ponentesPorCuenta(tx: any, congresoId: string) {
+    const fichas = await tx.ponente.findMany({
+      where: { congreso_id: congresoId, usuario_id: { not: null } },
+      include: { sesiones: { include: { sesion: SELECT_CHARLA } } },
+    });
+    return new Map<string, any>(fichas.map((p: any) => [p.usuario_id, p]));
+  }
+}
+
+/** Lo que se lee de un usuario para su tarjeta (nunca documento ni teléfono). */
+const SELECT_TARJETA = {
+  id: true, nombre: true, apellidos: true, rol: true, foto_url: true,
+  cargo: true, empresa: true, pais: true, pais_codigo: true,
+  descripcion: true, anio_nacimiento: true,
+} as const;
+
+const SELECT_CHARLA = { select: { id: true, titulo: true, inicio: true, fin: true, tipo: true } } as const;
+
+/** Las charlas de una ficha de ponente (sin los breaks), en orden. */
+function charlasDe(p: any) {
+  return (p?.sesiones ?? [])
+    .map((sp: any) => sp.sesion)
+    .filter((s: any) => s && s.tipo !== 'break')
+    .sort((a: any, b: any) => +new Date(a.inicio) - +new Date(b.inicio))
+    .map((s: any) => ({ id: s.id, titulo: s.titulo, inicio: s.inicio, fin: s.fin }));
+}
+
+/**
+ * Arma la TARJETA pública de una persona.
+ *  - La EDAD se calcula aquí: la app nunca recibe el año (lo que no sale del
+ *    servidor, no se puede filtrar). Es aproximada (±1), suficiente.
+ *  - La INSIGNIA: PONENTE si tiene ficha vinculada; si no, ORGANIZACIÓN o
+ *    COORDINADOR según su rol; los asistentes, ninguna.
+ */
+function tarjeta(u: any, ficha?: any) {
+  const edad = u.anio_nacimiento ? new Date().getFullYear() - u.anio_nacimiento : null;
+  const insignia = ficha
+    ? 'ponente'
+    : u.rol === 'organizador' || u.rol === 'admin'
+      ? 'organizacion'
+      : u.rol === 'coordinador'
+        ? 'coordinador'
+        : null;
+  return {
+    id: u.id,
+    nombre: [u.nombre, u.apellidos].filter(Boolean).join(' '),
+    foto_url: u.foto_url ?? ficha?.foto_url ?? null,
+    cargo: u.cargo ?? ficha?.cargo ?? null,
+    empresa: u.empresa ?? ficha?.empresa ?? null,
+    pais: u.pais ?? ficha?.pais ?? null,
+    pais_codigo: u.pais_codigo ?? ficha?.pais_codigo ?? null,
+    descripcion: u.descripcion ?? ficha?.bio ?? null,
+    edad,
+    insignia,
+    charlas: ficha ? charlasDe(ficha) : [],
+  };
 }

@@ -27,7 +27,13 @@ async function inscribirComoStaff(congresoId, tokenAsistente) {
         },
         update: { estado: 'confirmada' },
       });
-    });
+      // 8.7.c: el networking solo muestra a quien AUTORIZÓ sus datos. En la vida
+      // real lo hace la persona en la app al primer ingreso; aquí lo simulamos.
+      await tx.usuario.updateMany({
+        where: { id: claims.sub, acepto_datos_en: null },
+        data: { acepto_datos_en: new Date(), politica_datos_version: 'prueba-e2e' },
+      });
+    }, { maxWait: 15000, timeout: 20000 }); // misma paciencia que runInTenant
     return { status: 201 };
   } catch (e) {
     console.error('  (no se pudo inscribir al asistente:', e.message, ')');

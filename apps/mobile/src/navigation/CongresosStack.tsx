@@ -2,8 +2,6 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import CongresoDetalleScreen from '../screens/CongresoDetalleScreen';
 import SesionScreen from '../screens/SesionScreen';
-import NetworkingScreen from '../screens/NetworkingScreen';
-import ChatScreen from '../screens/ChatScreen';
 import PatrocinadoresScreen from '../screens/PatrocinadoresScreen';
 import AvisosScreen from '../screens/AvisosScreen';
 import type { Congreso } from '../lib/tipos';
@@ -15,8 +13,6 @@ import type { Congreso } from '../lib/tipos';
 export type CongresosStackParamList = {
   CongresoDetalle: { id: string; nombre: string };
   Sesion: { sesionId: string; titulo: string };
-  Networking: { congresoId: string; nombre: string };
-  Chat: { conexionId: string; nombre: string };
   Patrocinadores: { congresoId: string; nombre: string };
   Avisos: { congresoId: string; nombre: string };
 };
@@ -36,8 +32,6 @@ export function CongresosStack({ congreso }: { congreso: Congreso }) {
         initialParams={{ id: congreso.id, nombre: congreso.nombre }}
       />
       <Stack.Screen name="Sesion" component={SesionScreen} />
-      <Stack.Screen name="Networking" component={NetworkingScreen} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="Patrocinadores" component={PatrocinadoresScreen} />
       <Stack.Screen name="Avisos" component={AvisosScreen} />
     </Stack.Navigator>

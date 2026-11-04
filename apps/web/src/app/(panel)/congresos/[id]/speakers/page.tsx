@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ImageUp, Mic2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, ImageUp, Link2, Mic2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { apiFetch, apiSubirArchivo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,12 @@ type Ponente = {
   pais_codigo: string | null;
   orden: number | null;
   sesiones: { sesion: { id: string; titulo: string; inicio: string } }[];
+  /** 8.7.d: su cuenta en la app (si la tiene). */
+  usuario: { id: string; nombre: string; apellidos: string | null } | null;
 };
+
+/** Un inscrito del congreso (para vincular la cuenta de un speaker). */
+type Inscrito = { id: string; nombre: string; apellidos: string | null; username: string | null; estado: string };
 
 /**
  * SPEAKERS de un congreso (Bloque 8.4.b).
@@ -37,12 +42,18 @@ type Ponente = {
  * Mismo patrón que Asistentes (8.3): lista + formulario en el panel lateral
  * (crear y editar usan el MISMO formulario) + menú de acciones por tarjeta +
  * confirmación antes de borrar.
+ *
+ * 8.7.d — "Cuenta en la app": si el speaker también está inscrito como
+ * asistente, se vincula su cuenta. Así aparece en el networking con la
+ * insignia PONENTE y los asistentes pueden conectar con él. Sin cuenta, su
+ * tarjeta sale igual en Explorar → Ponentes, pero solo con sus charlas.
  */
 export default function SpeakersCongresoPage() {
   const { id: congresoId } = useParams<{ id: string }>();
 
   const [nombreCongreso, setNombreCongreso] = useState('');
   const [ponentes, setPonentes] = useState<Ponente[]>([]);
+  const [inscritos, setInscritos] = useState<Inscrito[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
@@ -53,12 +64,14 @@ export default function SpeakersCongresoPage() {
 
   const cargar = useCallback(async () => {
     try {
-      const [congreso, lista] = await Promise.all([
+      const [congreso, lista, gente] = await Promise.all([
         apiFetch<{ nombre: string }>('GET', `/congresos/${congresoId}`),
         apiFetch<Ponente[]>('GET', `/congresos/${congresoId}/ponentes`),
+        apiFetch<Inscrito[]>('GET', `/congresos/${congresoId}/asistentes`).catch(() => [] as Inscrito[]),
       ]);
       setNombreCongreso(congreso.nombre);
       setPonentes(lista);
+      setInscritos(gente.filter((g) => g.estado === 'confirmada'));
       setError(null);
     } catch (e: any) {
       setError(e.message ?? 'No se pudieron cargar los speakers');
@@ -185,6 +198,11 @@ export default function SpeakersCongresoPage() {
                     Sin charlas asignadas
                   </span>
                 )}
+                {p.usuario && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-700 dark:text-emerald-400">
+                    <Link2 className="h-3 w-3" /> En la app
+                  </span>
+                )}
               </div>
             </div>
           </li>
@@ -208,6 +226,11 @@ export default function SpeakersCongresoPage() {
             congresoId={congresoId}
             ponente={enFormulario === 'nuevo' ? null : enFormulario}
             ordenNuevo={ponentes.length}
+            inscritos={inscritos}
+            // Las cuentas ya vinculadas a OTRO speaker no se ofrecen.
+            ocupadas={ponentes
+              .filter((x) => x.usuario && (enFormulario === 'nuevo' || x.id !== enFormulario.id))
+              .map((x) => x.usuario!.id)}
             alGuardar={async () => { setEnFormulario(null); await cargar(); }}
             alCancelar={() => setEnFormulario(null)}
           />
@@ -241,12 +264,16 @@ function FormularioPonente({
   congresoId,
   ponente,
   ordenNuevo,
+  inscritos,
+  ocupadas,
   alGuardar,
   alCancelar,
 }: {
   congresoId: string;
   ponente: Ponente | null;
   ordenNuevo: number;
+  inscritos: Inscrito[];
+  ocupadas: string[];
   alGuardar: () => Promise<void>;
   alCancelar: () => void;
 }) {
@@ -256,6 +283,7 @@ function FormularioPonente({
     empresa: ponente?.empresa ?? '',
     pais: ponente?.pais ?? '',
     bio: ponente?.bio ?? '',
+    usuario_id: ponente?.usuario?.id ?? '',
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -320,8 +348,9 @@ function FormularioPonente({
     try {
       // 1) Los datos de la ficha.
       let id = ponente?.id ?? idCreado;
+      const cuenta = form.usuario_id || null;
       if (id) {
-        await apiFetch('PATCH', `/ponentes/${id}`, datos);
+        await apiFetch('PATCH', `/ponentes/${id}`, { ...datos, usuario_id: cuenta });
       } else {
         const creado = await apiFetch<{ id: string }>('POST', `/congresos/${congresoId}/ponentes`, {
           ...datos,
@@ -329,6 +358,8 @@ function FormularioPonente({
         });
         id = creado.id;
         setIdCreado(creado.id);
+        // El vínculo con la cuenta se hace al editar (crear no lo recibe).
+        if (cuenta) await apiFetch('PATCH', `/ponentes/${id}`, { usuario_id: cuenta });
       }
       // 2) La foto: subir la nueva o quitar la actual.
       if (archivo) {
@@ -415,6 +446,45 @@ function FormularioPonente({
           className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
         <p className="text-right text-xs text-muted-foreground">{form.bio.length}/600</p>
+      </div>
+
+      {/* ---------- Cuenta en la app (8.7.d) ---------- */}
+      <div className="space-y-1.5 rounded-lg border border-border bg-muted/40 p-3">
+        <Label htmlFor="ponente-cuenta" className="flex items-center gap-1.5">
+          <Link2 className="h-4 w-4 text-primary" /> Cuenta en la app (opcional)
+        </Label>
+        <SelectorBuscable
+          id="ponente-cuenta"
+          opciones={inscritos
+            .filter((i) => !ocupadas.includes(i.id))
+            .map((i) => ({
+              valor: i.id,
+              etiqueta: [i.nombre, i.apellidos].filter(Boolean).join(' ') + (i.username ? ` · @${i.username}` : ''),
+            }))}
+          valor={form.usuario_id}
+          alElegir={(v) => setForm((f) => ({ ...f, usuario_id: v }))}
+          placeholder={inscritos.length ? 'Busca entre los inscritos del congreso…' : 'Aún no hay inscritos en este congreso'}
+          deshabilitado={inscritos.length === 0}
+        />
+        {form.usuario_id ? (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Aparecerá en el networking con la insignia <b>🎤 PONENTE</b> y podrán conectar con él.
+            </p>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, usuario_id: '' }))}
+              className="shrink-0 text-xs font-medium text-destructive hover:underline"
+            >
+              Desvincular
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Si el speaker también está inscrito como asistente, vincula su cuenta para que puedan conectar con él en el
+            networking.
+          </p>
+        )}
       </div>
 
       {error && (

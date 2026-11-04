@@ -131,7 +131,106 @@ export type Yo = {
 /** La política de datos vigente (GET /auth/politica-datos, Ley 1581). */
 export type PoliticaDatos = {
   version: string;
+  vigente_desde?: string; // 8.7.c
+  url_politica?: string | null; // 8.7.c: la política completa de la organización
   responsable: string;
   resumen: string[];
   secciones: { titulo: string; parrafos: string[] }[];
+};
+
+/** GET /perfil (8.7.c): el perfil propio. El documento llega enmascarado. */
+export type Perfil = {
+  id: string;
+  username: string | null;
+  nombre: string;
+  apellidos: string | null;
+  rol: string;
+  tipo_documento: string | null;
+  numero_documento: string | null; // "••••4050"
+  cargo: string | null;
+  empresa: string | null;
+  telefono: string | null;
+  pais: string | null;
+  pais_codigo: string | null;
+  foto_url: string | null;
+  descripcion: string | null; // 8.7.c: "sobre ti"
+  anio_nacimiento: number | null; // 8.7.c: solo el año (se muestra la edad)
+  visible_networking: boolean; // 8.7.d: "Aparecer en networking"
+  compartir_contacto: boolean; // 8.7.d: contacto para las conexiones (el principal)
+  compartir_telefono: boolean; // ...y dato por dato
+  compartir_correo: boolean;
+  compartir_linkedin: boolean;
+  contacto_email: string | null;
+  linkedin_url: string | null;
+  /** Qué campos puede cambiar la persona (los decide el backend). */
+  editables: string[];
+};
+
+/** Una solicitud del titular sobre sus datos (8.7.c; hoy: supresión). */
+export type SolicitudDatos = {
+  id: string;
+  tipo: string;
+  motivo: string | null;
+  estado: 'pendiente' | 'atendida' | 'rechazada';
+  respuesta: string | null;
+  creado_en: string;
+  atendida_en: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// 8.7.d — Networking "tipo Tinder"
+// ---------------------------------------------------------------------------
+
+export type CharlaCorta = { id: string; titulo: string; inicio: string; fin: string };
+
+/** Una persona del networking (GET …/networking/personas). */
+export type TarjetaPersona = {
+  id: string;
+  nombre: string;
+  foto_url: string | null;
+  cargo: string | null;
+  empresa: string | null;
+  pais: string | null;
+  pais_codigo: string | null;
+  descripcion: string | null;
+  edad: number | null; // la calcula el backend: nunca llega el año
+  insignia: 'ponente' | 'organizacion' | 'coordinador' | null;
+  charlas: CharlaCorta[];
+  /** Mi relación con ella (no viene en "mi-tarjeta"). */
+  estado?: 'ninguno' | 'enviado' | 'recibido' | 'correspondido' | 'descartado';
+  conexionId?: string | null;
+  visible_networking?: boolean; // solo en "mi-tarjeta"
+};
+
+/** Un speaker del congreso (Explorar → Ponentes), tenga o no cuenta. */
+export type PonenteRed = {
+  id: string;
+  nombre: string;
+  foto_url: string | null;
+  cargo: string | null;
+  empresa: string | null;
+  pais: string | null;
+  pais_codigo: string | null;
+  bio: string | null;
+  usuario_id: string | null;
+  charlas: CharlaCorta[];
+};
+
+/** Una conexión (match) con la otra persona. */
+export type ConexionRed = {
+  id: string;
+  con: { id: string; nombre: string; apellidos: string | null; foto_url: string | null; cargo: string | null };
+  limite_mensajes: number;
+  mensajes: number;
+};
+
+/** Lo que desbloquea un match (GET /conexiones/:id/contacto). */
+export type ContactoConexion = {
+  conectados_desde: string;
+  mensajes: number;
+  limite_mensajes: number;
+  compartido: boolean;
+  telefono?: string | null;
+  correo?: string | null;
+  linkedin?: string | null;
 };

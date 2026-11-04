@@ -131,7 +131,8 @@ const okHttp = (s) => s === 200 || s === 201;
     });
     check(
       'el RESPONSABLE es la organización del asistente',
-      pol.body?.responsable === org?.nombre,
+      // 8.7.c: si la organización llenó su razón social, esa es la responsable.
+      pol.body?.responsable === (org?.legal_razon_social || org?.nombre),
       pol.body?.responsable,
     );
     check(

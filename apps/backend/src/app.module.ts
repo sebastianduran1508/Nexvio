@@ -13,9 +13,11 @@ import { AuthModule } from './auth/auth.module';
 import { SponsorsModule } from './sponsors/sponsors.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { AyudaModule } from './ayuda/ayuda.module';
+import { PerfilModule } from './perfil/perfil.module';
+import { LegalModule } from './legal/legal.module';
 
 @Module({
-  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule, AuthModule, SponsorsModule, NotificacionesModule, AyudaModule],
+  imports: [PrismaModule, CongresosModule, OnboardingModule, InscripcionesModule, UsuariosModule, ParticipacionModule, NetworkingModule, SuperadminModule, AuthModule, SponsorsModule, NotificacionesModule, AyudaModule, PerfilModule, LegalModule],
   controllers: [AppController],
   providers: [AppService],
 })

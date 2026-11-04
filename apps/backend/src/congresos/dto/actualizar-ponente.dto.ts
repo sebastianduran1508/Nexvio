@@ -3,12 +3,21 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Min,
 } from 'class-validator';
 
 /** Molde para ACTUALIZAR un ponente (PATCH). Todo opcional (actualización parcial). */
 export class ActualizarPonenteDto {
+  /**
+   * 8.7.d: la cuenta de la app de este speaker (un inscrito del congreso).
+   * null = desvincular. @IsOptional deja pasar el null.
+   */
+  @IsOptional()
+  @IsUUID('4', { message: 'Cuenta inválida' })
+  usuario_id?: string | null;
+
   @IsOptional()
   @IsString()
   @IsNotEmpty()

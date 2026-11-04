@@ -13,7 +13,7 @@ import { enCurso, mesDia, rangoFechas } from '../lib/formato';
 import type { Congreso } from '../lib/tipos';
 import { useAuth } from '../context/AuthContext';
 import { useMiCongreso } from '../context/MiCongresoContext';
-import { BotonCristal, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
+import { Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 
 /**
@@ -25,9 +25,12 @@ import { F, sombra, useTema } from '../tema/tema';
  * desde el 8.7.b el backend solo trae aquellos en los que está inscrita.
  * Se conserva el diseño de la feria: el más relevante (en curso o el más
  * próximo) destacado arriba y el resto en filas compactas.
+ *
+ * Ajuste tras probar: vive DENTRO de la pestaña Congreso (con la barra de
+ * abajo visible) y sin botón de salir; cerrar sesión está en Perfil.
  */
 export default function ElegirCongresoScreen() {
-  const { signOut, yo } = useAuth();
+  const { yo } = useAuth();
   const { congresos, elegir, recargar } = useMiCongreso();
   const t = useTema();
 
@@ -40,7 +43,6 @@ export default function ElegirCongresoScreen() {
         antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
         titulo="Elige tu congreso"
         subtitulo="Estás inscrito en más de uno"
-        derecha={<BotonCristal icono="log-out-outline" onPress={signOut} />}
       />
       <FlatList
         contentContainerStyle={est.lista}
@@ -67,7 +69,7 @@ export default function ElegirCongresoScreen() {
  * confirmada (p. ej. el organizador la quitó). No es un error de la app.
  */
 export function SinCongresoScreen() {
-  const { signOut, yo } = useAuth();
+  const { yo } = useAuth();
   const { recargar } = useMiCongreso();
   const t = useTema();
   return (
@@ -75,7 +77,6 @@ export function SinCongresoScreen() {
       <Cabecera
         antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
         titulo="Tu congreso"
-        derecha={<BotonCristal icono="log-out-outline" onPress={signOut} />}
       />
       <FlatList
         data={[]}
