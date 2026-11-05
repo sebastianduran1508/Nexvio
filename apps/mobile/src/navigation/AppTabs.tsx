@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { CongresosStack } from './CongresosStack';
 import { PerfilStack } from './PerfilStack';
 import { NetworkingStack } from './NetworkingStack';
+import { MiAgendaStack } from './MiAgendaStack';
+import { MiAgendaProvider } from '../context/MiAgendaContext';
 import { MiCongresoProvider, useMiCongreso } from '../context/MiCongresoContext';
 import ElegirCongresoScreen, { SinCongresoScreen } from '../screens/ElegirCongresoScreen';
 import { Cargando, Vacio } from '../components/ui';
@@ -21,8 +23,11 @@ import { F, useTema } from '../tema/tema';
  *  - con su congreso -> el stack del congreso.
  *
  * Pestañas (decisión 8.7.b): lo de uso diario abajo, a la vista; lo demás en
- * Perfil. Se suma Mi agenda en el 8.7.e.
- *   🏠 Congreso · 🤝 Networking (8.7.d) · 👤 Perfil
+ * Perfil.
+ *   🏠 Congreso · 📅 Mi agenda (8.7.e) · 🤝 Networking (8.7.d) · 👤 Perfil
+ *
+ * MiAgendaProvider envuelve todo: la ⭐ de una charla se ve igual en la agenda
+ * del congreso, dentro de la charla y en Mi agenda.
  *
  * Ninguna pantalla usa la cabecera nativa: cada una pinta la suya con
  * degradado (<Cabecera />). Por eso headerShown: false.
@@ -45,6 +50,7 @@ function Contenido() {
   if (error) return <ErrorCarga mensaje={error} onReintentar={recargar} />;
 
   return (
+    <MiAgendaProvider congresoId={actual?.id}>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -74,6 +80,23 @@ function Contenido() {
         }
       </Tab.Screen>
       <Tab.Screen
+        name="MiAgendaTab"
+        options={{
+          title: 'Mi agenda',
+          tabBarIcon: ({ color, size }) => <Ionicons name="star-outline" color={color} size={size} />,
+        }}
+      >
+        {() =>
+          actual ? (
+            <MiAgendaStack key={actual.id} congresoId={actual.id} />
+          ) : (
+            <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
+              <Vacio icono="star-outline" texto="Elige tu congreso en la pestaña Congreso para ver tu agenda." />
+            </View>
+          )
+        }
+      </Tab.Screen>
+      <Tab.Screen
         name="NetworkingTab"
         options={{
           title: 'Networking',
@@ -99,6 +122,7 @@ function Contenido() {
         }}
       />
     </Tab.Navigator>
+    </MiAgendaProvider>
   );
 }
 

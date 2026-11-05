@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiSubirArchivo, apiDescargar } from '@/lib/api';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type EstadoFila = 'nueva' | 'se_inscribe' | 'ya_inscrita' | 'error';
 
@@ -133,7 +134,7 @@ export default function ImportarPage() {
       <div className="mx-auto w-full max-w-3xl p-6 md:p-8">
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <CheckCircle2 className="h-8 w-8 text-primary" />
-          <h1 className="mt-3 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina mt-3 justify-center">
             Importación terminada
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{resultado.congreso}</p>
@@ -213,7 +214,8 @@ export default function ImportarPage() {
         <ArrowLeft className="h-4 w-4" /> Asistentes
       </Link>
 
-      <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+      <h1 className="titulo-pagina">
+        <ChipTitulo Icono={FileSpreadsheet} />
         Importar inscritos desde Excel
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">

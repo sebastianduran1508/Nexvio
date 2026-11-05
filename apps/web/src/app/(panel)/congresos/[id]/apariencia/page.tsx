@@ -7,12 +7,15 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
-  ChevronLeft,
   CircleAlert,
   ImageUp,
   MapPin,
+  Moon,
   RotateCcw,
+  Smartphone,
+  Sun,
   TriangleAlert,
+  Palette,
 } from 'lucide-react';
 import { apiFetch, apiSubirArchivo } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -29,14 +32,18 @@ import {
   nivelContraste,
   oscurecer,
   textoSobre,
+  legibleSobre,
 } from '@/lib/color';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Personalizacion = {
   logo_url: string | null;
   imagen_portada_url: string | null;
   color_primario: string | null;
   color_secundario: string | null;
+  tema_default?: Tema; // 8.7.g
 };
+type Tema = 'sistema' | 'claro' | 'oscuro';
 type Congreso = {
   id: string;
   nombre: string;
@@ -73,6 +80,9 @@ export default function AparienciaPage() {
   // null = "usar el de Nexvio".
   const [primario, setPrimario] = useState<string | null>(null);
   const [secundario, setSecundario] = useState<string | null>(null);
+  // 8.7.g: el tema por defecto en la app, y con qué modo se ve la vista previa.
+  const [tema, setTema] = useState<Tema>('sistema');
+  const [previaOscura, setPreviaOscura] = useState(false);
   const [logo, setLogo] = useState<Imagen>(SIN_CAMBIOS);
   const [portada, setPortada] = useState<Imagen>(SIN_CAMBIOS);
 
@@ -82,6 +92,8 @@ export default function AparienciaPage() {
       setCongreso(c);
       setPrimario(c.personalizacion?.color_primario ?? null);
       setSecundario(c.personalizacion?.color_secundario ?? null);
+      setTema(c.personalizacion?.tema_default ?? 'sistema');
+      setPreviaOscura(c.personalizacion?.tema_default === 'oscuro');
       setLogo(SIN_CAMBIOS);
       setPortada(SIN_CAMBIOS);
       setError(null);
@@ -107,6 +119,7 @@ export default function AparienciaPage() {
   const hayCambios =
     primario !== (p?.color_primario ?? null) ||
     secundario !== (p?.color_secundario ?? null) ||
+    tema !== (p?.tema_default ?? 'sistema') ||
     !!logo.archivo || logo.quitar || !!portada.archivo || portada.quitar;
 
   function elegir(e: React.ChangeEvent<HTMLInputElement>, set: (i: Imagen) => void) {
@@ -131,10 +144,15 @@ export default function AparienciaPage() {
     setError(null);
     try {
       // 1) Colores (un solo PUT; el backend crea la fila si no existía).
-      if (primario !== (p?.color_primario ?? null) || secundario !== (p?.color_secundario ?? null)) {
+      if (
+        primario !== (p?.color_primario ?? null) ||
+        secundario !== (p?.color_secundario ?? null) ||
+        tema !== (p?.tema_default ?? 'sistema')
+      ) {
         await apiFetch('PUT', `/congresos/${congresoId}/personalizacion`, {
           color_primario: primario,
           color_secundario: secundario,
+          tema_default: tema,
         });
       }
       // 2) Imágenes.
@@ -160,6 +178,7 @@ export default function AparienciaPage() {
   function restablecer() {
     setPrimario(null);
     setSecundario(null);
+    setTema('sistema');
     setLogo({ ...SIN_CAMBIOS, quitar: !!p?.logo_url });
     setPortada({ ...SIN_CAMBIOS, quitar: !!p?.imagen_portada_url });
     setGuardado(false);
@@ -169,7 +188,7 @@ export default function AparienciaPage() {
   const colorS = secundario ?? SECUNDARIO_NEXVIO;
 
   return (
-    <div className="mx-auto w-full max-w-6xl p-6 md:p-8">
+    <div className="contenido-panel">
       <Link
         href={`/congresos/${congresoId}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -179,7 +198,8 @@ export default function AparienciaPage() {
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Palette} />
             Apariencia
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -260,6 +280,42 @@ export default function AparienciaPage() {
               alCambiar={(v) => { setSecundario(v); setGuardado(false); }}
             />
           </Bloque>
+
+          {/* 8.7.g */}
+          <Bloque
+            titulo="Tema de la app"
+            ayuda="Cómo se ve la app la primera vez. Cada asistente puede cambiarlo para sí en su Perfil → Apariencia."
+          >
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  { valor: 'sistema', texto: 'Según el teléfono', sub: 'Claro u oscuro, como lo tenga', Icono: Smartphone },
+                  { valor: 'claro', texto: 'Claro', sub: 'Fondo blanco', Icono: Sun },
+                  { valor: 'oscuro', texto: 'Oscuro', sub: 'Ideal para auditorios', Icono: Moon },
+                ] as const
+              ).map(({ valor, texto, sub, Icono }) => (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => {
+                    setTema(valor);
+                    if (valor !== 'sistema') setPreviaOscura(valor === 'oscuro');
+                    setGuardado(false);
+                  }}
+                  className={cn(
+                    'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors',
+                    tema === valor ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted',
+                  )}
+                >
+                  <Icono className={cn('mt-0.5 h-5 w-5 shrink-0', tema === valor ? 'text-primary' : 'text-muted-foreground')} />
+                  <span>
+                    <span className={cn('block text-sm font-semibold', tema === valor ? 'text-primary' : 'text-foreground')}>{texto}</span>
+                    <span className="block text-xs text-muted-foreground">{sub}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Bloque>
         </div>
 
         {/* ================= Vista previa ================= */}
@@ -267,12 +323,32 @@ export default function AparienciaPage() {
           <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Vista previa en la app
           </p>
+          {/* 8.7.g: ver la vista previa en claro o en oscuro */}
+          <div className="mb-3 flex justify-center gap-1">
+            {[
+              { oscuro: false, texto: 'Claro', Icono: Sun },
+              { oscuro: true, texto: 'Oscuro', Icono: Moon },
+            ].map(({ oscuro, texto, Icono }) => (
+              <button
+                key={texto}
+                type="button"
+                onClick={() => setPreviaOscura(oscuro)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  previaOscura === oscuro ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                <Icono className="h-3.5 w-3.5" /> {texto}
+              </button>
+            ))}
+          </div>
           <VistaPreviaCelular
             congreso={congreso}
             colorP={colorP}
             colorS={colorS}
             logo={logoVisible}
             portada={portadaVisible}
+            oscuro={previaOscura}
           />
         </div>
       </div>
@@ -426,9 +502,8 @@ function AvisoContraste({ color }: { color: string }) {
 }
 
 /**
- * Maqueta del detalle del congreso tal como lo verá el asistente, pintada con
- * los colores e imágenes que se están eligiendo. Es una imitación en HTML de la
- * pantalla de la app (no la app real), suficiente para decidir.
+ * La app en miniatura, con los colores, el logo y la portada elegidos.
+ * 8.7.g: en claro o en oscuro (mismos colores que la app: tema.ts).
  */
 function VistaPreviaCelular({
   congreso,
@@ -436,19 +511,25 @@ function VistaPreviaCelular({
   colorS,
   logo,
   portada,
+  oscuro = false,
 }: {
   congreso: Congreso;
   colorP: string;
   colorS: string;
   logo: string | null;
   portada: string | null;
+  oscuro?: boolean;
 }) {
   const fecha = (iso: string) =>
     new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(/\./g, '');
+  // La misma paleta de la app (apps/mobile/src/tema/tema.ts).
+  const c = oscuro
+    ? { fondo: '#0B0A12', tarjeta: '#16151F', borde: '#26252F', texto: '#FAFAFA', suave: '#A1A1AA', tenue: '#71717A' }
+    : { fondo: '#F5F6FA', tarjeta: '#FFFFFF', borde: '#ECEDF3', texto: '#0E1525', suave: '#6B7385', tenue: '#9AA1B2' };
 
   return (
     <div className="mx-auto w-[300px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 shadow-2xl">
-      <div className="h-[580px] overflow-hidden rounded-[1.9rem] bg-[#F5F6FA]">
+      <div className="h-[580px] overflow-hidden rounded-[1.9rem] transition-colors" style={{ backgroundColor: c.fondo }}>
         {/* Cabecera con el degradado del color principal */}
         <div
           className="relative overflow-hidden rounded-b-3xl px-4 pb-4 pt-8"
@@ -456,9 +537,6 @@ function VistaPreviaCelular({
         >
           <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
           <div className="relative flex items-center gap-2.5">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/20">
-              <ChevronLeft className="h-4 w-4 text-white" />
-            </span>
             {logo && (
               <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -482,7 +560,7 @@ function VistaPreviaCelular({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={portada} alt="" className="aspect-[16/9] w-full rounded-xl object-cover" />
           )}
-          <div className="space-y-1 text-[11px] text-slate-500">
+          <div className="space-y-1 text-[11px]" style={{ color: c.suave }}>
             <p className="flex items-center gap-1.5">
               <CalendarDays className="h-3 w-3" /> {fecha(congreso.fecha_inicio)} – {fecha(congreso.fecha_fin)}
             </p>
@@ -493,17 +571,17 @@ function VistaPreviaCelular({
             )}
           </div>
 
-          <div className="rounded-xl py-2.5 text-center text-xs font-bold text-white" style={{ backgroundColor: colorP }}>
-            Inscribirme
-          </div>
-
           {/* Franja de sponsors (8.5.e) */}
           {congreso.sponsors.length > 0 && (
             <div>
-              <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Con el apoyo de</p>
+              <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide" style={{ color: c.tenue }}>Con el apoyo de</p>
               <div className="flex gap-1.5 overflow-hidden">
                 {congreso.sponsors.slice(0, 4).map((s) => (
-                  <span key={s.id} className="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white p-1">
+                  <span
+                    key={s.id}
+                    className="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white p-1"
+                    style={{ borderColor: c.borde }}
+                  >
                     {s.logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={s.logo_url} alt="" className="max-h-full max-w-full object-contain" />
@@ -516,27 +594,32 @@ function VistaPreviaCelular({
             </div>
           )}
 
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Agenda</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: c.tenue }}>Agenda</p>
           <div className="flex gap-1.5">
             <span className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ backgroundColor: colorP }}>
               Día 1
             </span>
-            <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600">Día 2</span>
+            <span
+              className="rounded-lg border px-2.5 py-1 text-[10px] font-bold"
+              style={{ backgroundColor: c.tarjeta, borderColor: c.borde, color: c.suave }}
+            >
+              Día 2
+            </span>
           </div>
           {[
             { hora: '09:00 – 10:00', titulo: 'Conferencia inaugural', barra: colorP, vivo: false },
             { hora: '10:00 – 11:00', titulo: 'Charla en vivo', barra: colorS, vivo: true },
           ].map((x) => (
-            <div key={x.titulo} className="flex overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div key={x.titulo} className="flex overflow-hidden rounded-xl border" style={{ backgroundColor: c.tarjeta, borderColor: c.borde }}>
               <span className="w-1" style={{ backgroundColor: x.barra }} />
               <div className="flex-1 p-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold" style={{ color: colorP }}>{x.hora}</span>
+                  <span className="text-[10px] font-bold" style={{ color: oscuro ? legibleSobre(colorP, c.tarjeta) : colorP }}>{x.hora}</span>
                   {x.vivo && (
                     <span className="rounded-full bg-rose-100 px-1.5 text-[8px] font-bold text-rose-600">EN VIVO</span>
                   )}
                 </div>
-                <p className="text-[11px] font-bold text-slate-800">{x.titulo}</p>
+                <p className="text-[11px] font-bold" style={{ color: c.texto }}>{x.titulo}</p>
               </div>
             </div>
           ))}

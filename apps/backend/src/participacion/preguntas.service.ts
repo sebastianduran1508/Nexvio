@@ -58,7 +58,15 @@ export class PreguntasService {
           ...(esStaff ? {} : { estado: { in: ['aprobada', 'respondida'] } }),
         },
         orderBy: { creado_en: 'asc' },
-        include: { usuario: { select: { nombre: true } } },
+        // 8.7.h: el staff ve nombre completo y foto (para moderar con contexto);
+        // el asistente solo el nombre de pila (minimización, Ley 1581).
+        include: {
+          usuario: {
+            select: esStaff
+              ? { nombre: true, apellidos: true, foto_url: true }
+              : { nombre: true },
+          },
+        },
       });
     });
   }

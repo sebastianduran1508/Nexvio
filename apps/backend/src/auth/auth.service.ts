@@ -89,6 +89,8 @@ export class AuthService {
           id: true, username: true, nombre: true, apellidos: true, rol: true,
           email: true, debe_cambiar_password: true, acepto_datos_en: true,
           politica_datos_version: true, organizacion_id: true,
+          // 8.7.h: el panel muestra en la barra superior en qué organización estás.
+          organizacion: { select: { nombre: true } },
         },
       }),
     );

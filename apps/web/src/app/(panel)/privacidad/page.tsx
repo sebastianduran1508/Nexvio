@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePanel } from '@/components/panel/panel-contexto';
 import { cn } from '@/lib/utils';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Solicitud = {
   id: string;
@@ -104,10 +105,10 @@ export default function PrivacidadPage() {
   const pendientes = solicitudes.filter((s) => s.estado === 'pendiente');
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
+    <div className="contenido-panel">
       <header className="mb-6">
-        <h1 className="flex items-center gap-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-          <ShieldCheck className="h-6 w-6 text-primary" /> Privacidad y datos
+        <h1 className="titulo-pagina">
+          <ChipTitulo Icono={ShieldCheck} /> Privacidad y datos
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
           Tu organización es la <b>responsable</b> de los datos personales de sus asistentes (Ley 1581 de 2012).

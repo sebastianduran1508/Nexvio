@@ -5,6 +5,7 @@ import SesionScreen from '../screens/SesionScreen';
 import PatrocinadoresScreen from '../screens/PatrocinadoresScreen';
 import AvisosScreen from '../screens/AvisosScreen';
 import type { Congreso } from '../lib/tipos';
+import type { SponsorCharla } from '../lib/tipos';
 
 /**
  * Pantallas (y parametros) de la pestana del congreso.
@@ -12,7 +13,8 @@ import type { Congreso } from '../lib/tipos';
  */
 export type CongresosStackParamList = {
   CongresoDetalle: { id: string; nombre: string };
-  Sesion: { sesionId: string; titulo: string };
+  // 8.7.f: el sponsor viaja con la charla (para la franja "Patrocinada por").
+  Sesion: { sesionId: string; titulo: string; sponsors?: SponsorCharla[] };
   Patrocinadores: { congresoId: string; nombre: string };
   Avisos: { congresoId: string; nombre: string };
 };

@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { Platform, useColorScheme, type ViewStyle } from 'react-native';
 
 /**
@@ -8,7 +9,10 @@ import { Platform, useColorScheme, type ViewStyle } from 'react-native';
  * variables CSS. Así que aquí guardamos la MISMA paleta como valores JS, en dos
  * versiones (claro y oscuro), y cada pantalla pide la que toca con useTema().
  *
- * El modo lo decide el sistema operativo (igual que el panel web).
+ * 8.7.g: el modo ya no lo decide solo el teléfono. Lo resuelve TemaProvider
+ * (tema/TemaProvider.tsx) combinando la preferencia de la persona (Perfil →
+ * Apariencia) con el tema por defecto del congreso. Si no hay provider, se
+ * usa el del teléfono, como antes.
  */
 
 export type Paleta = {
@@ -74,9 +78,22 @@ const OSCURO: Paleta = {
   oscuro: true,
 };
 
-/** Devuelve la paleta del modo actual (claro u oscuro). */
+/**
+ * 8.7.g: el modo YA RESUELTO ('claro' | 'oscuro'), que publica TemaProvider.
+ * Vive aquí (y no en TemaProvider.tsx) para no crear una dependencia circular:
+ * tema.ts no importa a nadie, y todos importan tema.ts.
+ */
+export const TemaCtx = createContext<'claro' | 'oscuro' | null>(null);
+
+/**
+ * Devuelve la paleta del modo actual (claro u oscuro). TODAS las pantallas la
+ * usan, así que con cambiar solo esto la app entera sigue el tema elegido.
+ */
 export function useTema(): Paleta {
-  return useColorScheme() === 'dark' ? OSCURO : CLARO;
+  const sistema = useColorScheme();
+  const resuelto = useContext(TemaCtx);
+  const oscuro = resuelto ? resuelto === 'oscuro' : sistema === 'dark';
+  return oscuro ? OSCURO : CLARO;
 }
 
 /** Los colores del degradado de marca (iguales en claro y oscuro). */

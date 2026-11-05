@@ -4,6 +4,7 @@ import PerfilScreen from '../screens/PerfilScreen';
 import PoliticaDatosScreen from '../screens/PoliticaDatosScreen';
 import EditarPerfilScreen from '../screens/EditarPerfilScreen';
 import ComoMeVenScreen from '../screens/ComoMeVenScreen';
+import AparienciaScreen from '../screens/AparienciaScreen';
 
 /**
  * Pestaña Perfil (8.7.b): el menú de "todo lo demás" y sus pantallas.
@@ -14,6 +15,7 @@ export type PerfilStackParamList = {
   PoliticaDatos: undefined;
   EditarPerfil: undefined;
   ComoMeVen: undefined; // 8.7.d
+  Apariencia: undefined; // 8.7.g
 };
 
 const Stack = createNativeStackNavigator<PerfilStackParamList>();
@@ -25,6 +27,7 @@ export function PerfilStack() {
       <Stack.Screen name="PoliticaDatos" component={PoliticaDatosScreen} />
       <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} />
       <Stack.Screen name="ComoMeVen" component={ComoMeVenScreen} />
+      <Stack.Screen name="Apariencia" component={AparienciaScreen} />
     </Stack.Navigator>
   );
 }

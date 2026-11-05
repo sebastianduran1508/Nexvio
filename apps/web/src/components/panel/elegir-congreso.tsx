@@ -1,32 +1,43 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, ChevronRight } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { EncabezadoPagina, EsqueletoPagina } from './encabezado-pagina';
+import { TarjetaCongreso } from './tarjeta-congreso';
 
-type Congreso = { id: string; nombre: string; estado?: string };
+type Congreso = {
+  id: string;
+  nombre: string;
+  estado?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  ciudad?: string | null;
+  personalizacion?: { logo_url: string | null; color_primario: string | null; color_secundario: string | null } | null;
+  _count?: { sesiones: number; inscripciones: number };
+};
 
 /**
  * "¿En qué congreso quieres trabajar?" — la puerta de entrada de las secciones
  * del menú que viven DENTRO de un congreso (Usuarios, Agenda, Speakers...).
  *
- * Nació en el 8.3 dentro de /usuarios y en el 8.4 se volvió componente, porque
- * Agenda y Speakers necesitan exactamente lo mismo: los datos son por congreso,
- * así que primero hay que elegir uno. Si la organización tiene un solo
- * congreso, entra directo sin preguntar.
+ * Los datos son por congreso, así que primero hay que elegir uno. Si la
+ * organización tiene un solo congreso, entra directo sin preguntar.
  *
  * `seccion` es el final de la ruta: 'speakers' lleva a /congresos/:id/speakers.
+ * 8.7.h: las mismas tarjetas con portada que la lista de Congresos, en
+ * cuadrícula (antes era una columna angosta en medio de la pantalla).
  */
 export function ElegirCongreso({
   titulo,
   descripcion,
   seccion,
+  Icono,
 }: {
   titulo: string;
   descripcion: string;
   seccion: string;
+  Icono: React.ComponentType<{ className?: string }>;
 }) {
   const router = useRouter();
   const [congresos, setCongresos] = useState<Congreso[]>([]);
@@ -50,41 +61,35 @@ export function ElegirCongreso({
     })();
   }, [router, seccion]);
 
-  return (
-    <div className="mx-auto w-full max-w-3xl p-6 md:p-8">
-      <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-        {titulo}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">{descripcion}</p>
+  if (cargando) return <EsqueletoPagina />;
 
-      {cargando && <p className="mt-6 text-muted-foreground">Cargando…</p>}
-      {error && (
-        <p className="mt-6 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-      {!cargando && !error && congresos.length === 0 && (
-        <p className="mt-6 rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+  return (
+    <div className="contenido-panel">
+      <EncabezadoPagina Icono={Icono} titulo={titulo} subtitulo={descripcion} />
+
+      {error && <p className="mb-6 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      {!error && congresos.length === 0 && (
+        <p className="rounded-[22px] border-2 border-dashed border-primary/20 bg-card/60 p-12 text-center font-semibold text-foreground">
           Esta organización todavía no tiene congresos.
         </p>
       )}
 
-      <ul className="mt-6 space-y-3">
+      <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4">
         {congresos.map((c) => (
           <li key={c.id}>
-            <Link
+            <TarjetaCongreso
+              id={c.id}
+              nombre={c.nombre}
+              fechaInicio={c.fecha_inicio}
+              fechaFin={c.fecha_fin}
+              ciudad={c.ciudad}
+              estado={c.estado}
+              sesiones={c._count?.sesiones}
+              inscritos={c._count?.inscripciones}
+              colores={[c.personalizacion?.color_primario, c.personalizacion?.color_secundario]}
+              logoUrl={c.personalizacion?.logo_url}
               href={`/congresos/${c.id}/${seccion}`}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-card-foreground">{c.nombre}</span>
-                  {c.estado && <span className="block text-xs text-muted-foreground">{c.estado}</span>}
-                </span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Link>
+            />
           </li>
         ))}
       </ul>

@@ -53,6 +53,7 @@ export class PersonalizacionService {
     const cambios = {
       ...(dto.color_primario !== undefined ? { color_primario: dto.color_primario?.toUpperCase() ?? null } : {}),
       ...(dto.color_secundario !== undefined ? { color_secundario: dto.color_secundario?.toUpperCase() ?? null } : {}),
+      ...(dto.tema_default !== undefined ? { tema_default: dto.tema_default } : {}), // 8.7.g
     };
     return this.prisma.runInTenant(orgId, async (tx) => {
       const congreso = await tx.congreso.findFirst({ where: { id: congresoId } });

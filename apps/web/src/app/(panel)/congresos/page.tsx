@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { CalendarDays, Plus } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { usePanel } from '@/components/panel/panel-contexto';
 import { buttonVariants } from '@/components/ui/button';
+import { EncabezadoPagina, EsqueletoPagina } from '@/components/panel/encabezado-pagina';
+import { TarjetaCongreso, TarjetaCrear } from '@/components/panel/tarjeta-congreso';
 
 type Congreso = {
   id: string;
@@ -14,6 +16,9 @@ type Congreso = {
   fecha_fin?: string;
   estado?: string;
   ciudad?: string | null;
+  // 8.7.h: para la tarjeta (portada con sus colores, logo y conteos)
+  personalizacion?: { logo_url: string | null; color_primario: string | null; color_secundario: string | null } | null;
+  _count?: { sesiones: number; inscripciones: number };
 };
 
 /**
@@ -23,9 +28,11 @@ type Congreso = {
  * Para el superadmin, es la que eligió en el selector de la cabecera: apiFetch
  * manda la cabecera X-Organizacion-Id y el backend hace el resto. Fíjate en que
  * esta pantalla NO sabe nada de eso — pide "los congresos" y ya.
+ *
+ * 8.7.h: tarjetas en cuadrícula con la portada de cada congreso.
  */
 export default function CongresosPage() {
-  const { esSuperadmin, orgActual } = usePanel();
+  const { esSuperadmin, orgActual, perfil } = usePanel();
   const [congresos, setCongresos] = useState<Congreso[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,75 +49,54 @@ export default function CongresosPage() {
     })();
   }, []);
 
+  if (cargando) return <EsqueletoPagina />;
+
+  const org = esSuperadmin ? orgActual?.nombre : perfil?.organizacion?.nombre;
+
   return (
-    <div className="mx-auto w-full max-w-4xl p-6 md:p-8">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-            Congresos
-          </h1>
-          {esSuperadmin && orgActual && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              Trabajando en{' '}
-              <span className="font-medium text-foreground">{orgActual.nombre}</span>
-            </p>
-          )}
-        </div>
-        <Link href="/congresos/nuevo" className={buttonVariants({ size: 'sm' })}>
-          <Plus /> Nuevo congreso
-        </Link>
-      </header>
+    <div className="contenido-panel">
+      <EncabezadoPagina
+        Icono={CalendarDays}
+        migas={org ? [{ texto: org }, { texto: 'Congresos' }] : undefined}
+        titulo="Congresos"
+        subtitulo={`${congresos.length} congreso${congresos.length === 1 ? '' : 's'} en esta organización`}
+        acciones={
+          <Link href="/congresos/nuevo" className={buttonVariants({ className: 'h-10 rounded-xl px-4 font-bold shadow-[0_8px_20px_rgba(90,70,240,0.3)]' })}>
+            <Plus /> Nuevo congreso
+          </Link>
+        }
+      />
 
-      {cargando && <p className="text-muted-foreground">Cargando…</p>}
-      {error && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <p className="mb-6 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-      {!cargando && !error && congresos.length === 0 && (
-        <p className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-          Esta organización aún no tiene congresos.
-        </p>
-      )}
-
-      <ul className="space-y-3">
-        {congresos.map((c) => (
-          <li key={c.id}>
-            <Link
-              href={`/congresos/${c.id}`}
-              className="block rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-medium text-card-foreground">{c.nombre}</span>
-                {c.estado && (
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {c.estado}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {formatearRango(c.fecha_inicio, c.fecha_fin)}
-                {c.ciudad ? ` · ${c.ciudad}` : ''}
-              </p>
-              <span className="mt-2 block text-sm text-primary">Abrir ›</span>
-            </Link>
+      {!error && (
+        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4">
+          {congresos.map((c) => (
+            <li key={c.id}>
+              <TarjetaCongreso
+                id={c.id}
+                nombre={c.nombre}
+                fechaInicio={c.fecha_inicio}
+                fechaFin={c.fecha_fin}
+                ciudad={c.ciudad}
+                estado={c.estado}
+                sesiones={c._count?.sesiones}
+                inscritos={c._count?.inscripciones}
+                colores={[c.personalizacion?.color_primario, c.personalizacion?.color_secundario]}
+                logoUrl={c.personalizacion?.logo_url}
+                href={`/congresos/${c.id}`}
+              />
+            </li>
+          ))}
+          <li>
+            <TarjetaCrear
+              href="/congresos/nuevo"
+              titulo={congresos.length === 0 ? 'Crea tu primer congreso' : 'Crear un congreso'}
+              sub="Fechas, sede y zona horaria"
+            />
           </li>
-        ))}
-      </ul>
+        </ul>
+      )}
     </div>
   );
-}
-
-/** "10 nov 2026 — 12 nov 2026" (las fechas llegan en ISO desde la API). */
-function formatearRango(inicio?: string, fin?: string) {
-  if (!inicio || !fin) return '';
-  const f = (s: string) =>
-    new Date(s).toLocaleDateString('es-CO', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-  return `${f(inicio)} — ${f(fin)}`;
 }

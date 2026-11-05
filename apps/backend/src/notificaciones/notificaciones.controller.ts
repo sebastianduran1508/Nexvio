@@ -13,6 +13,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { OrgId } from '../auth/org-id.decorator';
 import { UserId } from '../auth/user-id.decorator';
+import { RolActual } from '../auth/rol.decorator';
 import { NotificacionesService } from './notificaciones.service';
 import { CrearNotificacionDto, RegistrarDispositivoDto } from './dto/notificacion.dto';
 import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.guard';
@@ -51,8 +52,13 @@ export class NotificacionesController {
   @Get('congresos/:congresoId/avisos')
   @SoloInscritos('congreso', 'congresoId')
   @Roles('admin', 'organizador', 'coordinador', 'participante')
-  avisos(@OrgId() orgId: string, @Param('congresoId', ParseUUIDPipe) congresoId: string) {
-    return this.notificaciones.avisos(orgId, congresoId);
+  avisos(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @RolActual() rol: string,
+    @Param('congresoId', ParseUUIDPipe) congresoId: string,
+  ) {
+    return this.notificaciones.avisos(orgId, congresoId, usuarioId, rol);
   }
 
   @Delete('notificaciones/:id')

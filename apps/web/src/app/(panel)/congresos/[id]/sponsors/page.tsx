@@ -22,6 +22,7 @@ import { DialogoConfirmar } from '@/components/panel/dialogo-confirmar';
 import { MenuAcciones } from '@/components/panel/menu-acciones';
 import { PanelLateral } from '@/components/panel/panel-lateral';
 import { cn } from '@/lib/utils';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Sponsor = {
   id: string;
@@ -120,7 +121,7 @@ export default function SponsorsCongresoPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
+    <div className="contenido-panel">
       <Link
         href={`/congresos/${congresoId}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -130,7 +131,8 @@ export default function SponsorsCongresoPage() {
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Handshake} />
             Sponsors
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -171,7 +173,7 @@ export default function SponsorsCongresoPage() {
                 </span>
                 <span className="text-sm text-muted-foreground">{delNivel.length}</span>
               </h2>
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {delNivel.map((s, i) => (
                   <li
                     key={s.id}

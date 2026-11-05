@@ -14,6 +14,7 @@ import { MenuAcciones } from '@/components/panel/menu-acciones';
 import { PanelLateral } from '@/components/panel/panel-lateral';
 import { AvatarPonente, bandera } from '@/components/panel/avatar-ponente';
 import { PAISES, paisPorNombre } from '@/datos/paises';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Ponente = {
   id: string;
@@ -105,7 +106,7 @@ export default function SpeakersCongresoPage() {
   const charlasDe = (p: Ponente) => p.sesiones.length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
+    <div className="contenido-panel">
       <Link
         href={`/congresos/${congresoId}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -115,7 +116,8 @@ export default function SpeakersCongresoPage() {
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Mic2} />
             Speakers
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -156,7 +158,7 @@ export default function SpeakersCongresoPage() {
         </div>
       )}
 
-      <ul className="grid gap-3 md:grid-cols-2">
+      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visibles.map((p) => (
           <li
             key={p.id}

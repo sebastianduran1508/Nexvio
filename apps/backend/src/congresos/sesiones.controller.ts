@@ -54,6 +54,13 @@ export class SesionesController {
     return this.sesiones.listar(orgId, congresoId);
   }
 
+  /** 8.7.h: una sesión con su contexto, para la moderación en vivo (staff). */
+  @Get('sesiones/:id')
+  @Roles('admin', 'organizador', 'coordinador')
+  obtener(@OrgId() orgId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.sesiones.obtener(orgId, id);
+  }
+
   @Patch('sesiones/:id')
   @Roles('admin', 'organizador')
   actualizar(

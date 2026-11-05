@@ -4,7 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, Download, Eye, KeyRound, Pencil, Plus, Search, Trash2, Upload,
+  ArrowLeft,
+  Download,
+  Eye,
+  KeyRound,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  Users,
 } from 'lucide-react';
 import { apiFetch, apiDescargar } from '@/lib/api';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,6 +24,7 @@ import { DialogoConfirmar } from '@/components/panel/dialogo-confirmar';
 import { MenuAcciones } from '@/components/panel/menu-acciones';
 import { PanelLateral } from '@/components/panel/panel-lateral';
 import { PAISES, paisPorNombre } from '@/datos/paises';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Asistente = {
   inscripcion_id: string;
@@ -166,7 +176,7 @@ export default function AsistentesPage() {
   const sinEstrenar = asistentes.filter((a) => a.debe_cambiar_password).length;
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
+    <div className="contenido-panel">
       <Link
         href={`/congresos/${congresoId}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -176,7 +186,8 @@ export default function AsistentesPage() {
 
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Users} />
             Asistentes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

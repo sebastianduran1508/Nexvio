@@ -21,8 +21,9 @@ import { Label } from '@/components/ui/label';
 import { DialogoConfirmar } from '@/components/panel/dialogo-confirmar';
 import { cn } from '@/lib/utils';
 import { diaEnZona, etiquetaDia, etiquetaZona, horaEnZona } from '@/lib/zona';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
-type Sesion = { id: string; titulo: string; inicio: string; tipo: string };
+type Sesion = { id: string; titulo: string; inicio: string; tipo: string; _count?: { favoritas: number } };
 type Congreso = { id: string; nombre: string; zona_horaria: string; sesiones: Sesion[] };
 type Notificacion = {
   id: string;
@@ -97,7 +98,7 @@ export default function NotificacionesCongresoPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
+    <div className="contenido-panel">
       <Link
         href={`/congresos/${congresoId}`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -106,7 +107,8 @@ export default function NotificacionesCongresoPage() {
       </Link>
 
       <header className="mb-6">
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+        <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Bell} />
           Notificaciones
         </h1>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
@@ -161,7 +163,7 @@ function Redactor({
   const [form, setForm] = useState({
     titulo: '',
     cuerpo: '',
-    destino: 'todos' as 'todos' | 'sesion',
+    destino: 'todos' as 'todos' | 'sesion' | 'favoritos',
     sesionId: '',
     cuando: 'ahora' as 'ahora' | 'programar',
     dia: diaEnZona(enUnaHora, zona),
@@ -194,7 +196,7 @@ function Redactor({
         titulo: form.titulo.trim(),
         cuerpo: form.cuerpo.trim(),
         destino: form.destino,
-        ...(form.destino === 'sesion' ? { sesion_id: form.sesionId } : {}),
+        ...(form.destino !== 'todos' ? { sesion_id: form.sesionId } : {}),
         // SIN zona a propósito: el backend lo interpreta en la zona del congreso.
         ...(form.cuando === 'programar' ? { programada_para: `${form.dia}T${form.hora}` } : {}),
       });
@@ -255,11 +257,12 @@ function Redactor({
             opciones={[
               { valor: 'todos', texto: 'Todo el congreso' },
               { valor: 'sesion', texto: 'Una charla' },
+              { valor: 'favoritos', texto: '⭐ Quienes la marcaron' },
             ]}
             valor={form.destino}
-            alCambiar={(v) => set('destino', v as 'todos' | 'sesion')}
+            alCambiar={(v) => set('destino', v as 'todos' | 'sesion' | 'favoritos')}
           />
-          {form.destino === 'sesion' && (
+          {form.destino !== 'todos' && (
             <>
               <select
                 value={form.sesionId}
@@ -270,11 +273,16 @@ function Redactor({
                 {charlas.map((s) => (
                   <option key={s.id} value={s.id} className="bg-card">
                     {etiquetaDia(diaEnZona(s.inicio, zona)).dia} · {horaEnZona(s.inicio, zona)} · {s.titulo}
+                    {form.destino === 'favoritos' ? ` · ⭐ ${s._count?.favoritas ?? 0}` : ''}
                   </option>
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Llega a todos los inscritos; al tocarlo, la app abre esa charla.
+                {form.destino === 'favoritos'
+                  ? sesionElegida
+                    ? `Llega solo a las ${sesionElegida._count?.favoritas ?? 0} personas que tienen esta charla en "Mi agenda".`
+                    : 'Llega solo a quienes tienen esa charla en "Mi agenda". Ideal para un cambio de salón u hora.'
+                  : 'Llega a todos los inscritos; al tocarlo, la app abre esa charla.'}
               </p>
             </>
           )}
@@ -342,7 +350,11 @@ function Redactor({
       <DialogoConfirmar
         abierto={confirmar}
         titulo="¿Enviar el aviso ahora?"
-        mensaje={`Llegará a ${inscritos ?? 'todos los'} inscrito${inscritos === 1 ? '' : 's'} del congreso. Un aviso enviado no se puede deshacer.`}
+        mensaje={
+          form.destino === 'favoritos'
+            ? `Llegará solo a las ${sesionElegida?._count?.favoritas ?? 0} personas que marcaron «${sesionElegida?.titulo ?? ''}». Un aviso enviado no se puede deshacer.`
+            : `Llegará a ${inscritos ?? 'todos los'} inscrito${inscritos === 1 ? '' : 's'} del congreso. Un aviso enviado no se puede deshacer.`
+        }
         textoConfirmar="Enviar"
         alConfirmar={enviar}
         alCancelar={() => setConfirmar(false)}
@@ -428,7 +440,8 @@ function Historial({
                     <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', e.clase)}>{e.texto}</span>
                     {n.sesion && (
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                        Sobre: {n.sesion.titulo}
+                        {n.destino === 'favoritos' ? '⭐ Quienes marcaron: ' : 'Sobre: '}
+                        {n.sesion.titulo}
                       </span>
                     )}
                   </div>

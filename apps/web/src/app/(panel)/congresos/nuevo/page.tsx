@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarPlus,
+} from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { usePanel } from '@/components/panel/panel-contexto';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -14,6 +17,7 @@ import { PAISES, paisPorNombre } from '@/datos/paises';
 import { ciudadesDe } from '@/datos/ciudades';
 import { ZONAS, ZONA_POR_PAIS } from '@/datos/zonas';
 import { etiquetaZona } from '@/lib/zona';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 /**
  * Alta de un congreso (el objetivo principal del Bloque 8.2).
@@ -101,7 +105,8 @@ export default function NuevoCongresoPage() {
         <ArrowLeft className="h-4 w-4" /> Congresos
       </Link>
 
-      <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+      <h1 className="titulo-pagina">
+        <ChipTitulo Icono={CalendarPlus} />
         Nuevo congreso
       </h1>
       {esSuperadmin && orgActual && (

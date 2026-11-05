@@ -32,7 +32,11 @@ export type Sesion = {
   descripcion?: string | null;
   // El detalle del congreso trae los ponentes de cada sesión (tabla intermedia).
   ponentes?: { ponente: Ponente }[];
+  sponsors?: { sponsor: SponsorCharla }[]; // 8.7.f: "Patrocinada por…" (uno o varios, en su orden)
 };
+
+/** El sponsor de una charla (8.7.f). */
+export type SponsorCharla = { id: string; nombre: string; logo_url: string | null; sitio_web: string | null; nivel: string };
 
 // --- Bloque 8.5: sponsors y marca del congreso ---
 export type Sponsor = {
@@ -48,6 +52,7 @@ export type Personalizacion = {
   imagen_portada_url: string | null;
   color_primario: string | null;
   color_secundario: string | null;
+  tema_default?: string; // 8.7.g: sistema | claro | oscuro
 };
 
 export type CongresoDetalle = Congreso & {

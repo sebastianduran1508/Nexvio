@@ -25,8 +25,16 @@ export type OrganizacionResumen = {
   total_congresos: number;
 };
 
+/** 8.7.h: quién eres "en bonito" (GET /auth/yo), para la barra y el menú. */
+export type PerfilPanel = {
+  nombre: string;
+  apellidos: string | null;
+  organizacion: { nombre: string } | null;
+};
+
 type Panel = {
   claims: Claims | null;
+  perfil: PerfilPanel | null;
   esSuperadmin: boolean;
   /** La organización en la que se está trabajando (solo aplica al superadmin). */
   orgActual: OrgElegida | null;
@@ -69,6 +77,7 @@ function destinoSeguro(ruta: string): string {
 export function PanelProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [claims, setClaims] = useState<Claims | null>(null);
+  const [perfil, setPerfil] = useState<PerfilPanel | null>(null);
   const [orgActual, setOrgActual] = useState<OrgElegida | null>(null);
   const [organizaciones, setOrganizaciones] = useState<OrganizacionResumen[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -92,6 +101,9 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setClaims(c);
+      // Nombre y organización para el marco del panel. Si falla no pasa nada:
+      // la barra muestra el correo, que viene en el token.
+      apiFetch<PerfilPanel>('GET', '/auth/yo').then(setPerfil).catch(() => {});
 
       if (c.rol === 'admin') {
         try {
@@ -143,6 +155,7 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     <Ctx.Provider
       value={{
         claims,
+        perfil,
         esSuperadmin,
         orgActual,
         cambiarOrg,

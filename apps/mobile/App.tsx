@@ -15,6 +15,7 @@ import {
 import { AuthProvider } from './src/context/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { MarcaProvider } from './src/context/MarcaContext';
+import { TemaProvider } from './src/tema/TemaProvider';
 
 /**
  * Punto de entrada de la app. Envolvemos todo en:
@@ -46,7 +47,11 @@ export default function App() {
       <AuthProvider>
         {/* La marca del congreso abierto (8.5): la fija el detalle y la leen sus pantallas hijas. */}
         <MarcaProvider>
-          <RootNavigator />
+          {/* 8.7.g: claro/oscuro según la persona y el congreso (dentro de
+              MarcaProvider porque lee el tema que eligió el organizador). */}
+          <TemaProvider>
+            <RootNavigator />
+          </TemaProvider>
         </MarcaProvider>
         {/* Texto blanco en la barra de estado: todas las pantallas tienen cabecera violeta. */}
         <StatusBar style="light" />

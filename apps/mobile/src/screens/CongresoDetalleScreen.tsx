@@ -37,6 +37,8 @@ import {
 import { F, sombra, useTema } from '../tema/tema';
 import { useFijarMarca, useMarca } from '../context/MarcaContext';
 import { ultimoAvisoVisto } from '../lib/push';
+import BotonFavorito from '../components/BotonFavorito';
+import Patrocinio from '../components/Patrocinio';
 
 type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 
@@ -94,6 +96,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         color_secundario: d.personalizacion?.color_secundario ?? null,
         logo_url: d.personalizacion?.logo_url ?? null,
         imagen_portada_url: d.personalizacion?.imagen_portada_url ?? null,
+        tema_default: d.personalizacion?.tema_default ?? 'sistema', // 8.7.g
       });
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'No se pudo cargar el congreso');
@@ -263,7 +266,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
                 <ItemAgenda
                   key={s.id}
                   sesion={s}
-                  onPress={() => navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo })}
+                  onPress={() => navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo, sponsors: s.sponsors?.map((x) => x.sponsor) })}
                 />
               ))}
             </View>
@@ -306,6 +309,7 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
         <View style={{ flex: 1 }}>
           <Text style={[est.breakTitulo, { color: t.textoSuave }]}>{sesion.titulo}</Text>
           <Text style={[est.breakHora, { color: t.textoTenue }]}>{horario}</Text>
+          {sesion.sponsors?.length ? <Patrocinio sponsors={sesion.sponsors.map((x) => x.sponsor)} esBreak /> : null}
         </View>
       </View>
     );
@@ -330,6 +334,8 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
           ) : sesion.tipo === 'plenaria' ? (
             <Etiqueta texto="PLENARIA" colores={[marca.primarioSuave, marca.primarioTexto]} />
           ) : null}
+          {/* 8.7.e: agregar a Mi agenda */}
+          <BotonFavorito sesionId={sesion.id} />
         </View>
         <Text style={[est.sesionTitulo, { color: t.texto }]}>{sesion.titulo}</Text>
 
@@ -347,6 +353,8 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
             </Text>
           </View>
         )}
+
+        {sesion.sponsors?.length ? <Patrocinio sponsors={sesion.sponsors.map((x) => x.sponsor)} /> : null}
 
         <View style={est.sesionLink}>
           <Ionicons name="chatbubbles-outline" size={14} color={marca.primarioTexto} />

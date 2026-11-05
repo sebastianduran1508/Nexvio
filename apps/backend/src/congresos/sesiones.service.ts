@@ -64,8 +64,9 @@ export class SesionesService {
       const inicio = aInstante(dto.inicio, congreso.zona_horaria);
       const fin = aInstante(dto.fin, congreso.zona_horaria);
       this.validarHorario(congreso, inicio, fin);
+      if (dto.sponsor_ids?.length) await this.validarSponsors(tx, congresoId, dto.sponsor_ids);
 
-      return tx.sesion.create({
+      const creada = await tx.sesion.create({
         data: {
           organizacion_id: orgId,
           congreso_id: congresoId,
@@ -78,6 +79,28 @@ export class SesionesService {
           ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
       });
+      if (dto.sponsor_ids?.length) await this.fijarSponsors(tx, orgId, creada.id, dto.sponsor_ids);
+      return creada;
+    });
+  }
+
+  /**
+   * 8.7.f: todos los sponsors deben ser de ESTE congreso (con el RLS ya no
+   * pueden ser de otra organización, pero sí de otro congreso de la misma).
+   */
+  private async validarSponsors(tx: any, congresoId: string, ids: string[]) {
+    const unicos = [...new Set(ids)];
+    const n = await tx.sponsor.count({ where: { id: { in: unicos }, congreso_id: congresoId } });
+    if (n !== unicos.length) throw new BadRequestException('Algún sponsor no es de este congreso');
+  }
+
+  /** Reemplaza los sponsors de una charla por `ids`, en ese orden. */
+  private async fijarSponsors(tx: any, orgId: string, sesionId: string, ids: string[]) {
+    await tx.sesionSponsor.deleteMany({ where: { sesion_id: sesionId } });
+    const unicos = [...new Set(ids)];
+    if (unicos.length === 0) return;
+    await tx.sesionSponsor.createMany({
+      data: unicos.map((sponsor_id, orden) => ({ organizacion_id: orgId, sesion_id: sesionId, sponsor_id, orden })),
     });
   }
 
@@ -91,9 +114,43 @@ export class SesionesService {
         where: { congreso_id: congresoId },
         // Por hora de inicio y, si empatan, por el campo `orden`.
         orderBy: [{ inicio: 'asc' }, { orden: 'asc' }],
-        include: { ponentes: { include: { ponente: true } } },
+        include: {
+          ponentes: { include: { ponente: true } },
+          // 8.7.e: cuántos la tienen en "Mi agenda" (el panel muestra "⭐ 34").
+          // Es solo un número: nunca QUIÉNES la marcaron.
+          _count: { select: { favoritas: true } },
+          sponsors: SPONSORS_DE_CHARLA, // 8.7.f
+        },
       });
     });
+  }
+
+  /**
+   * 8.7.h: UNA sesión con su contexto (congreso, marca, ponentes, sponsors y
+   * cuántos la marcaron con ⭐). Lo usa la pantalla de moderación en vivo del
+   * panel para el encabezado. Solo staff (ver el controlador).
+   */
+  async obtener(orgId: string, id: string) {
+    const sesion = await this.prisma.runInTenant(orgId, (tx) =>
+      tx.sesion.findFirst({
+        where: { id },
+        include: {
+          congreso: {
+            select: {
+              id: true,
+              nombre: true,
+              zona_horaria: true,
+              personalizacion: { select: { logo_url: true, color_primario: true, color_secundario: true } },
+            },
+          },
+          ponentes: { include: { ponente: { select: { id: true, nombre: true, cargo: true, foto_url: true } } } },
+          sponsors: SPONSORS_DE_CHARLA,
+          _count: { select: { favoritas: true } },
+        },
+      }),
+    );
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    return sesion;
   }
 
   /**
@@ -110,6 +167,7 @@ export class SesionesService {
         include: { congreso: true, _count: { select: { ponentes: true } } },
       });
       if (!existe) throw new NotFoundException('Sesión no encontrada');
+      if (dto.sponsor_ids?.length) await this.validarSponsors(tx, existe.congreso_id, dto.sponsor_ids); // 8.7.f
 
       const zona = existe.congreso.zona_horaria;
       const inicio = dto.inicio !== undefined ? aInstante(dto.inicio, zona) : existe.inicio;
@@ -131,6 +189,9 @@ export class SesionesService {
         await this.correrSiguientes(tx, existe, fin);
       }
 
+      // 8.7.f: si llega la lista, reemplaza a los sponsors (en ese orden).
+      if (dto.sponsor_ids !== undefined) await this.fijarSponsors(tx, existe.organizacion_id, id, dto.sponsor_ids);
+
       return tx.sesion.update({
         where: { id },
         data: {
@@ -142,6 +203,7 @@ export class SesionesService {
           ...(dto.descripcion !== undefined ? { descripcion: dto.descripcion } : {}),
           ...(dto.orden !== undefined ? { orden: dto.orden } : {}),
         },
+        include: { sponsors: SPONSORS_DE_CHARLA },
       });
     });
   }
@@ -195,6 +257,8 @@ export class SesionesService {
       if (!existe) throw new NotFoundException('Sesión no encontrada');
 
       await tx.sesionPonente.deleteMany({ where: { sesion_id: id } });
+      await tx.sesionFavorita.deleteMany({ where: { sesion_id: id } }); // 8.7.e
+      await tx.sesionSponsor.deleteMany({ where: { sesion_id: id } }); // 8.7.f
       // Fase 5: la participación cuelga de la sesión (encuestas -> opciones y
       // votos; preguntas). Se borra en orden, de las hojas hacia la raíz.
       // (Antes del 8.6 esto faltaba: borrar una charla con preguntas fallaba.)
@@ -267,3 +331,9 @@ export class SesionesService {
     });
   }
 }
+
+/** 8.7.f: los sponsors de una charla, en su orden, con lo que se muestra de cada uno. */
+export const SPONSORS_DE_CHARLA = {
+  orderBy: { orden: 'asc' },
+  select: { sponsor: { select: { id: true, nombre: true, logo_url: true, sitio_web: true, nivel: true } } },
+} as const;

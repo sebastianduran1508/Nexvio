@@ -36,26 +36,26 @@ export function SelectorOrganizacion() {
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-4 py-1.5 transition-colors hover:border-primary/60 hover:bg-primary/10"
+        className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.12] px-3.5 py-1.5 text-white transition-colors hover:bg-white/[0.2]"
         aria-haspopup="listbox"
         aria-expanded={abierto}
       >
-        <Building2 className="h-4 w-4 shrink-0 text-primary" />
+        <Building2 className="h-[18px] w-[18px] shrink-0" />
         <span className="min-w-0 text-left leading-tight">
-          <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-white/75">
             Trabajando en
           </span>
-          <span className="block max-w-[16rem] truncate text-sm font-semibold text-foreground">
+          <span className="block max-w-[16rem] truncate text-sm font-bold">
             {orgActual?.nombre ?? 'Elige una organización'}
           </span>
         </span>
-        <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-white/80" />
       </button>
 
       {abierto && (
         <div
           role="listbox"
-          className="absolute left-1/2 z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          className="absolute left-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-popover shadow-xl"
         >
           <p className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Trabajar como

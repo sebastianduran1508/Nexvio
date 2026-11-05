@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Radio, CalendarDays, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Building2, CalendarDays, Globe2, Radio, Search, Users } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { usePanel } from '@/components/panel/panel-contexto';
-import { Button } from '@/components/ui/button';
+import { EncabezadoPagina, EsqueletoPagina } from '@/components/panel/encabezado-pagina';
+import { TarjetaCongreso, rangoCorto } from '@/components/panel/tarjeta-congreso';
+import { cn } from '@/lib/utils';
 
 type Fila = {
   organizacion_id: string;
@@ -20,6 +22,8 @@ type Fila = {
   total_inscritos: number;
 };
 
+type Filtro = 'todos' | 'publicado' | 'borrador';
+
 /**
  * PANORAMA — la vista que pidió el cliente: todos los congresos de todos los
  * clientes a la vez, con los que están en curso de primeros.
@@ -27,14 +31,18 @@ type Fila = {
  * Es una de las DOS únicas vistas de la app que cruzan organizaciones, y por
  * eso no sale de una consulta normal sino de la función acotada
  * `nexvio_panorama_congresos()`. Es de SOLO LECTURA: para entrar a trabajar en
- * uno, el botón "Entrar" mete al superadmin en ese tenant y a partir de ahí
- * manda el RLS como con cualquier organizador.
+ * uno, "Entrar" mete al superadmin en ese tenant y a partir de ahí manda el
+ * RLS como con cualquier organizador.
+ *
+ * 8.7.h: indicadores con color, buscador, filtros y tarjetas en cuadrícula.
  */
 export default function PanoramaPage() {
-  const { cambiarOrg } = usePanel();
+  const { cambiarOrg, organizaciones } = usePanel();
   const [filas, setFilas] = useState<Fila[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -49,117 +57,153 @@ export default function PanoramaPage() {
   }, []);
 
   const enCurso = filas.filter((f) => f.en_curso);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const proximo = filas
+    .filter((f) => !f.en_curso && f.fecha_inicio.slice(0, 10) >= hoy)
+    .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))[0];
+
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return filas.filter(
+      (f) =>
+        (filtro === 'todos' || f.estado === filtro) &&
+        (!q || f.congreso.toLowerCase().includes(q) || f.organizacion.toLowerCase().includes(q)),
+    );
+  }, [filas, filtro, busqueda]);
+
+  if (cargando) return <EsqueletoPagina />;
+
+  const cuenta = (e: Filtro) => (e === 'todos' ? filas.length : filas.filter((f) => f.estado === e).length);
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 md:p-8">
-      <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-        Panorama
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Todos los congresos de todas las organizaciones.
-      </p>
+    <div className="contenido-panel">
+      <EncabezadoPagina
+        Icono={Globe2}
+        migas={[{ texto: 'Superadmin' }, { texto: 'Panorama' }]}
+        titulo="Panorama"
+        subtitulo="Todos los congresos de todas las organizaciones."
+      />
 
-      {cargando && <p className="mt-6 text-muted-foreground">Cargando…</p>}
-      {error && (
-        <p className="mt-6 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <p className="mb-6 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-      {!cargando && !error && (
+      {!error && (
         <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <Tarjeta Icono={Radio} valor={enCurso.length} texto="en curso ahora" destacada />
-            <Tarjeta Icono={CalendarDays} valor={filas.length} texto="congresos en total" />
-            <Tarjeta
-              Icono={Users}
-              valor={filas.reduce((n, f) => n + f.total_inscritos, 0)}
-              texto="inscritos en total"
+          <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
+            <Indicador
+              Icono={Radio}
+              tono="coral"
+              valor={enCurso.length}
+              texto="En curso ahora"
+              detalle={
+                enCurso.length > 0
+                  ? enCurso.map((f) => f.congreso).join(' · ')
+                  : proximo
+                    ? `Próximo: ${proximo.congreso} · ${rangoCorto(proximo.fecha_inicio)}`
+                    : 'Ninguno programado'
+              }
             />
+            <Indicador Icono={CalendarDays} tono="violeta" valor={filas.length} texto="Congresos" detalle={`${cuenta('publicado')} publicados · ${cuenta('borrador')} borradores`} />
+            <Indicador Icono={Users} tono="verde" valor={filas.reduce((n, f) => n + f.total_inscritos, 0)} texto="Inscritos" detalle="En todas las organizaciones" />
+            <Indicador Icono={Building2} tono="azul" valor={organizaciones.length} texto="Organizaciones" detalle="Clientes en la plataforma" />
           </div>
 
-          {filas.length === 0 ? (
-            <p className="mt-6 rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-              Todavía no hay congresos en ninguna organización.
-            </p>
-          ) : (
-            <ul className="mt-6 space-y-3">
-              {filas.map((f) => (
-                <li
-                  key={f.congreso_id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      {f.en_curso && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-xs font-medium text-coral">
-                          <span className="h-1.5 w-1.5 rounded-full bg-coral" />
-                          en curso
-                        </span>
-                      )}
-                      <span className="truncate font-medium text-card-foreground">
-                        {f.congreso}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {f.organizacion} · {rango(f.fecha_inicio, f.fecha_fin)}
-                      {f.ciudad ? ` · ${f.ciudad}` : ''}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {f.total_sesiones} sesiones · {f.total_inscritos} inscritos ·{' '}
-                      {f.estado}
-                    </p>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      cambiarOrg(
-                        { id: f.organizacion_id, nombre: f.organizacion },
-                        '/congresos',
-                      )
-                    }
+          <section className="mt-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-heading text-xl font-bold text-foreground">Congresos</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex min-w-[240px] items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-muted-foreground focus-within:border-primary/50">
+                  <Search className="h-4 w-4" />
+                  <input
+                    type="search"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar congreso u organización…"
+                    aria-label="Buscar congreso u organización"
+                    className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                  />
+                </label>
+                {(['todos', 'publicado', 'borrador'] as Filtro[]).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFiltro(f)}
+                    aria-pressed={filtro === f}
+                    className={cn(
+                      'rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                      filtro === f
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-border bg-card text-foreground hover:border-primary/40',
+                    )}
                   >
-                    Entrar
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+                    {f === 'todos' ? 'Todos' : f === 'publicado' ? 'Publicados' : 'Borradores'} · {cuenta(f)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {visibles.length === 0 ? (
+              <div className="rounded-[22px] border-2 border-dashed border-primary/20 bg-card/60 p-12 text-center">
+                <CalendarDays className="mx-auto h-9 w-9 text-primary/60" />
+                <p className="mt-3 font-semibold text-foreground">
+                  {filas.length === 0 ? 'Todavía no hay congresos en ninguna organización.' : 'Ningún congreso coincide con la búsqueda.'}
+                </p>
+              </div>
+            ) : (
+              <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4">
+                {visibles.map((f) => (
+                  <li key={f.congreso_id}>
+                    <TarjetaCongreso
+                      id={f.congreso_id}
+                      nombre={f.congreso}
+                      organizacion={f.organizacion}
+                      fechaInicio={f.fecha_inicio}
+                      fechaFin={f.fecha_fin}
+                      ciudad={f.ciudad}
+                      estado={f.estado}
+                      enCurso={f.en_curso}
+                      sesiones={f.total_sesiones}
+                      inscritos={f.total_inscritos}
+                      alEntrar={() => cambiarOrg({ id: f.organizacion_id, nombre: f.organizacion }, `/congresos/${f.congreso_id}`)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )}
     </div>
   );
 }
 
-function Tarjeta({
+const TONOS = {
+  coral: 'bg-coral/15 text-[#e85a37] dark:text-[#ff9c80]',
+  violeta: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-[#a99dff]',
+  verde: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400',
+  azul: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+} as const;
+
+function Indicador({
   Icono,
+  tono,
   valor,
   texto,
-  destacada,
+  detalle,
 }: {
   Icono: React.ComponentType<{ className?: string }>;
+  tono: keyof typeof TONOS;
   valor: number;
   texto: string;
-  destacada?: boolean;
+  detalle?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <Icono className={destacada ? 'h-5 w-5 text-coral' : 'h-5 w-5 text-primary'} />
-      <p className="mt-2 text-2xl font-semibold text-card-foreground">{valor}</p>
-      <p className="text-sm text-muted-foreground">{texto}</p>
+    <div className="flex flex-col gap-2.5 rounded-[20px] border border-border bg-card p-5 shadow-sm">
+      <span className={cn('flex h-[42px] w-[42px] items-center justify-center rounded-[13px]', TONOS[tono])}>
+        <Icono className="h-5 w-5" />
+      </span>
+      <p className="font-heading text-[34px] leading-none font-bold text-card-foreground">{valor}</p>
+      <p className="text-sm font-semibold text-card-foreground">{texto}</p>
+      {detalle && <p className="truncate text-[12.5px] text-muted-foreground" title={detalle}>{detalle}</p>}
     </div>
   );
-}
-
-function rango(inicio: string, fin: string) {
-  const f = (s: string) =>
-    new Date(s).toLocaleDateString('es-CO', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-  return `${f(inicio)} — ${f(fin)}`;
 }

@@ -1,58 +1,79 @@
 'use client';
 
 import { useState } from 'react';
-import { LogOut } from 'lucide-react';
-import { ModeToggle } from '@/components/mode-toggle';
-import { Button } from '@/components/ui/button';
+import { Building2, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { SelectorOrganizacion } from './selector-organizacion';
 import { DialogoConfirmar } from './dialogo-confirmar';
 import { usePanel } from './panel-contexto';
 
+const NOMBRE_ROL: Record<string, string> = {
+  admin: 'Superadmin',
+  organizador: 'Organizador',
+  coordinador: 'Coordinador',
+};
+
+/** Botón cuadrado translúcido sobre el violeta de la barra. */
+const BOTON =
+  'flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.12] text-white transition-colors hover:bg-white/[0.22] focus-visible:outline-2 focus-visible:outline-white';
+
 /**
- * Cabecera del panel, en tres zonas:
- *   izquierda — quién eres
- *   centro    — EN QUÉ ORGANIZACIÓN estás trabajando (lo más importante para
- *               el superadmin: si no lo tiene presente, puede editar el
- *               congreso del cliente equivocado)
- *   derecha   — tema y cerrar sesión
+ * Barra superior del panel (8.7.h: "Violeta vivo").
  *
- * Aquí vive el ModeToggle (antes era un botón flotante provisional del 8.0).
+ *   izquierda — ☰ (solo celular) y EN QUÉ ORGANIZACIÓN estás trabajando: el
+ *               superadmin la elige aquí; el organizador ve la suya.
+ *   derecha   — tu rol (chip coral), tema y cerrar sesión.
+ *
+ * Igual que el menú lateral, va siempre en violeta de marca.
  */
-export function Cabecera() {
-  const { claims, esSuperadmin, cerrarSesion } = usePanel();
+export function Cabecera({ alAbrirMenu }: { alAbrirMenu: () => void }) {
+  const { claims, esSuperadmin, perfil, cerrarSesion } = usePanel();
   const [confirmando, setConfirmando] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const oscuro = resolvedTheme === 'dark';
+  const rol = NOMBRE_ROL[claims?.rol ?? ''] ?? claims?.rol;
 
   return (
     <>
-      <header className="grid h-16 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border bg-background px-4 md:px-6">
-        {/* izquierda */}
-        <div className="min-w-0">
-          <p className="truncate text-sm text-muted-foreground">
-            {claims?.email}
-            {claims?.rol && (
-              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
-                {esSuperadmin ? 'superadmin' : claims.rol}
-              </span>
-            )}
-          </p>
-        </div>
+      <header className="fondo-marca-barra flex h-[68px] shrink-0 items-center gap-3 px-4 text-white md:px-8">
+        <button type="button" onClick={alAbrirMenu} aria-label="Abrir menú" className={`${BOTON} md:hidden`}>
+          <Menu className="h-5 w-5" />
+        </button>
 
-        {/* centro — solo aparece para el superadmin */}
-        <div className="justify-self-center">
+        {esSuperadmin ? (
           <SelectorOrganizacion />
-        </div>
+        ) : (
+          perfil?.organizacion?.nombre && (
+            <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.12] px-3.5 py-1.5">
+              <Building2 className="h-[18px] w-[18px] shrink-0" />
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-white/75">Organización</span>
+                <span className="block max-w-[18rem] truncate text-sm font-bold">{perfil.organizacion.nombre}</span>
+              </span>
+            </div>
+          )
+        )}
 
-        {/* derecha */}
-        <div className="flex items-center justify-end gap-2">
-          <ModeToggle />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Cerrar sesión"
-            onClick={() => setConfirmando(true)}
+        <div className="ml-auto flex items-center gap-2">
+          {rol && (
+            <span className="hidden rounded-full bg-coral px-3 py-1.5 text-xs font-bold text-coral-foreground sm:inline">
+              {rol}
+            </span>
+          )}
+          <button
+            type="button"
+            className={BOTON}
+            // Texto fijo a propósito: el servidor no sabe el tema (vive en el
+            // navegador) y un texto que cambia con él rompe la hidratación.
+            aria-label="Cambiar entre modo claro y oscuro"
+            onClick={() => setTheme(oscuro ? 'light' : 'dark')}
           >
-            <LogOut />
-          </Button>
+            <Sun className="hidden h-[18px] w-[18px] dark:block" />
+            <Moon className="block h-[18px] w-[18px] dark:hidden" />
+          </button>
+          <button type="button" className={BOTON} aria-label="Cerrar sesión" onClick={() => setConfirmando(true)}>
+            <LogOut className="h-[18px] w-[18px]" />
+          </button>
         </div>
       </header>
 

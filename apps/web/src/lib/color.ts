@@ -95,3 +95,23 @@ export const PALETA_SECUNDARIO = [
   { nombre: 'Lavanda', hex: '#A78BFA' },
   { nombre: 'Rojo vivo', hex: '#EF4444' },
 ];
+
+// 8.7.g: copiadas de la app (apps/mobile/src/lib/color.ts) para la vista
+// previa en modo oscuro.
+export function aclarar(hex: string, cantidad: number): string {
+  return '#' + aRgb(hex).map((v) => Math.round(v + (255 - v) * cantidad).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Un color de TEXTO que se lea sobre el fondo dado, partiendo del color de
+ * marca: lo va aclarando (fondo oscuro) u oscureciendo (fondo claro) de a 10 %
+ * hasta llegar a 4.5:1. Igual que en la app.
+ */
+export function legibleSobre(color: string, fondo: string): string {
+  const haciaClaro = luminancia(fondo) < 0.5;
+  let c = color;
+  for (let i = 1; i <= 9 && contraste(c, fondo) < 4.5; i++) {
+    c = haciaClaro ? aclarar(color, i / 10) : oscurecer(color, i / 10);
+  }
+  return c;
+}

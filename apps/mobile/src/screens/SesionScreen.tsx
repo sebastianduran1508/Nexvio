@@ -14,16 +14,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Socket } from 'socket.io-client';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
 import { crearSocket } from '../lib/socket';
 import type { EncuestaResultado, Pregunta } from '../lib/tipos';
-import type { CongresosStackParamList } from '../navigation/CongresosStack';
+import BotonFavorito from '../components/BotonFavorito';
+import Patrocinio from '../components/Patrocinio';
+import type { SponsorCharla } from '../lib/tipos';
 import { Avatar, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
 import { F, useTema } from '../tema/tema';
 import { useMarca } from '../context/MarcaContext';
 
-type Props = NativeStackScreenProps<CongresosStackParamList, 'Sesion'>;
+// 8.7.e: la misma pantalla vive en dos pestañas (Congreso y Mi agenda), así
+// que sus props se describen por lo que USA, no por una pila en particular.
+type Props = {
+  route: { params: { sesionId: string; titulo: string; sponsors?: SponsorCharla[] } };
+  navigation: { goBack: () => void };
+};
 
 /**
  * Pantalla de una sesion: el asistente manda preguntas y vota la encuesta activa.
@@ -35,7 +41,7 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Sesion'>;
  * tarjetas, y la caja para escribir la pregunta fija abajo con botón redondo.
  */
 export default function SesionScreen({ route, navigation }: Props) {
-  const { sesionId, titulo } = route.params;
+  const { sesionId, titulo, sponsors } = route.params;
   const t = useTema();
   const marca = useMarca(); // colores del congreso (8.5)
   const insets = useSafeAreaInsets();
@@ -125,9 +131,12 @@ export default function SesionScreen({ route, navigation }: Props) {
         onAtras={() => navigation.goBack()}
         colores={marca.degradado}
         logo={marca.logo}
+        derecha={<BotonFavorito sesionId={sesionId} tono="claro" tamano={26} />}
       />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, paddingBottom: 24 }}>
+        {/* 8.7.f: "Esta charla es posible gracias a…" */}
+        {sponsors?.length ? <Patrocinio sponsors={sponsors} variante="franja" /> : null}
         {/* ---------- ENCUESTA EN VIVO ---------- */}
         <TituloSeccion texto="Encuesta en vivo" />
         {encuestas.length === 0 ? (

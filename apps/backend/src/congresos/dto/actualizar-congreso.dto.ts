@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -59,4 +60,10 @@ export class ActualizarCongresoDto {
   @IsOptional()
   @IsTimeZone()
   zona_horaria?: string;
+
+  // 8.7.h: si cambia la fecha de inicio, ¿se corren TODAS las sesiones los
+  // mismos días? (el congreso "se mueve" del 20 al 23 con su agenda intacta).
+  @IsOptional()
+  @IsBoolean()
+  correr_sesiones?: boolean;
 }

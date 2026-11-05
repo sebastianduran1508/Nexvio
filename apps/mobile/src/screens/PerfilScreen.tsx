@@ -14,6 +14,7 @@ import { elegirFoto } from '../lib/foto';
 import type { Perfil } from '../lib/tipos';
 import { Avatar, Boton, Tarjeta, TituloSeccion } from '../components/ui';
 import { DEGRADADO, F, useTema } from '../tema/tema';
+import { useApariencia } from '../tema/TemaProvider';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
 type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
@@ -26,7 +27,7 @@ type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
  * vive aquí. Se irá llenando:
  *  - 8.7.c ✅: foto (tocar el avatar: cámara, galería o quitar) y "Mis datos".
  *  - 8.7.d ✅: "¿Cómo me ven?" y el interruptor "Aparecer en networking".
- *  - 8.7.g: Apariencia (claro / oscuro).
+ *  - 8.7.g ✅: Apariencia (como el congreso / teléfono / claro / oscuro).
  */
 export default function PerfilScreen({ navigation }: Props) {
   const { yo, signOut } = useAuth();
@@ -35,6 +36,8 @@ export default function PerfilScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const nombre = [yo?.nombre, yo?.apellidos].filter(Boolean).join(' ');
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const { preferencia, modo } = useApariencia();
+  const textoApariencia = preferencia === 'oscuro' ? 'Oscuro' : preferencia === 'claro' ? 'Claro' : 'Por defecto';
 
   // 8.7.c: el perfil (para la foto y el resumen de "Mis datos"). Se recarga al
   // volver a la pantalla, por si se editó en "Mis datos".
@@ -207,6 +210,17 @@ export default function PerfilScreen({ navigation }: Props) {
                 : 'Política de datos personales'
             }
             onPress={() => navigation.navigate('PoliticaDatos')}
+          />
+        </Tarjeta>
+
+        {/* ---------- Ajustes (8.7.g) ---------- */}
+        <TituloSeccion texto="Ajustes" />
+        <Tarjeta style={est.grupo}>
+          <Fila
+            icono={modo === 'oscuro' ? 'moon' : 'sunny'}
+            titulo="Apariencia"
+            subtitulo={textoApariencia}
+            onPress={() => navigation.navigate('Apariencia')}
           />
         </Tarjeta>
 

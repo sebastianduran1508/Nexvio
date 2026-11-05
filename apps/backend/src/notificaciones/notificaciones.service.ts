@@ -37,7 +37,8 @@ export class NotificacionesService {
       if (!congreso) throw new NotFoundException('Congreso no encontrado');
 
       const destino = dto.destino ?? 'todos';
-      if (destino === 'sesion') {
+      const conSesion = destino === 'sesion' || destino === 'favoritos';
+      if (conSesion) {
         if (!dto.sesion_id) throw new BadRequestException('Elige la sesión del aviso');
         const sesion = await tx.sesion.findFirst({ where: { id: dto.sesion_id, congreso_id: congresoId } });
         if (!sesion) throw new BadRequestException('La sesión no es de este congreso');
@@ -59,7 +60,7 @@ export class NotificacionesService {
           titulo: dto.titulo.trim(),
           cuerpo: dto.cuerpo.trim(),
           destino,
-          sesion_id: destino === 'sesion' ? dto.sesion_id : null,
+          sesion_id: conSesion ? dto.sesion_id : null,
           creado_por_id: usuarioId,
           estado: programada ? 'programada' : 'enviando',
           programada_para: programada,
@@ -89,7 +90,14 @@ export class NotificacionesService {
       if (!notificacion) throw new NotFoundException('Notificación no encontrada');
 
       const inscritos = await tx.inscripcion.findMany({
-        where: { congreso_id: notificacion.congreso_id, estado: 'confirmada' },
+        where: {
+          congreso_id: notificacion.congreso_id,
+          estado: 'confirmada',
+          // 8.7.e: "favoritos" -> solo quienes marcaron esa charla con ⭐.
+          ...(notificacion.destino === 'favoritos' && notificacion.sesion_id
+            ? { usuario: { sesiones_favoritas: { some: { sesion_id: notificacion.sesion_id } } } }
+            : {}),
+        },
         select: { usuario_id: true },
       });
       const dispositivos = await tx.dispositivoPush.findMany({
@@ -171,12 +179,23 @@ export class NotificacionesService {
    * Incluye los "fallida": la push no llegó a ningún teléfono, pero el aviso es
    * válido y justamente por eso tiene que poder leerse aquí.
    */
-  async avisos(orgId: string, congresoId: string) {
+  async avisos(orgId: string, congresoId: string, usuarioId?: string, rol?: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const congreso = await tx.congreso.findFirst({ where: { id: congresoId } });
       if (!congreso) throw new NotFoundException('Congreso no encontrado');
+      // 8.7.e: a un asistente, los avisos "favoritos" solo le salen si marcó
+      // esa charla (si no, no le llegó la push y tampoco debe verlo aquí).
+      const soloLosMios =
+        rol === 'participante' && usuarioId
+          ? {
+              OR: [
+                { destino: { not: 'favoritos' } },
+                { sesion: { favoritas: { some: { usuario_id: usuarioId } } } },
+              ],
+            }
+          : {};
       return tx.notificacion.findMany({
-        where: { congreso_id: congresoId, estado: { in: ['enviada', 'fallida'] } },
+        where: { congreso_id: congresoId, estado: { in: ['enviada', 'fallida'] }, ...soloLosMios },
         orderBy: { enviado_en: 'desc' },
         take: 100,
         select: {

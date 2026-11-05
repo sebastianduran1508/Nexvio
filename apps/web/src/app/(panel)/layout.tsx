@@ -1,8 +1,10 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import { PanelProvider, usePanel } from '@/components/panel/panel-contexto';
 import { BarraLateral } from '@/components/panel/barra-lateral';
 import { Cabecera } from '@/components/panel/cabecera';
+import { EsqueletoPagina } from '@/components/panel/encabezado-pagina';
 
 /**
  * Layout del PANEL (menú lateral + cabecera).
@@ -27,18 +29,17 @@ export default function PanelLayout({
 /** Se separa del layout porque usePanel() solo funciona DENTRO del provider. */
 function Marco({ children }: { children: React.ReactNode }) {
   const { cargando } = usePanel();
+  // 8.7.h: en el celular el menú lateral es un cajón que abre el ☰.
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const cerrarMenu = useCallback(() => setMenuAbierto(false), []);
 
   return (
     <div className="flex h-screen bg-background">
-      <BarraLateral />
+      <BarraLateral abierto={menuAbierto} alCerrar={cerrarMenu} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Cabecera />
+        <Cabecera alAbrirMenu={() => setMenuAbierto(true)} />
         <main className="flex-1 overflow-y-auto">
-          {cargando ? (
-            <p className="p-8 text-muted-foreground">Cargando…</p>
-          ) : (
-            children
-          )}
+          {cargando ? <EsqueletoPagina /> : children}
         </main>
       </div>
     </div>

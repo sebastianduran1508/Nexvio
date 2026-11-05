@@ -7,6 +7,7 @@ import { usePanel } from '@/components/panel/panel-contexto';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 /**
  * Organizaciones (clientes de Nexvio) — pantalla del superadmin.
@@ -24,10 +25,11 @@ export default function OrganizacionesPage() {
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-6 md:p-8">
+    <div className="contenido-panel">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+          <h1 className="titulo-pagina">
+        <ChipTitulo Icono={Building2} />
             Organizaciones
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -49,13 +51,13 @@ export default function OrganizacionesPage() {
         />
       )}
 
-      <ul className="space-y-3">
+      <ul className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         {organizaciones.map((o) => {
           const activa = o.id === orgActual?.id;
           return (
             <li
               key={o.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10">

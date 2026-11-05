@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import {
   CalendarDays,
   Globe2,
@@ -13,8 +14,9 @@ import {
   Bell,
   HelpCircle,
   ShieldCheck,
+  X,
 } from 'lucide-react';
-import { Logo } from '@/components/logo';
+import { NexvioMark } from '@/components/logo';
 import { usePanel } from './panel-contexto';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +24,6 @@ type Entrada = {
   href: string;
   texto: string;
   Icono: React.ComponentType<{ className?: string }>;
-  /** Si está, la entrada aún no se ha construido (bloques 8.3–8.6). */
-  proximamente?: boolean;
 };
 
 /** Secciones que viven dentro de un congreso y la entrada del menú que les toca. */
@@ -61,57 +61,95 @@ const MENU_CONGRESO: Entrada[] = [
   { href: '/ayuda', texto: 'Ayuda', Icono: HelpCircle },
 ];
 
-/**
- * Menú lateral del panel. Es el esqueleto sobre el que se irán colgando las
- * pantallas de los bloques 8.3 a 8.6: las entradas ya están puestas y marcadas
- * como "pronto" para que se vea hacia dónde va el panel.
- */
-export function BarraLateral() {
-  const ruta = usePathname();
-  const { esSuperadmin } = usePanel();
+const NOMBRE_ROL: Record<string, string> = {
+  admin: 'Superadmin',
+  organizador: 'Organizador',
+  coordinador: 'Coordinador',
+};
 
-  // Cuál entrada se pinta como activa.
-  //
-  // El problema que resuelve: estando en /superadmin/organizaciones, la entrada
-  // "Panorama" (/superadmin) TAMBIÉN encaja, porque una es prefijo de la otra,
-  // y se veían las dos resaltadas. La regla correcta es quedarse con la
-  // coincidencia MÁS LARGA — la más específica —, y así funciona sola para
-  // cualquier ruta anidada que agreguemos en los bloques siguientes.
-  //
-  // Segundo detalle (8.4): Agenda, Speakers y Asistentes viven DENTRO de un
-  // congreso (/congresos/:id/agenda...). Por su ruta encajarían en
-  // "Congresos", pero el admin llegó desde su propia entrada del menú, así
-  // que se traducen a esa entrada antes de comparar.
+/**
+ * Menú lateral del panel (8.7.h: rediseño "Violeta vivo").
+ *
+ * Va SIEMPRE en el degradado violeta de la marca, en claro y en oscuro: lo
+ * que cambia con el tema es solo el contenido. Cada opción va dentro de su
+ * cajita translúcida para que se lea bien sobre el violeta, y la activa es
+ * una pastilla blanca.
+ *
+ * En pantallas grandes está fija a la izquierda; en el celular se abre como
+ * cajón desde el botón ☰ de la barra superior (`abierto` / `alCerrar`).
+ */
+export function BarraLateral({ abierto, alCerrar }: { abierto: boolean; alCerrar: () => void }) {
+  const ruta = usePathname();
+  const { esSuperadmin, claims, perfil } = usePanel();
+
+  // Al navegar (en el celular), el cajón se cierra solo.
+  useEffect(() => {
+    alCerrar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruta]);
+
+  // Cuál entrada se pinta como activa: la coincidencia MÁS LARGA (la más
+  // específica), traduciendo antes las secciones que viven dentro de un
+  // congreso (/congresos/:id/agenda -> /agenda).
   const rutaMenu = seccionDelMenu(ruta);
   const activaHref = [...MENU_SUPERADMIN, ...MENU_CONGRESO]
-    .filter((e) => !e.proximamente)
     .map((e) => e.href)
     .filter((href) => rutaMenu === href || rutaMenu.startsWith(href + '/'))
     .sort((a, b) => b.length - a.length)[0];
 
-  return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card md:flex">
-      <div className="flex h-16 items-center border-b border-border px-5">
-        <Link href="/congresos" aria-label="Nexvio">
-          <Logo />
+  const nombre = perfil ? [perfil.nombre, perfil.apellidos].filter(Boolean).join(' ') : claims?.email ?? '';
+  const iniciales = (perfil ? `${perfil.nombre?.[0] ?? ''}${perfil.apellidos?.[0] ?? ''}` : claims?.email?.[0] ?? '?').toUpperCase();
+  const rol = NOMBRE_ROL[claims?.rol ?? ''] ?? claims?.rol ?? '';
+
+  const contenido = (
+    <div className="fondo-marca-lateral flex h-full w-64 flex-col gap-5 px-3.5 py-5 text-white">
+      <div className="flex items-center justify-between px-2">
+        <Link href={esSuperadmin ? '/superadmin' : '/congresos'} aria-label="Nexvio, inicio" className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-[0_6px_18px_rgba(20,8,80,0.35)]">
+            <NexvioMark className="h-7 w-7" />
+          </span>
+          <span className="font-heading text-[22px] font-bold tracking-tight">Nexvio</span>
         </Link>
+        <button
+          type="button"
+          onClick={alCerrar}
+          aria-label="Cerrar menú"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 md:hidden"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {esSuperadmin && (
-          <Seccion
-            titulo="Superadmin"
-            entradas={MENU_SUPERADMIN}
-            activaHref={activaHref}
-          />
-        )}
-        <Seccion
-          titulo="Congreso"
-          entradas={MENU_CONGRESO}
-          activaHref={activaHref}
-        />
+      <nav aria-label="Menú principal" className="-mx-1 flex-1 space-y-5 overflow-y-auto px-1">
+        {esSuperadmin && <Seccion titulo="Superadmin" entradas={MENU_SUPERADMIN} activaHref={activaHref} />}
+        <Seccion titulo="Congreso" entradas={MENU_CONGRESO} activaHref={activaHref} />
       </nav>
-    </aside>
+
+      <div className="flex items-center gap-2.5 rounded-2xl border border-white/15 bg-white/10 p-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#ff7a59,#ffb199)] font-heading text-[13px] font-bold text-[#3a1206]">
+          {iniciales}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-semibold">{nombre}</span>
+          <span className="block text-[11.5px] text-white/75">{rol}</span>
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Escritorio: fija */}
+      <aside className="hidden shrink-0 md:flex">{contenido}</aside>
+
+      {/* Celular: cajón */}
+      {abierto && (
+        <div className="fixed inset-0 z-[80] flex md:hidden" role="dialog" aria-modal="true" aria-label="Menú">
+          <div className="h-full shadow-2xl">{contenido}</div>
+          <button type="button" aria-label="Cerrar menú" className="flex-1 bg-black/45" onClick={alCerrar} />
+        </div>
+      )}
+    </>
   );
 }
 
@@ -125,40 +163,24 @@ function Seccion({
   activaHref?: string;
 }) {
   return (
-    <div className="mb-5">
-      <p className="px-2 pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {titulo}
-      </p>
-      <ul className="space-y-0.5">
-        {entradas.map(({ href, texto, Icono, proximamente }) => {
+    <div>
+      <p className="px-2.5 pb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-white/65">{titulo}</p>
+      <ul className="space-y-1.5">
+        {entradas.map(({ href, texto, Icono }) => {
           const activa = href === activaHref;
-
-          if (proximamente) {
-            return (
-              <li key={href}>
-                <span className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground/60">
-                  <Icono className="h-4 w-4" />
-                  <span className="flex-1">{texto}</span>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                    pronto
-                  </span>
-                </span>
-              </li>
-            );
-          }
-
           return (
             <li key={href}>
               <Link
                 href={href}
+                aria-current={activa ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors',
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
                   activa
-                    ? 'bg-primary/10 font-medium text-primary'
-                    : 'text-card-foreground hover:bg-muted',
+                    ? 'bg-white font-bold text-[#4a35d6] shadow-[0_8px_20px_rgba(20,8,80,0.28)]'
+                    : 'border border-white/[0.08] bg-white/[0.07] font-medium text-white/90 hover:bg-white/[0.16] hover:text-white',
                 )}
               >
-                <Icono className="h-4 w-4" />
+                <Icono className="h-[18px] w-[18px]" />
                 {texto}
               </Link>
             </li>

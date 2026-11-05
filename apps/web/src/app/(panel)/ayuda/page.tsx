@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { DialogoConfirmar } from '@/components/panel/dialogo-confirmar';
 import { usePanel } from '@/components/panel/panel-contexto';
 import { cn } from '@/lib/utils';
+import { ChipTitulo } from '@/components/panel/encabezado-pagina';
 
 type Articulo = {
   id: string;
@@ -119,11 +120,11 @@ export default function AyudaPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl p-6 md:p-8">
+    <div className="contenido-panel">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-            <HelpCircle className="h-6 w-6 text-primary" /> Ayuda
+          <h1 className="titulo-pagina">
+          <ChipTitulo Icono={HelpCircle} /> Ayuda
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Cómo usar el panel de Nexvio, paso a paso.
@@ -290,9 +291,10 @@ function Editor({
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl p-6 md:p-8">
+    <div className="contenido-panel">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
+        <h1 className="titulo-pagina">
+        <ChipTitulo Icono={HelpCircle} />
           {articulo ? 'Editar artículo' : 'Nuevo artículo'}
         </h1>
         <div className="flex flex-wrap items-center gap-2">

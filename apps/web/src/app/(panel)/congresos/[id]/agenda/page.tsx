@@ -4,9 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft,
+  CalendarDays,
   Clock,
+  Handshake,
   Coffee,
+  MapPin,
+  Star,
   Globe2,
   MessageSquare,
   Pencil,
@@ -24,6 +27,7 @@ import { MenuAcciones } from '@/components/panel/menu-acciones';
 import { PanelLateral } from '@/components/panel/panel-lateral';
 import { AvatarPonente } from '@/components/panel/avatar-ponente';
 import { cn } from '@/lib/utils';
+import { EncabezadoPagina, EsqueletoPagina } from '@/components/panel/encabezado-pagina';
 import {
   diaEnZona,
   diasDelCongreso,
@@ -43,7 +47,10 @@ type Sesion = {
   tipo: string;
   descripcion: string | null;
   ponentes: { ponente: Ponente }[];
+  _count?: { favoritas: number }; // 8.7.e: cuántos la tienen en "Mi agenda"
+  sponsors?: { sponsor: SponsorCorto }[]; // 8.7.f: "Patrocinada por…" (en su orden)
 };
+type SponsorCorto = { id: string; nombre: string; logo_url: string | null; nivel?: string };
 type Congreso = {
   id: string;
   nombre: string;
@@ -52,6 +59,7 @@ type Congreso = {
   zona_horaria: string;
   sesiones: Sesion[];
   ponentes: Ponente[];
+  sponsors: SponsorCorto[]; // 8.7.f: para elegir quién patrocina una charla
 };
 
 /** "09:30" -> 570 minutos. Sirve para comparar y restar horas del mismo día. */
@@ -153,7 +161,7 @@ export default function AgendaCongresoPage() {
   }
 
   if (!congreso) {
-    return error ? <p className="p-8 text-destructive">{error}</p> : <p className="p-8 text-muted-foreground">Cargando…</p>;
+    return error ? <p className="p-8 text-destructive">{error}</p> : <EsqueletoPagina />;
   }
 
   const hoy = diaEnZona(new Date().toISOString(), zona);
@@ -161,30 +169,32 @@ export default function AgendaCongresoPage() {
   const sesionesDelDia = porDia.get(diaActivo) ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-6 md:p-8">
-      <Link
-        href={`/congresos/${congresoId}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Volver al congreso
-      </Link>
-
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-semibold text-foreground">
-            Agenda
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {congreso.nombre} · {congreso.sesiones.length} bloque{congreso.sesiones.length === 1 ? '' : 's'}
-          </p>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Globe2 className="h-3.5 w-3.5" /> Horas del evento: {etiquetaZona(zona)}
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setEnFormulario({ dia: diaActivo })}>
-          <Plus /> Nueva sesión
-        </Button>
-      </header>
+    <div className="contenido-panel">
+      <EncabezadoPagina
+        Icono={CalendarDays}
+        tono="coral"
+        migas={[
+          { texto: 'Congresos', href: '/congresos' },
+          { texto: congreso.nombre, href: `/congresos/${congresoId}` },
+          { texto: 'Agenda' },
+        ]}
+        titulo="Agenda"
+        subtitulo={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>
+              {congreso.sesiones.length} bloque{congreso.sesiones.length === 1 ? '' : 's'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Globe2 className="h-3.5 w-3.5" /> Horas del evento: {etiquetaZona(zona)}
+            </span>
+          </span>
+        }
+        acciones={
+          <Button className="h-10 rounded-xl px-4 font-bold shadow-[0_8px_20px_rgba(90,70,240,0.3)]" onClick={() => setEnFormulario({ dia: diaActivo })}>
+            <Plus /> Nueva sesión
+          </Button>
+        }
+      />
 
       {error && (
         <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
@@ -192,7 +202,7 @@ export default function AgendaCongresoPage() {
 
       {/* ---------- Pestañas de días ---------- */}
       {dias.length > 1 && (
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div role="tablist" aria-label="Días del congreso" className="mb-6 flex flex-wrap gap-2.5">
           {dias.map((k) => {
             const activo = k === diaActivo;
             const { semana, dia } = etiquetaDia(k);
@@ -201,11 +211,13 @@ export default function AgendaCongresoPage() {
               <button
                 key={k}
                 type="button"
+                role="tab"
+                aria-selected={activo}
                 onClick={() => setDiaElegido(k)}
                 className={cn(
-                  'rounded-xl border px-4 py-2 text-left transition-colors',
+                  'rounded-2xl border px-4 py-2.5 text-left transition-colors',
                   activo
-                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    ? 'border-transparent bg-[linear-gradient(135deg,#4a35d6,#6d3fe6)] text-white shadow-[0_8px_20px_rgba(74,53,214,0.3)]'
                     : 'border-border bg-card text-foreground hover:border-primary/40',
                 )}
               >
@@ -224,17 +236,23 @@ export default function AgendaCongresoPage() {
 
       {/* ---------- Sesiones del día ---------- */}
       {sesionesDelDia.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-10 text-center">
-          <Clock className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-muted-foreground">Este día todavía no tiene sesiones.</p>
+        <div className="rounded-[22px] border-2 border-dashed border-primary/20 bg-card/60 p-12 text-center">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Clock className="h-7 w-7" />
+          </span>
+          <p className="mt-3 font-semibold text-foreground">Este día todavía no tiene sesiones.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Agrega charlas, talleres o pausas para armar la agenda.</p>
           <Button size="sm" variant="outline" className="mt-4" onClick={() => setEnFormulario({ dia: diaActivo })}>
             <Plus /> Agregar la primera
           </Button>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {sesionesDelDia.map((s) => (
-            <li key={s.id}>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <ol className="space-y-3">
+          {sesionesDelDia.map((s, i) => (
+            <li key={s.id} className="flex gap-3 sm:gap-4">
+              <MarcaTiempo sesion={s} zona={zona} ultima={i === sesionesDelDia.length - 1} />
+              <div className="min-w-0 flex-1">
               <FilaSesion
                 sesion={s}
                 zona={zona}
@@ -250,9 +268,12 @@ export default function AgendaCongresoPage() {
                 alBorrar={() => setABorrar(s)}
                 alModerar={() => router.push(`/sesiones/${s.id}`)}
               />
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
+        <ResumenDia congreso={congreso} sesiones={sesionesDelDia} dia={diaActivo} zona={zona} />
+        </div>
       )}
 
       <PanelLateral
@@ -308,7 +329,7 @@ function FilaSesion({
   alBorrar: () => void;
   alModerar: () => void;
 }) {
-  const horario = `${horaEnZona(sesion.inicio, zona)} – ${horaEnZona(sesion.fin, zona)}${sesion.sala ? ` · ${sesion.sala}` : ''}`;
+  const horario = `${horaEnZona(sesion.inicio, zona)} – ${horaEnZona(sesion.fin, zona)}`;
   const esBreak = sesion.tipo === 'break';
   const vivo = enVivo(sesion.inicio, sesion.fin);
   const ponentes = sesion.ponentes.map((x) => x.ponente);
@@ -336,18 +357,52 @@ function FilaSesion({
   );
 
   if (esBreak) {
-    const Icono = /almuerzo/i.test(sesion.titulo) ? UtensilsCrossed : Coffee;
+    // 8.7.h: las pausas ya no son gris sobre blanco: café en ámbar, almuerzo
+    // en verde, con su ícono y borde punteado. Se distinguen de las charlas
+    // de un vistazo y no "se pierden".
+    const almuerzo = /almuerzo|comida|cena/i.test(sesion.titulo);
+    const Icono = almuerzo ? UtensilsCrossed : Coffee;
     return (
       <div
         onClick={alEditar}
-        className="flex cursor-pointer items-center gap-3 rounded-xl bg-muted px-4 py-3 text-muted-foreground transition-colors hover:bg-muted/70"
+        className={cn(
+          'flex cursor-pointer items-center gap-3.5 rounded-[18px] border-[1.5px] border-dashed px-4 py-3.5 transition-colors',
+          almuerzo
+            ? 'border-green-400 bg-green-50 hover:bg-green-100/70 dark:border-green-500/45 dark:bg-green-500/10 dark:hover:bg-green-500/15'
+            : 'border-amber-400 bg-amber-50 hover:bg-amber-100/70 dark:border-amber-500/45 dark:bg-amber-500/10 dark:hover:bg-amber-500/15',
+        )}
       >
-        <Icono className="h-4 w-4 shrink-0" />
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+            almuerzo
+              ? 'bg-green-200/80 text-green-900 dark:bg-green-500/20 dark:text-green-300'
+              : 'bg-amber-200/80 text-amber-900 dark:bg-amber-500/20 dark:text-amber-300',
+          )}
+        >
+          <Icono className="h-[18px] w-[18px]" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{sesion.titulo}</p>
-          <p className="text-xs">{horario}</p>
+          <p className={cn('text-[15px] font-bold', almuerzo ? 'text-green-900 dark:text-green-300' : 'text-amber-900 dark:text-amber-300')}>
+            {sesion.titulo}
+          </p>
+          <p className={cn('text-[13px]', almuerzo ? 'text-green-800 dark:text-green-200/80' : 'text-amber-800 dark:text-amber-200/80')}>
+            {horario} · {duracion(sesion.inicio, sesion.fin)}
+            {sesion.sala ? ` · ${sesion.sala}` : ''}
+          </p>
+          {(sesion.sponsors?.length ?? 0) > 0 && <ChipPatrocinio sponsors={sesion.sponsors!.map((x) => x.sponsor)} />}
           {avisoCruce}
         </div>
+        <span
+          className={cn(
+            'hidden rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide sm:inline',
+            almuerzo
+              ? 'bg-green-200/80 text-green-900 dark:bg-green-500/20 dark:text-green-300'
+              : 'bg-amber-200/80 text-amber-900 dark:bg-amber-500/20 dark:text-amber-300',
+          )}
+        >
+          {almuerzo ? 'ALMUERZO' : 'PAUSA'}
+        </span>
         {menu}
       </div>
     );
@@ -356,24 +411,46 @@ function FilaSesion({
   return (
     <div
       onClick={alEditar}
-      className="flex cursor-pointer overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:border-primary/40"
+      className="flex cursor-pointer overflow-hidden rounded-[18px] border border-border bg-card shadow-sm transition hover:border-primary/40"
     >
-      <span className={cn('w-1 shrink-0', vivo ? 'bg-coral' : 'bg-primary')} />
-      <div className="flex flex-1 items-start gap-3 p-4">
+      <span
+        className={cn(
+          'w-[5px] shrink-0',
+          vivo || sesion.tipo === 'plenaria'
+            ? 'bg-[linear-gradient(180deg,#ff7a59,#e8473a)]'
+            : sesion.tipo === 'taller'
+              ? 'bg-[linear-gradient(180deg,#22d3ee,#0891b2)]'
+              : 'bg-[linear-gradient(180deg,#6d5cff,#4a35d6)]',
+        )}
+      />
+      <div className="flex flex-1 items-start gap-3 px-[18px] py-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-primary">{horario}</span>
+            <span className="text-[13px] font-semibold text-primary dark:text-[#a99dff]">{horario}</span>
+            {sesion.sala && (
+              <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-semibold text-muted-foreground">
+                <MapPin className="h-3 w-3" /> {sesion.sala}
+              </span>
+            )}
             {vivo && (
               <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[11px] font-bold text-destructive">EN VIVO</span>
             )}
             {sesion.tipo === 'taller' && (
-              <span className="rounded-full bg-coral/15 px-2 py-0.5 text-[11px] font-bold text-coral">TALLER</span>
+              <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-bold text-cyan-900 dark:bg-cyan-500/15 dark:text-cyan-300">TALLER</span>
             )}
             {sesion.tipo === 'plenaria' && (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">PLENARIA</span>
+              <span className="rounded-full bg-coral/15 px-2 py-0.5 text-[11px] font-bold text-orange-800 dark:text-[#ffb199]">PLENARIA</span>
+            )}
+            {(sesion._count?.favoritas ?? 0) > 0 && (
+              <span
+                className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400"
+                title="Personas que tienen esta charla en «Mi agenda»"
+              >
+                <Star className="mr-0.5 inline h-3 w-3 -translate-y-px fill-current" /> {sesion._count!.favoritas}
+              </span>
             )}
           </div>
-          <p className="mt-1 font-semibold text-card-foreground">{sesion.titulo}</p>
+          <p className="mt-1.5 text-base font-bold text-card-foreground">{sesion.titulo}</p>
           {ponentes.length > 0 ? (
             <div className="mt-2 flex items-center gap-2">
               <div className="flex -space-x-2">
@@ -386,6 +463,7 @@ function FilaSesion({
           ) : (
             <p className="mt-2 text-xs font-medium text-coral">Sin ponente asignado</p>
           )}
+          {(sesion.sponsors?.length ?? 0) > 0 && <ChipPatrocinio sponsors={sesion.sponsors!.map((x) => x.sponsor)} />}
           {avisoCruce}
         </div>
         {menu}
@@ -427,6 +505,10 @@ function FormularioSesion({
     sala: sesion?.sala ?? '',
     descripcion: sesion?.descripcion ?? '',
   });
+  // 8.7.f: los sponsors elegidos, EN ORDEN (el primero que tocas sale primero en la app).
+  const [sponsorIds, setSponsorIds] = useState<string[]>(sesion?.sponsors?.map((x) => x.sponsor.id) ?? []);
+  const alternarSponsor = (id: string) =>
+    setSponsorIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const actuales = useMemo(() => sesion?.ponentes.map((x) => x.ponente.id) ?? [], [sesion]);
   const [elegidos, setElegidos] = useState<string[]>(actuales);
   const [guardando, setGuardando] = useState(false);
@@ -482,6 +564,7 @@ function FormularioSesion({
       fin: `${form.dia}T${form.horaFin}`,
       sala: vacioANull(form.sala),
       descripcion: vacioANull(form.descripcion),
+      sponsor_ids: sponsorIds, // 8.7.f: [] = sin patrocinio
     };
     const deseados = esBreak ? [] : elegidos;
 
@@ -638,6 +721,62 @@ function FormularioSesion({
         <Input id="sesion-sala" value={form.sala} onChange={(e) => set('sala', e.target.value)} placeholder="Auditorio principal" />
       </div>
 
+      {/* ---------- 8.7.f: Patrocinada por ---------- */}
+      <div className="space-y-1.5">
+        <Label htmlFor="sesion-sponsor">{esBreak ? 'Patrocinado por (opcional)' : 'Patrocinada por (opcional)'}</Label>
+        {congreso.sponsors.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Este congreso aún no tiene sponsors. Agrégalos en <b>Sponsors</b> y luego podrás asignarlos aquí.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {congreso.sponsors.map((sp) => {
+                const pos = sponsorIds.indexOf(sp.id);
+                const elegido = pos >= 0;
+                return (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => alternarSponsor(sp.id)}
+                    aria-pressed={elegido}
+                    className={cn(
+                      'flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors',
+                      elegido ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-border text-foreground hover:bg-muted',
+                    )}
+                  >
+                    {elegido ? (
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                        {pos + 1}
+                      </span>
+                    ) : sp.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={sp.logo_url} alt="" className="h-5 w-5 rounded bg-white object-contain" />
+                    ) : (
+                      <span className="h-5 w-5 rounded border border-dashed border-border" />
+                    )}
+                    {sp.nombre}
+                  </button>
+                );
+              })}
+              {sponsorIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSponsorIds([])}
+                  className="rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Quitar todos
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Elige uno o varios. El número es el orden en que se muestran en la app (con su logo; al tocarlos se abre su
+              página web).
+            </p>
+          </>
+        )}
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="sesion-descripcion">Descripción (opcional)</Label>
         <textarea
@@ -712,5 +851,158 @@ function FormularioSesion({
         </Button>
       </div>
     </form>
+  );
+}
+
+/** 8.7.f: "Patrocinada por [logo] Laboratorio Andino · [logo] Café de la Sierra" en la tarjeta. */
+function ChipPatrocinio({ sponsors }: { sponsors: SponsorCorto[] }) {
+  return (
+    <p className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-xl bg-coral/10 px-3 py-2 text-xs">
+      <span className="font-semibold text-orange-800 dark:text-[#ff9c80]">Patrocinada por</span>
+      {sponsors.map((sp, i) => (
+        <span key={sp.id} className="flex items-center gap-1">
+          {sp.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={sp.logo_url} alt="" className="h-4 w-4 rounded-sm bg-white object-contain" />
+          ) : null}
+          <span className="font-semibold text-foreground">{sp.nombre}</span>
+          {i < sponsors.length - 1 && <span className="text-muted-foreground">·</span>}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** "1 h 30 min" entre dos fechas ISO. */
+function duracion(inicio: string, fin: string): string {
+  const min = Math.round((new Date(fin).getTime() - new Date(inicio).getTime()) / 60000);
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h ? `${h} h` : ''}${h && m ? ' ' : ''}${m ? `${m} min` : ''}` || '0 min';
+}
+
+/** 8.7.h: la columna de la hora y el punto de la línea de tiempo. */
+function MarcaTiempo({ sesion, zona, ultima }: { sesion: Sesion; zona: string; ultima: boolean }) {
+  const esBreak = sesion.tipo === 'break';
+  const almuerzo = esBreak && /almuerzo|comida|cena/i.test(sesion.titulo);
+  const punto = esBreak
+    ? almuerzo
+      ? 'bg-green-500 ring-green-200 dark:ring-green-500/25'
+      : 'bg-amber-500 ring-amber-200 dark:ring-amber-500/25'
+    : sesion.tipo === 'plenaria'
+      ? 'bg-coral ring-orange-200 dark:ring-coral/25'
+      : 'bg-primary ring-primary/20';
+  return (
+    <>
+      <div className="hidden w-14 shrink-0 pt-3.5 text-right sm:block">
+        <p className="font-heading text-base font-bold text-foreground">{horaEnZona(sesion.inicio, zona)}</p>
+        <p className="text-xs text-muted-foreground">{horaEnZona(sesion.fin, zona)}</p>
+      </div>
+      <div className="hidden w-3 shrink-0 flex-col items-center sm:flex" aria-hidden="true">
+        <span className={cn('mt-[18px] h-3 w-3 rounded-full ring-4', punto)} />
+        {!ultima && <span className="-mb-3 mt-1.5 w-0.5 flex-1 bg-border" />}
+      </div>
+    </>
+  );
+}
+
+/** 8.7.h: columna derecha de la agenda — resumen del día, ⭐ y sponsors. */
+function ResumenDia({
+  congreso,
+  sesiones,
+  dia,
+  zona,
+}: {
+  congreso: Congreso;
+  sesiones: Sesion[];
+  dia: string;
+  zona: string;
+}) {
+  const charlas = sesiones.filter((s) => s.tipo !== 'break');
+  const pausas = sesiones.length - charlas.length;
+  const salas = new Set(charlas.map((s) => s.sala).filter(Boolean)).size;
+  const desde = horaEnZona(sesiones[0].inicio, zona);
+  const hasta = sesiones.map((s) => horaEnZona(s.fin, zona)).sort().at(-1);
+  const { semana, dia: diaTexto } = etiquetaDia(dia);
+
+  const marcadas = congreso.sesiones
+    .filter((s) => (s._count?.favoritas ?? 0) > 0)
+    .sort((a, b) => (b._count?.favoritas ?? 0) - (a._count?.favoritas ?? 0))
+    .slice(0, 5);
+
+  const sponsors = new Map<string, SponsorCorto>();
+  for (const s of congreso.sesiones) for (const x of s.sponsors ?? []) sponsors.set(x.sponsor.id, x.sponsor);
+
+  return (
+    <aside className="space-y-4 lg:sticky lg:top-6">
+      <div className="rounded-[20px] bg-[radial-gradient(80%_90%_at_100%_0%,rgba(255,122,89,0.6)_0%,rgba(255,122,89,0)_60%),linear-gradient(135deg,#3b26b5,#5a46f0)] p-5 text-white shadow-[0_12px_28px_rgba(46,26,140,0.28)]">
+        <p className="text-xs font-bold tracking-[0.1em] text-white/80 uppercase">
+          {semana} {diaTexto}
+        </p>
+        <p className="mt-1.5 mb-3.5 font-heading text-[22px] font-bold">
+          {desde} – {hasta}
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            [charlas.length, charlas.length === 1 ? 'sesión' : 'sesiones'],
+            [pausas, pausas === 1 ? 'pausa' : 'pausas'],
+            [salas, salas === 1 ? 'sala' : 'salas'],
+          ].map(([n, t]) => (
+            <div key={t as string} className="rounded-xl bg-white/15 p-2.5">
+              <p className="font-heading text-xl font-bold">{n}</p>
+              <p className="text-[11.5px] text-white/85">{t}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-[20px] border border-border bg-card p-[18px] shadow-sm">
+        <h2 className="mb-3 flex items-center gap-2 text-[15px] font-bold text-card-foreground">
+          <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+            <Star className="h-3.5 w-3.5 fill-current" />
+          </span>
+          Las más marcadas
+        </h2>
+        {marcadas.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Cuando los asistentes marquen charlas con ⭐ en la app, aparecen aquí.</p>
+        ) : (
+          <ol className="space-y-2.5">
+            {marcadas.map((s, i) => (
+              <li key={s.id} className="flex items-center gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary dark:text-[#a99dff]">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-card-foreground" title={s.titulo}>
+                  {s.titulo}
+                </span>
+                <span className="text-[13px] font-bold text-amber-700 dark:text-amber-400">{s._count!.favoritas}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+
+      {sponsors.size > 0 && (
+        <div className="rounded-[20px] border border-border bg-card p-[18px] shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-[15px] font-bold text-card-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-coral/15 text-orange-700 dark:text-[#ff9c80]">
+              <Handshake className="h-3.5 w-3.5" />
+            </span>
+            Sponsors en la agenda
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {[...sponsors.values()].map((sp) => (
+              <span key={sp.id} className="flex items-center gap-1.5 rounded-[10px] bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground">
+                {sp.logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={sp.logo_url} alt="" className="h-4 w-4 rounded-sm bg-white object-contain" />
+                )}
+                {sp.nombre}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </aside>
   );
 }

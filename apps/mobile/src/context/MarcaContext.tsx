@@ -16,6 +16,8 @@ export type DatosMarca = {
   color_secundario: string | null;
   logo_url: string | null;
   imagen_portada_url: string | null;
+  /** 8.7.g: el tema por defecto que eligió el organizador. */
+  tema_default?: 'sistema' | 'claro' | 'oscuro' | string | null;
 };
 
 type Ctx = { datos: DatosMarca | null; setDatos: (d: DatosMarca | null) => void };
@@ -69,4 +71,11 @@ export function useMarca() {
       portada: datos?.imagen_portada_url ?? null,
     };
   }, [datos, t]);
+}
+
+/** 8.7.g: el tema por defecto del congreso abierto (o null si no hay congreso). */
+export function useTemaCongreso(): 'sistema' | 'claro' | 'oscuro' | null {
+  const { datos } = useContext(MarcaCtx);
+  const t = datos?.tema_default;
+  return t === 'claro' || t === 'oscuro' || t === 'sistema' ? t : null;
 }

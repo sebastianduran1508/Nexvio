@@ -136,6 +136,7 @@ export class SponsorsService {
     const logo = await this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sponsor.findFirst({ where: { id } });
       if (!existe) throw new NotFoundException('Sponsor no encontrado');
+      await tx.sesionSponsor.deleteMany({ where: { sponsor_id: id } }); // 8.7.f: deja de patrocinar sus charlas
       await tx.sponsor.delete({ where: { id } });
       return existe.logo_url;
     });

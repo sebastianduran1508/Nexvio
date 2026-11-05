@@ -1,4 +1,4 @@
-import { IsOptional, Matches } from 'class-validator';
+import { IsIn, IsOptional, Matches } from 'class-validator';
 
 /** Un color en hexadecimal de 6 dígitos: "#5A46F0". */
 export const COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -13,8 +13,8 @@ export const COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
  * `null` = volver al color de Nexvio. @IsOptional deja pasar `null` sin
  * validarlo, así que el formato solo se revisa cuando llega un texto.
  *
- * El tema por defecto (claro/oscuro/sistema) existe en la tabla, pero se
- * decidió dejarlo para el 8.7 (ver HANDOFF): por eso no está en este DTO.
+ * 8.7.g: el TEMA POR DEFECTO del congreso en la app. "sistema" = el que
+ * tenga el teléfono. Cada asistente puede cambiarlo para sí en su Perfil.
  */
 export class GuardarPersonalizacionDto {
   @IsOptional()
@@ -24,4 +24,8 @@ export class GuardarPersonalizacionDto {
   @IsOptional()
   @Matches(COLOR_HEX, { message: 'color_secundario debe ser un color como #FF7A59' })
   color_secundario?: string | null;
+
+  @IsOptional()
+  @IsIn(['sistema', 'claro', 'oscuro'], { message: 'tema_default debe ser sistema, claro u oscuro' })
+  tema_default?: string;
 }

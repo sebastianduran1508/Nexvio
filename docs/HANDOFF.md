@@ -945,8 +945,8 @@ técnico en GUIA § 26.
 ## Pendientes arrastrados (consolidado, oct-2026)
 
 - [x] Ojito "ver contraseña" en el **login de la app** (feria).
-- [ ] Ojito en el **panel web** (login) y en todo formulario con clave, incluido
-  el cambio de contraseña al primer ingreso (8.7).
+- [x] Ojito en el **panel web** (login) y en todo formulario con clave, incluido
+  el cambio de contraseña al primer ingreso (8.7.a).
 - [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
   § 23.7). Se notó en la feria.
 - [x] Validaciones de negocio de la agenda (**8.4**).
@@ -955,21 +955,21 @@ técnico en GUIA § 26.
   ajustar textos como el de la zona horaria (idea, sin prisa).
 - [x] Elegir la `zona_horaria` al **crear** el congreso (8.4: el país la
   predefine con `datos/zonas.ts`).
-- [ ] Pantalla para **editar** un congreso existente (nombre, fechas, lugar,
-  zona horaria). Hoy solo se edita por API.
+- [x] Pantalla para **editar** un congreso existente (8.7.h, decisión 29:
+  incluye estado, fechas con "correr la agenda" y zona solo sin sesiones).
 - [ ] Que `e2e_onboarding_aislamiento.js` borre sus organizaciones al terminar.
 - [ ] Límite de intentos por IP en `/auth/resolver-usuario` (**Fase 9**).
-- [ ] Pantallas móviles de login por usuario y cambio de contraseña al primer
-  ingreso (**8.7**; el backend ya está listo).
+- [x] Pantallas móviles de login por usuario y cambio de contraseña al primer
+  ingreso (8.7.a).
 - [ ] `.gitattributes` para normalizar finales de línea.
 - [ ] Suite de Jest (`clearMocksOnScope`).
-- [ ] **Tema por defecto** del congreso (`tema_default`) en la app (**8.7**).
-- [ ] "Patrocinado por…" en una charla específica (idea para el **8.7**).
+- [x] **Tema por defecto** del congreso (`tema_default`) en la app (8.7.g).
+- [x] "Patrocinado por…" en una charla, con varios sponsors (8.7.f).
 - [ ] **Development build + prueba de push real** (EAS, `projectId`, Firebase
   FCM para Android). **Justo después del 8.7** (decisión 8.6).
 - [ ] Avisos atascados en "enviando" si el backend se cae a mitad del envío
   (raro; se podría marcar como fallida tras X minutos). Fase 9.
-- [ ] Avisos "a los inscritos en una charla": hoy un aviso sobre una charla
+- [x] (8.7.e: destino "⭐ Quienes la marcaron") Avisos "a los inscritos en una charla": hoy un aviso sobre una charla
   llega a todo el congreso (no existe "a qué charlas voy"). Si el 8.7 agrega
   "Mi agenda", se puede filtrar.
 - [ ] ⚖️ **Texto de la política de datos** (`src/legal/politica-datos.ts`): es un
@@ -987,9 +987,13 @@ técnico en GUIA § 26.
 - [—] ⚖️ **Menores de edad** (documento `TI`): **descartado por ahora**
   (decisión de Sebastián, 3-nov-2026: no es necesario de momento). Si algún
   cliente lo requiere, la Ley 1581 exige la autorización del representante legal.
-- [ ] ⚖️ **Revocar autorización / pedir supresión** desde la app (derecho del
-  art. 8). Encaja en el Perfil (**8.7.c**).
+- [x] ⚖️ **Revocar autorización / pedir supresión** desde la app (8.7.c).
 - [ ] ⚖️ Aceptación de la política para el **staff** en el panel web.
+- [ ] 🤝 **Reunión con el cliente** para mostrarle panel y app (pendiente de
+  fecha). Estar abiertos a TODOS los cambios que pida, de funcionamiento y de
+  apariencia; anotarlos aquí como decisiones antes de tocar código.
+- [ ] Recordatorio automático 10 min antes de las charlas con ⭐ (idea ofrecida
+  en el 8.7.e, sin respuesta todavía).
 - [ ] Actualizar ERD y C4 (`diagramas.html` y `NEXVIO_Vfinal.md`) al cerrar el
   Módulo 8.
 - [ ] Actualizar el estado del proyecto en la documentación de la tesis (lo hace
@@ -1108,16 +1112,196 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
     encender el principal se encienden los tres; la persona apaga los que no
     quiera. Un dato apagado no sale del servidor.
 
+### Diseño del 8.7.e — Mi agenda (4-nov)
+
+19. ⭐ en cada charla (agenda del congreso y pantalla de la charla) y pestaña
+    **📅 Mi agenda** (Congreso · Mi agenda · Networking · Perfil): lo urgente
+    arriba (AHORA / PRÓXIMA · en 25 min), por día, aviso si dos marcadas se
+    cruzan, las pasadas apagadas. Una sola memoria (MiAgendaContext) para que
+    la ⭐ cambie igual en todas partes. Los breaks no se marcan.
+    Panel: "⭐ 34" por charla (solo el número, nunca quiénes) y un tercer
+    destino de aviso: **"Quienes la marcaron"** (a un asistente solo le sale en
+    su bandeja si marcó esa charla). Tabla `sesion_favorita` con RLS; se suma a
+    los borrados de sesión, congreso y supresión (lección del 8.5).
+
+### Diseño del 8.7.f — Patrocinada por (4-nov)
+
+20. ~~Un sponsor por charla~~ → **ajuste (Sebastián, 4-nov): uno, dos o los
+    que quieran**, en el orden en que se eligen (tabla intermedia
+    `sesion_sponsor`, como `sesion_ponente`; la migración copió lo ya
+    asignado). Panel: selección múltiple con el número de orden. Además se
+    arregló el menú de "⋯" que la tarjeta de la agenda recortaba: ahora se
+    dibuja en un portal y se abre hacia arriba si no cabe.
+    Original: **Un sponsor (opcional) por charla**, también en breaks ("Café patrocinado
+    por…"). Solo sponsors de ESE congreso (400 si no). Si el sponsor se borra,
+    la charla queda sin patrocinio (FK `ON DELETE SET NULL`). Panel: selector
+    con logos en el formulario de la charla + "Patrocinada por" en la tarjeta.
+    App: línea con logo en la agenda y en Mi agenda; franja "Esta charla es
+    posible gracias a…" dentro de la charla (abre su web).
+
+### Diseño del 8.7.g — Apariencia (4-nov)
+
+21. **Panel → Apariencia:** el organizador elige el tema por defecto de su
+    congreso (según el teléfono / claro / oscuro); la vista previa del celular
+    se ve en claro u oscuro (y ya no muestra el viejo botón "Inscribirme").
+    **App → Perfil → Ajustes → Apariencia:** cada persona elige **Por
+    defecto** (lo del organizador) · **Claro** · **Oscuro** — ajuste de
+    Sebastián (5-nov): se quitaron "Según mi teléfono" y el texto "El
+    organizador eligió…"; la de la persona manda. Se guarda en el teléfono. Técnica: `TemaProvider` resuelve
+    el modo y lo publica en `TemaCtx`; `useTema()` lo lee, así que ninguna
+    pantalla tuvo que cambiar. El tema del congreso se recuerda en el teléfono
+    para no "parpadear" al abrir. Las fuentes de marca ya estaban desde la
+    feria (expo-font). Idea pendiente sin decidir: recordatorio automático 10
+    min antes de las charlas con ⭐.
+
+### Diseño del 8.7.h — Pulido visual del panel (5-nov)
+
+22. **Mockup primero:** se hicieron dos variantes (A "Violeta vivo" y B
+    "Noche Nexvio") de Panorama y Agenda, en claro y oscuro. **Sebastián
+    eligió la A**; la B queda guardada como idea para una landing o algo que
+    deba ser muy llamativo.
+23. **Marco del panel:** menú lateral y barra superior SIEMPRE en el
+    degradado violeta de marca con brillo coral (igual en claro y oscuro; solo
+    cambia el contenido). Opciones del menú en cajitas translúcidas; la activa
+    es una pastilla blanca. La barra muestra la organización (selector para el
+    superadmin; el nombre de la suya para el organizador, vía `GET /auth/yo`,
+    que ahora trae `organizacion.nombre`), el rol en un chip coral, tema y
+    salir. En el celular el menú es un cajón que abre el ☰.
+24. **Colores del contenido:** el claro deja el gris → fondo lavanda
+    `#F4F2FF`, tarjetas blancas con borde `#E4DFFB`, texto secundario más
+    oscuro `#55506E` (contraste AA) y sombra violeta tenue (se cambió
+    `--shadow-sm`, así todas las tarjetas la toman sin tocar cada pantalla).
+    Oscuro: `#0D0B18` / tarjetas `#17152A`.
+25. **Espacio:** las pantallas usan `contenido-panel` (hasta 1600 px) en vez
+    de `max-w-4xl/5xl`; listas en cuadrícula (congresos, speakers, sponsors,
+    organizaciones, usuarios). Encabezado común con chip de ícono
+    (`EncabezadoPagina` / `ChipTitulo`) y esqueleto de carga.
+26. **Congresos y Panorama:** tarjetas con portada en degradado (los colores
+    del congreso si los tiene), logo, estado, fechas, conteos y "Entrar".
+    `GET /congresos` ahora incluye `personalizacion` (logo y colores) y
+    `_count` (sesiones e inscritos confirmados). Panorama: 4 indicadores
+    (en curso/próximo, congresos, inscritos, organizaciones), buscador y
+    filtros; "Entrar" lleva directo a ese congreso.
+27. **Agenda:** línea de tiempo con la hora a la izquierda; pausas de café en
+    ámbar y almuerzo en verde (ícono + borde punteado), plenaria con franja
+    coral, taller cian, charla violeta; "Patrocinada por" en franja coral; a
+    la derecha el resumen del día, las más marcadas con ⭐ y los sponsors.
+
+28. **Ajustes tras la primera prueba (5-nov):**
+    - **Inicio del congreso** (`/congresos/:id`) ahora es su "portada": banner
+      (imagen de Apariencia o sus colores) con velo oscuro, logo grande,
+      datos, 6 accesos de colores (Agenda, Speakers, Sponsors, Asistentes,
+      Notificaciones, Apariencia) con sus números, **Próximas sesiones** (un
+      adelanto que enlaza a la agenda; ya NO hay dos agendas distintas) y
+      ponentes + sponsors. `GET /congresos/:id` trae `_count.inscripciones`.
+    - **Moderación en vivo** a todo el ancho: encabezado con la marca del
+      congreso y la charla (hora, sala, ponentes, ⭐, sponsors, EN VIVO),
+      indicador "Sincronizado en vivo", 4 indicadores, filtros de preguntas
+      con conteo, tarjetas con foto/nombre/"hace X min", encuestas con la
+      opción que va ganando resaltada. Nuevo `GET /sesiones/:id` (solo
+      staff). Las preguntas traen apellidos y foto **solo para el staff**
+      (al asistente le sigue llegando solo el nombre — minimización).
+    - **Selector de congreso** (Agenda, Speakers, Sponsors, Notificaciones y
+      Usuarios del menú) con las mismas tarjetas de portada, a todo el ancho.
+
+29. **Editar un congreso (5-nov, caso real: "era 20–22 y al final también el
+    23" / "ya no es el 20 sino el 23"):** botón "Editar datos y fechas" en la
+    portada del congreso → cajón con nombre, **estado** (borrador / publicado
+    / archivado — antes no había cómo publicar desde el panel), fechas, país,
+    ciudad, zona, sede y descripción. Organizador y superadmin.
+    Backend (`PATCH /congresos/:id`): fin ≥ inicio; si se mueve el inicio y
+    llega `correr_sesiones: true`, TODAS las sesiones se corren los mismos
+    días conservando la hora del reloj en la zona del evento; ninguna sesión
+    puede quedar en un día fuera del congreso (409 con los días); la zona no
+    se puede cambiar si ya hay sesiones (409). Todo en una transacción.
+    **Pendiente para 8.7.i:** prueba e2e de estas reglas.
+
 ### Plan del 8.7
 
-- **8.7.a** Entrada: login por usuario, primer ingreso (nueva contraseña +
+- ✅ **8.7.a** Entrada: login por usuario, primer ingreso (nueva contraseña +
   aceptar datos), ojito en la app y en el login del panel.
-- **8.7.b** "Mi congreso": directo si es uno; selector si son varios.
-- **8.7.c** Perfil: ver y editar (foto incluida).
-- **8.7.d** Networking llamativo (las 4 ideas).
-- **8.7.e** Mi agenda + avisos "a quienes marcaron la charla".
-- **8.7.f** "Patrocinado por…" (backend + panel + app).
-- **8.7.g** Tema por defecto + selector claro/oscuro + fuentes.
-- **8.7.h** Pruebas + documentación.
+- ✅ **8.7.b** "Mi congreso": directo si es uno; selector si son varios.
+- ✅ **8.7.c** Perfil: ver y editar (foto incluida).
+- ✅ **8.7.d** Networking llamativo (las 4 ideas).
+- ✅ **8.7.e** Mi agenda + avisos "a quienes marcaron la charla".
+- ✅ **8.7.f** "Patrocinado por…" (backend + panel + app).
+- ✅ **8.7.g** Tema por defecto + selector claro/oscuro + fuentes.
+- ✅ **8.7.h** Pulido visual del panel web — variante A "Violeta vivo"
+  (decisiones 22–27). Un solo commit junto con 8.7.f y 8.7.g.
+- **8.7.i** Pruebas + documentación (GUIA § 27) + cierre del bloque.
 
 Mismo método de siempre.
+
+---
+
+## 📍 PUNTO DE RETOMA (5-nov-2026, tarde) — traspaso a chat nuevo
+
+**Hecho:** 8.7.a → 8.7.h completos. a–d con commit propio; **f + g + h van en
+UN solo commit** (lo hace Sebastián al cerrar este chat):
+
+```
+feat(8.7.f-h): varios sponsors por charla, tema claro/oscuro en la app, rediseño visual del panel (Violeta vivo), portada del congreso, moderación en vivo y edición de congresos
+```
+
+**Lo del 8.7.h en una línea por pieza** (detalle en decisiones 22–29):
+- Marco del panel siempre violeta (`fondo-marca-lateral`/`fondo-marca-barra`
+  en `globals.css`), menú con cajitas y activa en blanco, ☰ en celular.
+- Tokens nuevos (lavanda `#F4F2FF`, texto secundario `#55506E`, sombra
+  violeta vía `--shadow-sm`); `contenido-panel` (1600 px) en todas las
+  pantallas; `EncabezadoPagina`/`ChipTitulo`/`EsqueletoPagina`
+  (`components/panel/encabezado-pagina.tsx`).
+- `TarjetaCongreso` (`components/panel/tarjeta-congreso.tsx`) en Congresos,
+  Panorama y el selector de congreso (`elegir-congreso.tsx`, ahora con prop
+  `Icono`; Usuarios también lo usa).
+- Agenda: línea de tiempo, pausas ámbar/verde, resumen del día.
+- Portada del congreso (`/congresos/:id`): banner + logo de Apariencia,
+  accesos de colores, "Próximas sesiones" (adelanto; la agenda es UNA).
+- Moderación en vivo rediseñada (`/sesiones/:id`).
+- Editar congreso (`components/panel/editar-congreso.tsx`).
+- Backend: `GET /auth/yo` trae `organizacion.nombre`; `GET /congresos` trae
+  `personalizacion` + `_count`; `GET /congresos/:id` trae
+  `_count.inscripciones`; nuevo `GET /sesiones/:id` (staff); preguntas con
+  apellidos/foto solo para staff; `PATCH /congresos/:id` con
+  `correr_sesiones` y sus reglas. **Sin migraciones** en el 8.7.h.
+- Mockups de las variantes A/B: artifact "Nexvio · Rediseño del panel"
+  (claude.ai). La B ("Noche Nexvio") queda como idea para una landing.
+
+**SIGUIENTE: 8.7.i — cierre del bloque 8.7:**
+1. Pruebas e2e nuevas (desde `apps\backend`): reglas de editar congreso
+   (fin ≥ inicio, correr la agenda, sesión fuera → 409, zona con sesiones →
+   409), `GET /sesiones/:id` (staff sí / participante 403), preguntas con
+   apellidos/foto solo para staff, `GET /congresos` con `_count`. Correr
+   también las anteriores del 8.7 (a–g) para ver que nada se rompió.
+2. GUIA_DEV **§ 27 (Bloque 8.7)**: qué se hizo a–h, comandos, y gotchas:
+   verificar SIEMPRE las copias al PC (nunca editar y copiar en paralelo);
+   transacciones a mano en pruebas con `{ maxWait: 15000, timeout: 20000 }`;
+   Smart App Control de Windows bloquea `schema-engine` (desactivarlo);
+   reiniciar el backend tras cambiar DTOs (`forbidNonWhitelisted`); caché
+   vieja de Next → `rmdir /s /q .next`; en el panel no usar textos que
+   dependan del tema en el HTML del servidor (error de hidratación del botón
+   de tema); un `replace` de texto repetido puede caer en varios métodos
+   (pasó en `preguntas.service`) → anclar al método.
+3. Cerrar el 8.7 aquí (✅) y actualizar el encabezado de la GUIA.
+
+**Después del 8.7:** reunión con el cliente (cambios que pida) · development
+build con EAS + FCM + prueba de push real · Fase 9 · Fase 7.
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan aquí al tomarlas. Credenciales nunca en el repo.
+
+---
+
+## (Histórico) PUNTO DE RETOMA (3-nov-2026, noche)
+
+
+**Hecho y con commit:** 8.7.a, 8.7.b, 8.7.c (+ ajustes) y 8.7.d (+ ajustes:
+perfil desde el chat, logo sin borde, contacto granular, política v4).
+**Siguiente:** **8.7.e — Mi agenda** (marcar charlas favoritas + avisos solo a
+quienes marcaron una charla). Luego 8.7.f (Patrocinado por), 8.7.g (tema y
+apariencia de la app), 8.7.h (pulido visual del panel web) y 8.7.i (pruebas +
+GUIA § 27 + cierre del bloque).
+**Gotcha nuevo (anotar en GUIA § 27):** al copiar archivos al PC, verificar
+SIEMPRE después de copiar (dos veces llegó una versión vieja); nunca editar y
+copiar en paralelo. Y las transacciones a mano en pruebas llevan
+`{ maxWait: 15000, timeout: 20000 }`.

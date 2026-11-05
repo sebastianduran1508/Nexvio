@@ -5,6 +5,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
+  IsArray,
+  ArrayMaxSize,
   Matches,
   Min,
 } from 'class-validator';
@@ -52,4 +55,14 @@ export class ActualizarSesionDto {
   @IsOptional()
   @IsBoolean()
   correr_siguientes?: boolean;
+
+  /**
+   * 8.7.f: los sponsors que patrocinan la charla (de ESTE congreso), en el
+   * orden en que se muestran. [] = quitar el patrocinio.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12, { message: 'Máximo 12 sponsors por charla' })
+  @IsUUID('4', { each: true, message: 'Sponsor inválido' })
+  sponsor_ids?: string[];
 }

@@ -19,13 +19,13 @@ export class CrearNotificacionDto {
   cuerpo: string;
 
   /**
-   * "todos" = aviso general del congreso. "sesion" = aviso SOBRE una charla
-   * (cambio de sala, empieza en 5 min...). Hoy los dos llegan a todos los
-   * inscritos: todavía no existe "a qué charlas va cada quien". El de sesión
-   * lleva el id para que la app pueda abrir esa charla.
+   * "todos"     = aviso general, a todos los inscritos.
+   * "sesion"    = aviso SOBRE una charla, a todos (lleva el id para abrirla).
+   * "favoritos" = 8.7.e: aviso sobre una charla SOLO para quienes la
+   *               marcaron con ⭐ ("La charla de IA cambió al salón 3").
    */
   @IsOptional()
-  @IsIn(['todos', 'sesion'])
+  @IsIn(['todos', 'sesion', 'favoritos'])
   destino?: string;
 
   @IsOptional()

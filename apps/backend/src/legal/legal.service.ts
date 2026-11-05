@@ -148,6 +148,7 @@ export class LegalService {
         await tx.interesNetworking.deleteMany({ where: { id: { in: interesIds } } });
       }
       await tx.dispositivoPush.deleteMany({ where: { usuario_id: titularId } });
+      await tx.sesionFavorita.deleteMany({ where: { usuario_id: titularId } }); // 8.7.e
       // 8.7.d: si era un speaker con cuenta, su ficha deja de apuntar a él.
       await tx.ponente.updateMany({ where: { usuario_id: titularId }, data: { usuario_id: null } });
       await tx.inscripcion.deleteMany({ where: { usuario_id: titularId } });
