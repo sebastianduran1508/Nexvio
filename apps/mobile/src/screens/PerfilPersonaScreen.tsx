@@ -75,6 +75,36 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
     }
   }
 
+  /**
+   * 8.7.j (decisión 34): eliminar la conexión. Enlace discreto con
+   * confirmación: se borra el chat y dejan de verse el contacto. Las dos
+   * personas vuelven a aparecerse en Descubrir.
+   */
+  function eliminarConexion() {
+    const id = p.conexionId;
+    if (!id) return;
+    Alert.alert(
+      `¿Eliminar la conexión con ${p.nombre}?`,
+      'Se borrará el chat y ya no podrán ver el contacto del otro. Volverán a aparecerse en Descubrir. No se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api('DELETE', `/conexiones/${id}`);
+              setContacto(null);
+              setP((x) => ({ ...x, estado: 'ninguno', conexionId: undefined }));
+            } catch (e: any) {
+              Alert.alert('No se pudo eliminar', e?.message ?? 'Intenta de nuevo');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function chatear(conexionId: string) {
     navigation.navigate('Chat', { conexionId, nombre: p.nombre, foto: p.foto_url, otroId: p.id });
   }
@@ -139,7 +169,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
                   <Ionicons name="checkmark-done" size={16} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[est.contactoTitulo, { color: t.texto }]}>Son conexión</Text>
+                  <Text style={[est.contactoTitulo, { color: t.texto }]}>¡Ya están conectados!</Text>
                   <Text style={[est.charlaCuando, { color: t.textoSuave }]}>
                     Desde el {new Date(contacto.conectados_desde).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })} ·{' '}
                     {contacto.mensajes}/{contacto.limite_mensajes} mensajes
@@ -170,6 +200,12 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
                   Aún no comparte su contacto. ¡Pregúntaselo por el chat!
                 </Text>
               )}
+
+              {/* 8.7.j (decisión 34): discreto a propósito — pequeño y gris */}
+              <TouchableOpacity onPress={eliminarConexion} style={est.eliminar} hitSlop={8}>
+                <Ionicons name="person-remove-outline" size={13} color={t.textoTenue} />
+                <Text style={[est.eliminarTexto, { color: t.textoTenue }]}>Eliminar conexión</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -329,6 +365,8 @@ const est = StyleSheet.create({
   contactoCabeza: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   contactoIcono: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#16A34A', alignItems: 'center', justifyContent: 'center' },
   contactoTitulo: { fontFamily: F.negrita, fontSize: 15 },
+  eliminar: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end', marginTop: 12 },
+  eliminarTexto: { fontFamily: F.medio, fontSize: 12, textDecorationLine: 'underline' },
   botonContacto: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 11 },
   botonContactoIcono: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   pie: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 14, borderTopWidth: 1 },

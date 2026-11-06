@@ -1,13 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
 import { claveDia, enVivo, etiquetaDia, hora } from '../lib/formato';
 import type { CongresoDetalle, Sesion } from '../lib/tipos';
-import { Cabecera, Cargando, Vacio } from '../components/ui';
+import { Cabecera, Cargando, Etiqueta, HoraDosPisos, Tarjeta, Vacio, useBordeMarca } from '../components/ui';
+import { textoSobre } from '../lib/color';
 import BotonFavorito from '../components/BotonFavorito';
 import Patrocinio from '../components/Patrocinio';
 import { useMiAgenda } from '../context/MiAgendaContext';
@@ -35,6 +35,8 @@ function cuandoEmpieza(iso: string) {
 
 /**
  * MI AGENDA (8.7.e) — las charlas que la persona marcó con ⭐, por día.
+ * 8.7.j: rediseño del mockup — AHORA y PRÓXIMA lado a lado, aviso de cruce en
+ * ámbar arriba, "Hoy · vie 21" y la hora dentro de cada tarjeta.
  *
  *  - Arriba, lo urgente: la charla que está EN VIVO o la PRÓXIMA ("en 25 min").
  *  - Si dos marcadas se cruzan de horario, lo avisa ("⚠️ Se cruza con …"):
@@ -84,9 +86,19 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
     return [...g.entries()];
   }, [mias]);
 
+  // 8.7.j: AHORA y PRÓXIMA a la vez (lado a lado), como el mockup.
   const ahora = mias.find((s) => enVivo(s.inicio, s.fin));
-  const proxima = !ahora ? mias.find((s) => new Date(s.inicio) > new Date()) : undefined;
-  const destacada = ahora ?? proxima;
+  const proxima = mias.find((s) => new Date(s.inicio) > new Date());
+  // El primer cruce que todavía no pasó: se avisa arriba, una sola vez.
+  const cruceGeneral = (() => {
+    for (const s of mias) {
+      if (new Date(s.fin) < new Date()) continue;
+      const o = mias.find((x) => x.id !== s.id && seCruzan(s, x));
+      if (o) return s;
+    }
+    return null;
+  })();
+  const hoy = claveDia(new Date().toISOString());
 
   const abrir = (s: Sesion) => navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo, sponsors: s.sponsors?.map((x) => x.sponsor) });
 
@@ -95,7 +107,11 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
       <Cabecera
         antetitulo={detalle?.nombre ?? 'Tu congreso'}
         titulo="Mi agenda"
-        subtitulo={mias.length > 0 ? `${mias.length} charla${mias.length === 1 ? '' : 's'} marcada${mias.length === 1 ? '' : 's'}` : undefined}
+        subtitulo={
+          mias.length > 0
+            ? `${mias.length} charla${mias.length === 1 ? '' : 's'} marcada${mias.length === 1 ? '' : 's'} · ${dias.length} día${dias.length === 1 ? '' : 's'}`
+            : undefined
+        }
         colores={marca.degradado}
       />
 
@@ -108,7 +124,7 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
           contentContainerStyle={est.vacio}
           refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={marca.primario} />}
         >
-          <View style={est.vacioIcono}>
+          <View style={[est.vacioIcono, { backgroundColor: t.ambarSuave }]}>
             <Ionicons name="star" size={34} color="#F59E0B" />
           </View>
           <Text style={[est.vacioTitulo, { color: t.texto }]}>Tu agenda está vacía</Text>
@@ -119,86 +135,73 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
             style={[est.vacioBoton, { backgroundColor: marca.primario }]}
             onPress={() => navigation.getParent()?.navigate('CongresosTab')}
           >
-            <Ionicons name="calendar-outline" size={17} color="#fff" />
-            <Text style={est.vacioBotonTexto}>Ver la agenda del congreso</Text>
+            <Ionicons name="calendar-outline" size={17} color={textoSobre(marca.primario)} />
+            <Text style={[est.vacioBotonTexto, { color: textoSobre(marca.primario) }]}>Ver la agenda del congreso</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 32 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={marca.primario} />}
         >
-          {/* ---------- Lo urgente ---------- */}
-          {destacada && (
-            <TouchableOpacity activeOpacity={0.85} onPress={() => abrir(destacada)}>
-              <LinearGradient colors={marca.degradado} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[est.destacada, sombra(t, 2)]}>
-                <View style={est.destacadaFila}>
-                  <View style={[est.chip, { backgroundColor: ahora ? '#F43F5E' : 'rgba(255,255,255,0.22)' }]}>
-                    {ahora ? <View style={est.punto} /> : <Ionicons name="time-outline" size={13} color="#fff" />}
-                    <Text style={est.chipTexto}>{ahora ? 'AHORA' : `PRÓXIMA · ${cuandoEmpieza(destacada.inicio).toUpperCase()}`}</Text>
-                  </View>
-                </View>
-                <Text style={est.destacadaTitulo} numberOfLines={2}>{destacada.titulo}</Text>
-                <Text style={est.destacadaMeta}>
-                  {hora(destacada.inicio)} – {hora(destacada.fin)}
-                  {destacada.sala ? ` · ${destacada.sala}` : ''}
-                </Text>
-                <View style={est.destacadaPie}>
-                  <Text style={est.destacadaAccion}>{ahora ? 'Entrar: preguntas y encuestas' : 'Ver la charla'}</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#fff" />
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+          {/* ---------- Lo urgente: AHORA y PRÓXIMA, lado a lado ---------- */}
+          {(ahora || proxima) && (
+            <View style={est.urgentes}>
+              {ahora && (
+                <Tarjeta style={est.urgente} onPress={() => abrir(ahora)}>
+                  <Etiqueta texto="AHORA" tono="rojo" punto />
+                  <Text style={[est.urgenteTitulo, { color: t.texto }]} numberOfLines={3}>{ahora.titulo}</Text>
+                  <Text style={[est.urgenteMeta, { color: t.textoSuave }]} numberOfLines={1}>
+                    Hasta las {hora(ahora.fin)}{ahora.sala ? ` · ${ahora.sala}` : ''}
+                  </Text>
+                </Tarjeta>
+              )}
+              {proxima && (
+                <Tarjeta style={est.urgente} onPress={() => abrir(proxima)}>
+                  <Etiqueta texto={`PRÓXIMA · ${cuandoEmpieza(proxima.inicio).toUpperCase()}`} colores={[marca.primarioSuave, marca.primarioTexto]} />
+                  <Text style={[est.urgenteTitulo, { color: t.texto }]} numberOfLines={3}>{proxima.titulo}</Text>
+                  <Text style={[est.urgenteMeta, { color: t.textoSuave }]} numberOfLines={1}>
+                    {hora(proxima.inicio)}{proxima.sala ? ` · ${proxima.sala}` : ''}
+                  </Text>
+                </Tarjeta>
+              )}
+            </View>
+          )}
+
+          {/* ---------- Aviso de cruce (ámbar, como en el panel) ---------- */}
+          {cruceGeneral && (
+            <View style={[est.aviso, { backgroundColor: t.ambarSuave, borderColor: t.ambarBorde }]}>
+              <Ionicons name="warning-outline" size={18} color={t.ambarTexto} />
+              <Text style={[est.avisoTexto, { color: t.ambarTexto }]}>
+                Tienes charlas que se cruzan el {etiquetaDia(claveDia(cruceGeneral.inicio)).semana}{' '}
+                {etiquetaDia(claveDia(cruceGeneral.inicio)).dia} a las {hora(cruceGeneral.inicio)}. Elige a cuál ir.
+              </Text>
+            </View>
           )}
 
           {/* ---------- Por día ---------- */}
           {dias.map(([clave, sesiones]) => {
             const e = etiquetaDia(clave);
             return (
-              <View key={clave} style={{ marginTop: 22 }}>
-                <Text style={[est.dia, { color: t.texto }]}>
-                  {e.semana} <Text style={{ color: t.textoSuave }}>{e.dia}</Text>
-                </Text>
-                {sesiones.map((s) => {
-                  const cruce = mias.find((o) => o.id !== s.id && seCruzan(s, o));
-                  const paso = new Date(s.fin) < new Date();
-                  const vivo = enVivo(s.inicio, s.fin);
-                  const ponentes = s.ponentes?.map((x) => x.ponente.nombre) ?? [];
-                  return (
-                    <View key={s.id} style={[est.fila, paso && { opacity: 0.5 }]}>
-                      <View style={est.horas}>
-                        <Text style={[est.horaInicio, { color: vivo ? '#F43F5E' : marca.primarioTexto }]}>{hora(s.inicio)}</Text>
-                        <Text style={[est.horaFin, { color: t.textoTenue }]}>{hora(s.fin)}</Text>
-                        <View style={[est.linea, { backgroundColor: t.borde }]} />
-                      </View>
-                      <TouchableOpacity
-                        style={[est.tarjeta, { backgroundColor: t.tarjeta, borderColor: vivo ? '#F43F5E' : t.borde }, sombra(t)]}
-                        onPress={() => abrir(s)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={{ flex: 1 }}>
-                          {vivo && <Text style={est.enVivo}>● EN VIVO</Text>}
-                          <Text style={[est.titulo, { color: t.texto }]}>{s.titulo}</Text>
-                          {(s.sala || ponentes.length > 0) && (
-                            <Text style={[est.meta, { color: t.textoSuave }]} numberOfLines={2}>
-                              {[s.sala, ponentes.join(', ')].filter(Boolean).join(' · ')}
-                            </Text>
-                          )}
-                          {s.sponsors?.length ? <Patrocinio sponsors={s.sponsors.map((x) => x.sponsor)} /> : null}
-                          {cruce && !paso && (
-                            <View style={[est.cruce, { backgroundColor: t.coralSuave }]}>
-                              <Ionicons name="warning-outline" size={13} color={t.coral} />
-                              <Text style={[est.cruceTexto, { color: t.coral }]} numberOfLines={2}>
-                                Se cruza con «{cruce.titulo}»
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <BotonFavorito sesionId={s.id} />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
+              <View key={clave} style={{ marginTop: 20 }}>
+                <View style={est.diaFila}>
+                  <Text style={[est.dia, { color: t.texto }]}>
+                    {clave === hoy ? `Hoy · ${e.semana} ${e.dia}` : `${e.semana} ${e.dia}`}
+                  </Text>
+                  <Text style={[est.diaCuenta, { color: t.textoSuave }]}>
+                    {sesiones.length} charla{sesiones.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <View style={{ gap: 10 }}>
+                  {sesiones.map((s) => (
+                    <FilaCharla
+                      key={s.id}
+                      sesion={s}
+                      cruce={mias.find((o) => o.id !== s.id && seCruzan(s, o))}
+                      onPress={() => abrir(s)}
+                    />
+                  ))}
+                </View>
               </View>
             );
           })}
@@ -208,32 +211,98 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
   );
 }
 
+/**
+ * Una charla marcada. La hora va DENTRO de la tarjeta (mockup 8.7.j) con lo que
+ * la caracteriza debajo: TERMINÓ, EN VIVO o el tipo (TALLER, PLENARIA).
+ * La que está en vivo, con borde resaltado. Las que ya pasaron NO se apagan
+ * enteras (con opacity el texto quedaba gris y difícil de leer, ajuste del
+ * 6-nov): se ven igual que las demás, con "TERMINÓ" y el borde gris tenue
+ * en vez del color de marca.
+ */
+function FilaCharla({ sesion: s, cruce, onPress }: { sesion: Sesion; cruce?: Sesion; onPress: () => void }) {
+  const t = useTema();
+  const marca = useMarca();
+  const bordeMarca = useBordeMarca();
+  const paso = new Date(s.fin) < new Date();
+  const vivo = enVivo(s.inicio, s.fin);
+  const ponentes = s.ponentes?.map((x) => x.ponente.nombre) ?? [];
+  // 8.7.j: el estado va en una PASTILLA (como "EN CURSO"), no en texto suelto.
+  // [texto, fondo, color, ícono o punto]
+  const estado: [string, string, string, 'punto' | 'check' | null] | null = paso
+    ? ['TERMINÓ', t.barraFondo, t.textoSuave, 'check']
+    : vivo
+      ? ['EN VIVO', t.rojoSuave, t.rojo, 'punto']
+      : s.tipo === 'taller'
+        ? ['TALLER', t.cianSuave, t.cianTexto, null]
+        : s.tipo === 'plenaria'
+          ? ['PLENARIA', t.coralSuave, t.coralTexto, null]
+          : null;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={[
+        est.tarjeta,
+        { backgroundColor: t.tarjeta, borderColor: vivo ? marca.primario : paso ? t.borde : bordeMarca, borderWidth: vivo ? 2 : 1.5 },
+        sombra(t),
+      ]}
+    >
+      <View style={est.horas}>
+        <HoraDosPisos texto={hora(s.inicio)} color={vivo ? marca.primarioTexto : t.texto} />
+        {estado ? (
+          <View style={[est.pastilla, { backgroundColor: estado[1] }]}>
+            {estado[3] === 'punto' ? <View style={[est.pastillaPunto, { backgroundColor: estado[2] }]} /> : null}
+            {estado[3] === 'check' ? <Ionicons name="checkmark" size={10} color={estado[2]} /> : null}
+            <Text style={[est.pastillaTexto, { color: estado[2] }]}>{estado[0]}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[est.titulo, { color: t.texto }]}>{s.titulo}</Text>
+        {(s.sala || ponentes.length > 0) && (
+          <Text style={[est.meta, { color: t.textoSuave }]} numberOfLines={2}>
+            {[ponentes.join(', '), s.sala].filter(Boolean).join(' · ')}
+          </Text>
+        )}
+        {s.sponsors?.length ? <Patrocinio sponsors={s.sponsors.map((x) => x.sponsor)} /> : null}
+        {cruce && !paso && (
+          <View style={[est.cruce, { backgroundColor: t.ambarSuave }]}>
+            <Ionicons name="warning-outline" size={13} color={t.ambarTexto} />
+            <Text style={[est.cruceTexto, { color: t.ambarTexto }]} numberOfLines={2}>
+              Se cruza con «{cruce.titulo}»
+            </Text>
+          </View>
+        )}
+      </View>
+      <BotonFavorito sesionId={s.id} />
+    </TouchableOpacity>
+  );
+}
+
 const est = StyleSheet.create({
   vacio: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  vacioIcono: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  vacioIcono: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
   vacioTitulo: { fontFamily: F.titulo, fontSize: 22, marginTop: 16 },
   vacioTexto: { fontFamily: F.normal, fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
   vacioBoton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12, marginTop: 20 },
-  vacioBotonTexto: { color: '#fff', fontFamily: F.negrita, fontSize: 14.5 },
-  destacada: { borderRadius: 22, padding: 18 },
-  destacadaFila: { flexDirection: 'row' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  punto: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
-  chipTexto: { color: '#fff', fontFamily: F.negrita, fontSize: 11, letterSpacing: 0.5 },
-  destacadaTitulo: { color: '#fff', fontFamily: F.titulo, fontSize: 21, marginTop: 12, letterSpacing: -0.3 },
-  destacadaMeta: { color: 'rgba(255,255,255,0.85)', fontFamily: F.medio, fontSize: 13.5, marginTop: 4 },
-  destacadaPie: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
-  destacadaAccion: { color: '#fff', fontFamily: F.negrita, fontSize: 13.5 },
-  dia: { fontFamily: F.titulo, fontSize: 17, marginBottom: 10, textTransform: 'capitalize' },
-  fila: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  horas: { width: 50, alignItems: 'flex-end', paddingTop: 14 },
-  horaInicio: { fontFamily: F.negrita, fontSize: 13.5 },
-  horaFin: { fontFamily: F.medio, fontSize: 11.5, marginTop: 1 },
-  linea: { width: 2, flex: 1, borderRadius: 1, marginTop: 6, alignSelf: 'flex-end', marginRight: 10 },
-  tarjeta: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, borderWidth: 1, padding: 14 },
-  enVivo: { color: '#F43F5E', fontFamily: F.negrita, fontSize: 11, marginBottom: 3 },
-  titulo: { fontFamily: F.negrita, fontSize: 15, lineHeight: 20 },
-  meta: { fontFamily: F.medio, fontSize: 12.5, marginTop: 4 },
+  vacioBotonTexto: { fontFamily: F.negrita, fontSize: 14.5 },
+  urgentes: { flexDirection: 'row', gap: 10 },
+  urgente: { flex: 1, gap: 6, padding: 12 },
+  urgenteTitulo: { fontFamily: F.negrita, fontSize: 14, lineHeight: 19 },
+  urgenteMeta: { fontFamily: F.semi, fontSize: 12 },
+  aviso: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12 },
+  avisoTexto: { flex: 1, fontFamily: F.semi, fontSize: 12.5, lineHeight: 17 },
+  diaFila: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10, marginHorizontal: 2 },
+  dia: { fontFamily: F.titulo, fontSize: 17 },
+  diaCuenta: { fontFamily: F.semi, fontSize: 12 },
+  tarjeta: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 12 },
+  horas: { width: 68, alignItems: 'center' },
+  pastilla: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, marginTop: 5 },
+  pastillaPunto: { width: 5, height: 5, borderRadius: 3 },
+  pastillaTexto: { fontFamily: F.negrita, fontSize: 9, letterSpacing: 0.3 },
+  titulo: { fontFamily: F.negrita, fontSize: 14.5, lineHeight: 19 },
+  meta: { fontFamily: F.medio, fontSize: 12.5, marginTop: 3 },
   cruce: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6, marginTop: 8 },
   cruceTexto: { flex: 1, fontFamily: F.semi, fontSize: 12 },
 });

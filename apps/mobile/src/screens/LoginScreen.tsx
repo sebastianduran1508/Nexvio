@@ -14,8 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { NexvioMark } from '../components/Logo';
-import { Boton } from '../components/ui';
+import { Boton, Brillo } from '../components/ui';
 import { DEGRADADO, F, useTema } from '../tema/tema';
+import { SECUNDARIO_NEXVIO } from '../lib/color';
 
 /**
  * Pantalla de inicio de sesion del asistente. Pide usuario (o correo, para el
@@ -51,47 +52,47 @@ export default function LoginScreen() {
 
   const campo = [
     est.input,
-    { backgroundColor: t.input, borderColor: t.borde, color: t.texto },
+    { backgroundColor: t.tarjeta, borderColor: t.borde, color: t.texto },
   ];
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.tarjeta }}
+      style={{ flex: 1, backgroundColor: t.fondo }}
       // 'padding' también en Android: con edge-to-edge (app.json) Android ya no
       // encoge la ventana al abrir el teclado, así que hay que empujar nosotros.
       behavior="padding"
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" bounces={false}>
         {/* ---------- Bloque de bienvenida ---------- */}
+        {/* 8.7.j: siempre con los colores de NEXVIO (aún no se sabe a qué
+            congreso se va a entrar; y tras cerrar sesión no debe quedar el
+            color del congreso anterior). */}
         <LinearGradient
           colors={DEGRADADO}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[est.hero, { paddingTop: insets.top + 48 }]}
+          end={{ x: 0.6, y: 1 }}
+          style={[est.hero, { paddingTop: insets.top + 44 }]}
         >
-          <View style={[est.circulo, { width: 260, height: 260, right: -90, top: -70 }]} />
-          <View style={[est.circulo, { width: 200, height: 200, left: -80, bottom: -40 }]} />
-
-          <View style={est.marca}>
-            <View style={est.marcaIcono}>
-              <NexvioMark size={30} />
-            </View>
-            <Text style={est.marcaTexto}>Nexvio</Text>
-          </View>
-
-          <Text style={est.heroTitulo}>Tu congreso,{'\n'}en un solo lugar</Text>
-          <Text style={est.heroTexto}>
-            Agenda, preguntas en vivo, encuestas y networking entre asistentes.
-          </Text>
+          <Brillo color={SECUNDARIO_NEXVIO} />
+          <NexvioMark size={84} blanca />
+          <Text style={est.marcaTexto}>Nexvio</Text>
+          <Text style={est.heroTexto}>Tu congreso, conectado</Text>
         </LinearGradient>
 
         {/* ---------- Hoja con el formulario ---------- */}
         <View style={[est.hoja, { backgroundColor: t.tarjeta, paddingBottom: insets.bottom + 24 }]}>
-          <Text style={[est.hojaTitulo, { color: t.texto }]}>Iniciar sesión</Text>
+          <Text style={[est.hojaTitulo, { color: t.texto }]}>¡Hola de nuevo!</Text>
+          <Text style={[est.hojaSub, { color: t.textoSuave }]}>
+            Entra con el usuario y la contraseña que te dio la organización del evento.
+          </Text>
 
           <Text style={[est.label, { color: t.textoSuave }]}>Usuario</Text>
+          <View>
+          <View style={est.iconoCampo} pointerEvents="none">
+            <Ionicons name="person-outline" size={18} color={t.primarioTexto} />
+          </View>
           <TextInput
-            style={campo}
+            style={[campo, { paddingLeft: 44 }]}
             placeholder="Ej. JPGarcia"
             placeholderTextColor={t.textoTenue}
             autoCapitalize="none"
@@ -101,11 +102,15 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
           />
+          </View>
 
           <Text style={[est.label, { color: t.textoSuave }]}>Contraseña</Text>
           <View>
+            <View style={est.iconoCampo} pointerEvents="none">
+              <Ionicons name="lock-closed-outline" size={18} color={t.textoSuave} />
+            </View>
             <TextInput
-              style={[campo, { paddingRight: 48 }]}
+              style={[campo, { paddingRight: 48, paddingLeft: 44 }]}
               placeholder="••••••••"
               placeholderTextColor={t.textoTenue}
               secureTextEntry={!verClave}
@@ -132,10 +137,12 @@ export default function LoginScreen() {
 
           <Boton texto="Entrar" onPress={onSubmit} cargando={cargando} style={{ marginTop: 22 }} />
 
-          <Text style={[est.ayuda, { color: t.textoTenue }]}>
-            Usa el usuario y la contraseña que te envió el organizador.{'\n'}
-            ¿Problemas para entrar? Pídele ayuda a él.
-          </Text>
+          <View style={[est.ayuda, { backgroundColor: t.primarioSuave }]}>
+            <Ionicons name="information-circle-outline" size={18} color={t.primarioTexto} />
+            <Text style={[est.ayudaTexto, { color: t.texto }]}>
+              ¿Olvidaste tu contraseña? Pídele a la organización del evento que la restablezca.
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -143,20 +150,11 @@ export default function LoginScreen() {
 }
 
 const est = StyleSheet.create({
-  hero: { paddingHorizontal: 24, paddingBottom: 64, overflow: 'hidden' },
-  circulo: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
-  marca: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 36 },
-  marcaIcono: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  marcaTexto: { color: '#fff', fontFamily: F.titulo, fontSize: 24 },
-  heroTitulo: { color: '#fff', fontFamily: F.titulo, fontSize: 30, lineHeight: 36, letterSpacing: -0.5 },
-  heroTexto: { color: 'rgba(255,255,255,0.82)', fontFamily: F.normal, fontSize: 14.5, lineHeight: 21, marginTop: 12 },
+  hero: { paddingHorizontal: 24, paddingBottom: 72, overflow: 'hidden', alignItems: 'center' },
+  marcaTexto: { color: '#fff', fontFamily: F.titulo, fontSize: 36, letterSpacing: -0.6, marginTop: 10 },
+  heroTexto: { color: 'rgba(255,255,255,0.88)', fontFamily: F.semi, fontSize: 14.5, marginTop: 4 },
+  // El ícono a la izquierda del campo, centrado en alto (pointerEvents: el toque pasa al campo).
+  iconoCampo: { position: 'absolute', left: 15, top: 0, bottom: 0, zIndex: 1, justifyContent: 'center' },
   hoja: {
     flex: 1,
     marginTop: -28,
@@ -165,7 +163,8 @@ const est = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 28,
   },
-  hojaTitulo: { fontFamily: F.titulo, fontSize: 21, marginBottom: 18 },
+  hojaTitulo: { fontFamily: F.titulo, fontSize: 25 },
+  hojaSub: { fontFamily: F.normal, fontSize: 14, lineHeight: 20, marginTop: 4, marginBottom: 10 },
   label: { fontFamily: F.semi, fontSize: 13, marginBottom: 7, marginTop: 10 },
   input: {
     borderWidth: 1.5,
@@ -178,5 +177,6 @@ const est = StyleSheet.create({
   ojo: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
   error: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12, marginTop: 14 },
   errorTexto: { flex: 1, fontFamily: F.medio, fontSize: 13 },
-  ayuda: { textAlign: 'center', fontFamily: F.normal, fontSize: 12.5, marginTop: 18 },
+  ayuda: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 14, padding: 13, marginTop: 18 },
+  ayudaTexto: { flex: 1, fontFamily: F.medio, fontSize: 13, lineHeight: 18.5 },
 });

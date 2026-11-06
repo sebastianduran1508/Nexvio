@@ -1,5 +1,7 @@
 import './global.css';
+import { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import {
@@ -16,6 +18,11 @@ import { AuthProvider } from './src/context/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { MarcaProvider } from './src/context/MarcaContext';
 import { TemaProvider } from './src/tema/TemaProvider';
+import { SplashAnimado } from './src/components/SplashAnimado';
+
+// 8.7.j: el splash NATIVO se queda hasta que digamos (cuando ya podemos pintar
+// el animado, que es igual de violeta). Así no hay un parpadeo blanco entre los dos.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /**
  * Punto de entrada de la app. Envolvemos todo en:
@@ -40,6 +47,14 @@ export default function App() {
     PlusJakartaSans_700Bold,
   });
 
+  // 8.7.j: el splash animado se ve una vez, al abrir la app.
+  const [intro, setIntro] = useState(true);
+  const terminarIntro = useCallback(() => setIntro(false), []);
+  useEffect(() => {
+    // Con las fuentes listas ya se puede pintar el animado: fuera el nativo.
+    if (fuentesListas) SplashScreen.hideAsync().catch(() => undefined);
+  }, [fuentesListas]);
+
   if (!fuentesListas) return null;
 
   return (
@@ -55,6 +70,8 @@ export default function App() {
         </MarcaProvider>
         {/* Texto blanco en la barra de estado: todas las pantallas tienen cabecera violeta. */}
         <StatusBar style="light" />
+        {/* 8.7.j: encima de todo; la app ya va cargando por detrás. */}
+        {intro && <SplashAnimado alTerminar={terminarIntro} />}
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -23,6 +24,7 @@ const TODOS = ['admin', 'organizador', 'coordinador', 'participante'] as const;
  *   GET  /congresos/:congresoId/networking  -> directorio de asistentes + mi estado
  *   POST /congresos/:congresoId/intereses   -> marcar interes (detecta match)
  *   GET  /conexiones                        -> mis matches
+ *   DELETE /conexiones/:id                  -> 8.7.j: eliminar la conexión (deshacer el match)
  */
 @Controller()
 @UseGuards(AuthGuard, RolesGuard)
@@ -122,6 +124,17 @@ export class NetworkingController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.networking.contactoDeConexion(orgId, usuarioId, id);
+  }
+
+  /** 8.7.j (decisión 34): eliminar la conexión. Solo sus dos integrantes. */
+  @Delete('conexiones/:id')
+  @Roles(...TODOS)
+  eliminarConexion(
+    @OrgId() orgId: string,
+    @UserId() usuarioId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.networking.eliminarConexion(orgId, usuarioId, id);
   }
 
   @Get('conexiones/:id/mensajes')

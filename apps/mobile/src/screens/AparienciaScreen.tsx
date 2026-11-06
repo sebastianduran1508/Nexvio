@@ -6,7 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Cabecera } from '../components/ui';
 import { useApariencia, type PreferenciaTema } from '../tema/TemaProvider';
 import { useMarca } from '../context/MarcaContext';
-import { F, useTema } from '../tema/tema';
+import { F, useTema, type Degradado } from '../tema/tema';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
 type Props = NativeStackScreenProps<PerfilStackParamList, 'Apariencia'>;
@@ -79,7 +79,7 @@ export default function AparienciaScreen({ navigation }: Props) {
 }
 
 /** Un celular en miniatura en claro, en oscuro o mitad y mitad. */
-function Muestra({ tipo, degradado }: { tipo: 'claro' | 'oscuro' | 'mitad'; degradado: readonly [string, string] }) {
+function Muestra({ tipo, degradado }: { tipo: 'claro' | 'oscuro' | 'mitad'; degradado: Degradado }) {
   const mini = (oscuro: boolean) => (
     <View style={[est.miniFondo, { backgroundColor: oscuro ? '#0B0A12' : '#F5F6FA' }]}>
       <LinearGradient colors={degradado} style={est.miniCabecera} />

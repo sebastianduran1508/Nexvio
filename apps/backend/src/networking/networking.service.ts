@@ -226,6 +226,38 @@ export class NetworkingService {
     return conexion;
   }
 
+  /**
+   * 8.7.j (decisión 34) — ELIMINAR UNA CONEXIÓN ("deshacer el match").
+   * Solo una de las dos personas de la conexión puede hacerlo (para cualquier
+   * otra, 404: ni siquiera se confirma que exista). Se borran, en una sola
+   * transacción: el chat, la conexión y los "Me interesa" de AMBOS en ese
+   * congreso. Resultado: las dos personas vuelven a aparecerse en Descubrir
+   * como si nunca se hubieran visto (opción A). Y como el contacto solo se ve
+   * con una conexión, deja de verse al instante (Ley 1581: control de la persona).
+   */
+  async eliminarConexion(orgId: string, usuarioId: string, conexionId: string) {
+    return this.prisma.runInTenant(orgId, async (tx) => {
+      const conexion = await this.conexionDelUsuario(tx, conexionId, usuarioId);
+      const interes = await tx.interesNetworking.findFirst({ where: { id: conexion.interes_id } });
+      if (!interes) throw new NotFoundException('Conexion no encontrada');
+      const [a, b] = [interes.emisor_id, interes.receptor_id];
+
+      // Orden: primero lo que depende (mensajes -> conexión -> intereses).
+      await tx.mensajeChat.deleteMany({ where: { conexion_id: conexionId } });
+      await tx.conexion.delete({ where: { id: conexionId } });
+      await tx.interesNetworking.deleteMany({
+        where: {
+          congreso_id: interes.congreso_id,
+          OR: [
+            { emisor_id: a, receptor_id: b },
+            { emisor_id: b, receptor_id: a },
+          ],
+        },
+      });
+      return { eliminada: true };
+    });
+  }
+
   /** Lista los mensajes de una conexion (solo sus dos integrantes). */
   async listarMensajes(orgId: string, usuarioId: string, conexionId: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {

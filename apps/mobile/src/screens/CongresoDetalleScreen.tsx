@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Image,
   ScrollView,
   StyleSheet,
@@ -30,10 +31,13 @@ import {
   Cargando,
   Etiqueta,
   Tarjeta,
-  TituloSeccion,
+  TituloConIcono,
+  useBordeMarca,
+  HoraDosPisos,
   Vacio,
   bandera,
 } from '../components/ui';
+import { textoSobre } from '../lib/color';
 import { F, sombra, useTema } from '../tema/tema';
 import { useFijarMarca, useMarca } from '../context/MarcaContext';
 import { ultimoAvisoVisto } from '../lib/push';
@@ -76,6 +80,9 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const [diaElegido, setDiaElegido] = useState<string | null>(null);
   // 8.6: cuántos avisos hay y cuántos no ha visto la persona.
   const [avisos, setAvisos] = useState({ total: 0, nuevos: 0 });
+  // 8.7.j: cabecera plegable — cuánto ha bajado la persona y cuánto mide la cabecera.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [altoCabecera, setAltoCabecera] = useState(0);
 
   const cargar = useCallback(async () => {
     try {
@@ -136,37 +143,73 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
 
   const vivo = enCurso(detalle.fecha_inicio, detalle.fecha_fin);
 
+  // ---- 8.7.j: el "momento" del congreso -----------------------------------
+  // AHORA = la charla (no break) que está en vivo; PRÓXIMA = la siguiente que
+  // aún no empieza. Solo presentación: misma lista de sesiones de siempre.
+  const charlas = detalle.sesiones.filter((s) => s.tipo !== 'break');
+  const ahora = charlas.find((s) => enVivo(s.inicio, s.fin)) ?? null;
+  const proxima =
+    [...charlas]
+      .filter((s) => Date.parse(s.inicio) > Date.now())
+      .sort((a, b) => Date.parse(a.inicio) - Date.parse(b.inicio))[0] ?? null;
+  const indiceHoy = dias.findIndex(([k]) => k === hoy);
+  const indicadorDia =
+    vivo && indiceHoy >= 0
+      ? { valor: `Día ${indiceHoy + 1}`, texto: `de ${dias.length}` }
+      : { valor: String(dias.length), texto: dias.length === 1 ? 'día' : 'días' };
+  const abrirSesion = (s: Sesion) =>
+    navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo, sponsors: s.sponsors?.map((x) => x.sponsor) });
+
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
-        compacta
         titulo={detalle.nombre}
         // 8.7.b: el congreso es la PRIMERA pantalla de la pestaña: sin flecha.
         onAtras={navigation.canGoBack() ? () => navigation.goBack() : undefined}
-        derecha={vivo ? <Etiqueta texto="EN CURSO" colores={[marca.acento, marca.textoAcento]} /> : undefined}
         colores={marca.degradado}
         logo={marca.logo}
-      />
+        plegable={{ scrollY, alMedir: setAltoCabecera }}
+      >
+        {/* 8.7.j: fechas, lugar e indicadores; al bajar se esconden (cabecera plegable) */}
+        <View style={est.cabMeta}>
+          {/* EN CURSO va aquí y no junto al título: así el nombre usa todo el ancho */}
+          {vivo ? <Etiqueta texto="EN CURSO" punto colores={[marca.acento, marca.textoAcento]} /> : null}
+          <View style={est.cabMetaItem}>
+            <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={est.cabMetaTexto}>{rangoFechas(detalle.fecha_inicio, detalle.fecha_fin)}</Text>
+          </View>
+          {(detalle.lugar || detalle.ciudad) && (
+            <View style={[est.cabMetaItem, { flexShrink: 1 }]}>
+              <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.9)" />
+              <Text style={est.cabMetaTexto} numberOfLines={1}>
+                {[detalle.lugar, detalle.ciudad].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={est.indicadores}>
+          <Indicador valor={String(charlas.length)} texto={charlas.length === 1 ? 'charla' : 'charlas'} />
+          <Indicador valor={String(detalle.ponentes.length)} texto={detalle.ponentes.length === 1 ? 'ponente' : 'ponentes'} />
+          <Indicador valor={indicadorDia.valor} texto={indicadorDia.texto} />
+        </View>
+      </Cabecera>
 
-      <ScrollView contentContainerStyle={est.contenido}>
+      {/* Animated.ScrollView: avisa a scrollY cuánto se bajó (en el hilo nativo).
+          paddingTop = alto de la cabecera, que ahora flota encima. */}
+      <Animated.ScrollView
+        contentContainerStyle={[est.contenido, { paddingTop: altoCabecera + 16 }]}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+      >
+        {/* Portada (banner) completa: no va detrás del texto para que se vea entera */}
         {marca.portada ? (
           <Image source={{ uri: marca.portada }} style={est.portada} resizeMode="cover" />
         ) : null}
-        {/* ---------- Datos del congreso ---------- */}
-        <View style={est.meta}>
-          <Ionicons name="calendar-outline" size={15} color={t.textoTenue} />
-          <Text style={[est.metaTexto, { color: t.textoSuave }]}>
-            {rangoFechas(detalle.fecha_inicio, detalle.fecha_fin)}
-          </Text>
-        </View>
-        {(detalle.lugar || detalle.ciudad) && (
-          <View style={est.meta}>
-            <Ionicons name="location-outline" size={15} color={t.textoTenue} />
-            <Text style={[est.metaTexto, { color: t.textoSuave }]}>
-              {[detalle.lugar, detalle.ciudad].filter(Boolean).join(' · ')}
-            </Text>
-          </View>
-        )}
+
+        {/* ---------- AHORA / PRÓXIMA (8.7.j) ---------- */}
+        {ahora ? <TarjetaAhora sesion={ahora} onPress={() => abrirSesion(ahora)} /> : null}
+        {proxima ? <FilaProxima sesion={proxima} onPress={() => abrirSesion(proxima)} /> : null}
+
         {detalle.descripcion ? (
           <Text style={[est.descripcion, { color: t.textoSuave }]}>{detalle.descripcion}</Text>
         ) : null}
@@ -189,7 +232,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[est.netTitulo, { color: t.texto }]}>Avisos del congreso</Text>
-            <Text style={[est.netTexto, { color: t.textoTenue }]}>
+            <Text style={[est.netTexto, { color: t.textoSuave }]}>
               {avisos.total === 0
                 ? 'Aquí llegan los mensajes del organizador'
                 : `${avisos.total} aviso${avisos.total === 1 ? '' : 's'}`}
@@ -204,24 +247,11 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
           <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
         </Tarjeta>
 
-        {/* ---------- Networking ---------- */}
-        <Tarjeta
-          style={est.networking}
-          // 8.7.d: el networking tiene su propia pestaña.
-          onPress={() => navigation.getParent()?.navigate('NetworkingTab')}
-        >
-          <View style={[est.netIcono, { backgroundColor: t.coralSuave }]}>
-            <Ionicons name="people-outline" size={20} color={t.coral} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[est.netTitulo, { color: t.texto }]}>Conecta con asistentes</Text>
-            <Text style={[est.netTexto, { color: t.textoTenue }]}>Networking y chat del congreso</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
-        </Tarjeta>
+        {/* 8.7.j: se quitó la tarjeta "Conecta con asistentes": era redundante con
+            la pestaña Networking de la barra de abajo. */}
 
         {/* ---------- Agenda por día ---------- */}
-        <TituloSeccion texto="Agenda" />
+        <TituloConIcono texto="Agenda" icono="time-outline" />
         {dias.length > 0 && zonaDelTelefono() ? (
           <View style={est.zona}>
             <Ionicons name="globe-outline" size={13} color={t.textoTenue} />
@@ -250,7 +280,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
                           : { backgroundColor: t.tarjeta, borderColor: t.borde },
                       ]}
                     >
-                      <Text style={[est.diaSemana, { color: activo ? 'rgba(255,255,255,0.8)' : t.textoTenue }]}>
+                      <Text style={[est.diaSemana, { color: activo ? 'rgba(255,255,255,0.85)' : t.textoSuave }]}>
                         {semana}
                         {k === hoy ? ' · hoy' : ''}
                       </Text>
@@ -261,20 +291,24 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
               </ScrollView>
             )}
 
+            {/* 8.7.j: línea de tiempo — la hora a la izquierda, como la agenda del panel */}
             <View style={{ gap: 10 }}>
               {sesionesDelDia.map((s) => (
-                <ItemAgenda
-                  key={s.id}
-                  sesion={s}
-                  onPress={() => navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo, sponsors: s.sponsors?.map((x) => x.sponsor) })}
-                />
+                <View key={s.id} style={est.filaTiempo}>
+                  <View style={est.horaTiempo}>
+                    <HoraDosPisos texto={hora(s.inicio)} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ItemAgenda sesion={s} onPress={() => abrirSesion(s)} />
+                  </View>
+                </View>
               ))}
             </View>
           </>
         )}
 
         {/* ---------- Ponentes ---------- */}
-        <TituloSeccion texto="Ponentes" />
+        <TituloConIcono texto="Ponentes" icono="mic-outline" />
         {detalle.ponentes.length === 0 ? (
           <Vacio texto="Aún no hay ponentes registrados." icono="mic-outline" />
         ) : (
@@ -284,45 +318,131 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
             ))}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
 
-/** Un bloque de la agenda: charla/taller/plenaria (tocable) o break (no). */
+/** Un indicador "de cristal" dentro de la cabecera (18 charlas, 6 ponentes...). */
+function Indicador({ valor, texto }: { valor: string; texto: string }) {
+  return (
+    <View style={est.indicador}>
+      <Text style={est.indicadorValor} numberOfLines={1}>{valor}</Text>
+      <Text style={est.indicadorTexto} numberOfLines={1}>{texto}</Text>
+    </View>
+  );
+}
+
+/** 8.7.j: la charla que está pasando AHORA, grande y con botón para entrar. */
+function TarjetaAhora({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
+  const t = useTema();
+  const marca = useMarca();
+  const ponentes = sesion.ponentes?.map((x) => x.ponente) ?? [];
+  const p = ponentes[0];
+  return (
+    <Tarjeta style={{ gap: 10, marginBottom: 10 }}>
+      <View style={est.sesionArriba}>
+        <Etiqueta texto="EN VIVO" tono="rojo" punto />
+        <Text style={[est.ahoraHora, { color: t.textoSuave }]} numberOfLines={1}>
+          {hora(sesion.inicio)} – {hora(sesion.fin)}{sesion.sala ? ` · ${sesion.sala}` : ''}
+        </Text>
+        <BotonFavorito sesionId={sesion.id} />
+      </View>
+      <Text style={[est.ahoraTitulo, { color: t.texto }]}>{sesion.titulo}</Text>
+      {p ? (
+        <View style={est.sesionPonentes}>
+          <Avatar nombre={p.nombre} foto={p.foto_url} tamano={34} />
+          <View style={{ flex: 1 }}>
+            <Text style={[est.netTitulo, { color: t.texto, fontSize: 13.5 }]} numberOfLines={1}>
+              {p.nombre}{ponentes.length > 1 ? ` y ${ponentes.length - 1} más` : ''}
+            </Text>
+            {[p.cargo, p.empresa].filter(Boolean).length ? (
+              <Text style={[est.netTexto, { color: t.textoSuave }]} numberOfLines={1}>
+                {[p.cargo, p.empresa].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[est.ahoraBoton, { backgroundColor: marca.primario }]}>
+        <Text style={[est.ahoraBotonTexto, { color: textoSobre(marca.primario) }]}>Entrar a la sala en vivo</Text>
+        <Ionicons name="arrow-forward" size={17} color={textoSobre(marca.primario)} />
+      </TouchableOpacity>
+    </Tarjeta>
+  );
+}
+
+/** 8.7.j: la siguiente charla, en una fila compacta ("en 25 min"). */
+function FilaProxima({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
+  const t = useTema();
+  const marca = useMarca();
+  const min = Math.round((Date.parse(sesion.inicio) - Date.now()) / 60000);
+  const cuando =
+    min < 60 ? `en ${Math.max(min, 1)} min`
+    : claveDia(sesion.inicio) === hoyISO() ? `hoy ${hora(sesion.inicio)}`
+    : `${etiquetaDia(claveDia(sesion.inicio)).semana} ${etiquetaDia(claveDia(sesion.inicio)).dia}`;
+  return (
+    <Tarjeta onPress={onPress} style={est.proxima}>
+      <View style={[est.proximaChip, { backgroundColor: marca.primarioSuave }]}>
+        <Text style={[est.proximaChipTexto, { color: marca.primarioTexto }]}>{cuando}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[est.proximaEtiqueta, { color: t.textoSuave }]}>PRÓXIMA · {hora(sesion.inicio)}</Text>
+        <Text style={[est.netTitulo, { color: t.texto }]} numberOfLines={1}>{sesion.titulo}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+    </Tarjeta>
+  );
+}
+
+/**
+ * Un bloque de la agenda: charla/taller/plenaria (tocable) o break (no).
+ * 8.7.j: mismos colores que la agenda del panel — café ámbar y almuerzo verde
+ * (borde punteado), taller cian, plenaria coral y charla con el color del
+ * congreso (la franja de la izquierda). En vivo, la franja usa el acento.
+ */
 function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
   const t = useTema();
   const marca = useMarca();
+  const bordeMarca = useBordeMarca();
   const esBreak = sesion.tipo === 'break';
   const vivo = enVivo(sesion.inicio, sesion.fin);
   const ponentes = sesion.ponentes?.map((x) => x.ponente) ?? [];
   const horario = `${hora(sesion.inicio)} – ${hora(sesion.fin)}${sesion.sala ? ` · ${sesion.sala}` : ''}`;
 
   if (esBreak) {
+    const almuerzo = /almuerzo|almorzar|lunch/i.test(sesion.titulo);
+    const [fondo, borde, texto] = almuerzo
+      ? [t.verdeSuave, t.verdeBorde, t.verde]
+      : [t.ambarSuave, t.ambarBorde, t.ambarTexto];
     return (
-      <View style={[est.break, { backgroundColor: t.barraFondo }]}>
-        <Ionicons
-          name={/almuerzo/i.test(sesion.titulo) ? 'restaurant-outline' : 'cafe-outline'}
-          size={18}
-          color={t.textoSuave}
-        />
+      <View style={[est.break, { backgroundColor: fondo, borderColor: borde }]}>
+        <Ionicons name={almuerzo ? 'restaurant-outline' : 'cafe-outline'} size={18} color={texto} />
         <View style={{ flex: 1 }}>
-          <Text style={[est.breakTitulo, { color: t.textoSuave }]}>{sesion.titulo}</Text>
-          <Text style={[est.breakHora, { color: t.textoTenue }]}>{horario}</Text>
+          <Text style={[est.breakTitulo, { color: texto }]}>{sesion.titulo}</Text>
+          <Text style={[est.breakHora, { color: t.textoSuave }]}>{horario}</Text>
           {sesion.sponsors?.length ? <Patrocinio sponsors={sesion.sponsors.map((x) => x.sponsor)} esBreak /> : null}
         </View>
       </View>
     );
   }
 
+  const franja = vivo
+    ? marca.acento
+    : sesion.tipo === 'taller'
+      ? t.cian
+      : sesion.tipo === 'plenaria'
+        ? t.coral
+        : marca.primario;
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
-      style={[est.sesion, { backgroundColor: t.tarjeta, borderColor: t.borde }, sombra(t)]}
+      style={[est.sesion, { backgroundColor: t.tarjeta, borderColor: vivo ? marca.primario : bordeMarca, borderWidth: vivo ? 2 : 1.5 }, sombra(t)]}
     >
-      <View style={[est.barra, { backgroundColor: vivo ? marca.acento : marca.primario }]} />
-      <View style={{ flex: 1, padding: 14, paddingLeft: 16 }}>
+      <View style={[est.barra, { backgroundColor: franja }]} />
+      <View style={{ flex: 1, padding: 14, paddingLeft: 14 }}>
         <View style={est.sesionArriba}>
           <Text style={[est.sesionHora, { color: marca.primarioTexto }]} numberOfLines={1}>
             {horario}
@@ -330,9 +450,9 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
           {vivo ? (
             <Etiqueta texto="EN VIVO" tono="rojo" punto />
           ) : sesion.tipo === 'taller' ? (
-            <Etiqueta texto="TALLER" tono="coral" />
+            <Etiqueta texto="TALLER" tono="cian" />
           ) : sesion.tipo === 'plenaria' ? (
-            <Etiqueta texto="PLENARIA" colores={[marca.primarioSuave, marca.primarioTexto]} />
+            <Etiqueta texto="PLENARIA" tono="coral" />
           ) : null}
           {/* 8.7.e: agregar a Mi agenda */}
           <BotonFavorito sesionId={sesion.id} />
@@ -343,8 +463,9 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
           <View style={est.sesionPonentes}>
             <View style={{ flexDirection: 'row' }}>
               {ponentes.slice(0, 3).map((p, i) => (
-                <View key={p.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
-                  <Avatar nombre={p.nombre} tamano={24} />
+                <View key={p.id} style={{ marginLeft: i === 0 ? 0 : -8, borderRadius: 10, borderWidth: 2, borderColor: t.tarjeta }}>
+                  {/* 8.7.j: la foto del ponente si la tiene (antes solo iniciales) */}
+                  <Avatar nombre={p.nombre} foto={p.foto_url} tamano={26} />
                 </View>
               ))}
             </View>
@@ -409,13 +530,11 @@ function FranjaSponsors({ sponsors, onPress }: { sponsors: Sponsor[]; onPress: (
 function FichaPonente({ ponente }: { ponente: Ponente }) {
   const t = useTema();
   const cargoEmpresa = [ponente.cargo, ponente.empresa].filter(Boolean).join(' · ');
+  // El borde de color de marca ya lo pone <Tarjeta> (useBordeMarca).
   return (
     <Tarjeta style={est.ponente}>
-      {ponente.foto_url ? (
-        <Image source={{ uri: ponente.foto_url }} style={est.foto} />
-      ) : (
-        <Avatar nombre={ponente.nombre} tamano={50} />
-      )}
+      {/* Foto más grande (antes 50 → ahora 76): la persona es lo importante */}
+      <Avatar nombre={ponente.nombre} foto={ponente.foto_url} tamano={76} />
       <View style={{ flex: 1 }}>
         <Text style={[est.ponNombre, { color: t.texto }]}>{ponente.nombre}</Text>
         {cargoEmpresa ? (
@@ -437,8 +556,36 @@ function FichaPonente({ ponente }: { ponente: Ponente }) {
 }
 
 const est = StyleSheet.create({
-  contenido: { padding: 20, paddingBottom: 40 },
-  portada: { width: '100%', aspectRatio: 16 / 9, borderRadius: 18, marginBottom: 14 },
+  contenido: { padding: 16, paddingTop: 16, paddingBottom: 32 },
+  portada: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, marginBottom: 12 },
+  // 8.7.j: cabecera con datos e indicadores
+  cabMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, columnGap: 14, marginTop: 14 },
+  cabMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cabMetaTexto: { color: 'rgba(255,255,255,0.92)', fontFamily: F.semi, fontSize: 13 },
+  indicadores: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  indicador: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  indicadorValor: { color: '#fff', fontFamily: F.titulo, fontSize: 19 },
+  indicadorTexto: { color: 'rgba(255,255,255,0.86)', fontFamily: F.semi, fontSize: 11.5 },
+  // 8.7.j: AHORA / PRÓXIMA
+  ahoraHora: { fontFamily: F.semi, fontSize: 12.5, flex: 1 },
+  ahoraTitulo: { fontFamily: F.titulo, fontSize: 18.5, lineHeight: 24 },
+  ahoraBoton: { height: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
+  ahoraBotonTexto: { fontFamily: F.negrita, fontSize: 14.5 },
+  proxima: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, marginBottom: 4 },
+  proximaChip: { borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
+  proximaChipTexto: { fontFamily: F.negrita, fontSize: 11.5 },
+  proximaEtiqueta: { fontFamily: F.negrita, fontSize: 10.5, letterSpacing: 0.6 },
+  // 8.7.j: línea de tiempo
+  filaTiempo: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  horaTiempo: { width: 44, paddingTop: 14, alignItems: 'flex-start' },
   franjaTitulo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginHorizontal: 2 },
   franjaTexto: { fontFamily: F.tituloMedio, fontSize: 12, letterSpacing: 0.6 },
   franjaVer: { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -475,11 +622,10 @@ const est = StyleSheet.create({
   sesionPonentesTexto: { fontFamily: F.medio, fontSize: 12.5, flex: 1 },
   sesionLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
   sesionLinkTexto: { fontFamily: F.semi, fontSize: 12.5 },
-  break: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 16 },
+  break: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 1.5, borderStyle: 'dashed' },
   breakTitulo: { fontFamily: F.semi, fontSize: 14 },
   breakHora: { fontFamily: F.medio, fontSize: 12, marginTop: 1 },
-  ponente: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  foto: { width: 50, height: 50, borderRadius: 16 },
+  ponente: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   ponNombre: { fontFamily: F.negrita, fontSize: 15 },
   ponCargo: { fontFamily: F.medio, fontSize: 13, marginTop: 2 },
   ponPais: { fontFamily: F.medio, fontSize: 12.5, marginTop: 3 },

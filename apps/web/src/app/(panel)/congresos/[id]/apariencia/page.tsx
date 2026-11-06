@@ -5,7 +5,14 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
+  CircleUser,
+  Clock,
+  Coffee,
+  Home,
+  Star,
+  Users,
   Check,
   CircleAlert,
   ImageUp,
@@ -31,6 +38,7 @@ import {
   esHex,
   nivelContraste,
   oscurecer,
+  aclarar,
   textoSobre,
   legibleSobre,
 } from '@/lib/color';
@@ -53,6 +61,9 @@ type Congreso = {
   lugar?: string | null;
   personalizacion: Personalizacion | null;
   sponsors: { id: string; nombre: string; logo_url: string | null }[];
+  // 8.7.j: para los indicadores de la vista previa (vienen en GET /congresos/:id)
+  sesiones?: { tipo?: string | null }[];
+  ponentes?: { id: string }[];
 };
 
 /** Estado de una imagen mientras se edita (se sube al GUARDAR, como siempre). */
@@ -175,12 +186,15 @@ export default function AparienciaPage() {
     }
   }
 
+  /**
+   * "Colores de Nexvio": vuelve SOLO a los colores de Nexvio (null = los de la
+   * marca). El logo, la portada y el tema por defecto NO se tocan — antes este
+   * botón también quitaba las imágenes (bug visto en el 8.7.j, 6-nov).
+   * Como todo en esta pantalla, no se guarda hasta "Guardar cambios".
+   */
   function restablecer() {
     setPrimario(null);
     setSecundario(null);
-    setTema('sistema');
-    setLogo({ ...SIN_CAMBIOS, quitar: !!p?.logo_url });
-    setPortada({ ...SIN_CAMBIOS, quitar: !!p?.imagen_portada_url });
     setGuardado(false);
   }
 
@@ -208,7 +222,7 @@ export default function AparienciaPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={restablecer} disabled={guardando}>
-            <RotateCcw /> Usar la de Nexvio
+            <RotateCcw /> Colores de Nexvio
           </Button>
           <Button size="sm" onClick={guardar} disabled={!hayCambios || guardando}>
             {guardando ? 'Guardando…' : 'Guardar cambios'}
@@ -346,6 +360,7 @@ export default function AparienciaPage() {
             congreso={congreso}
             colorP={colorP}
             colorS={colorS}
+            propio={primario !== null}
             logo={logoVisible}
             portada={portadaVisible}
             oscuro={previaOscura}
@@ -503,12 +518,23 @@ function AvisoContraste({ color }: { color: string }) {
 
 /**
  * La app en miniatura, con los colores, el logo y la portada elegidos.
- * 8.7.g: en claro o en oscuro (mismos colores que la app: tema.ts).
+ * 8.7.g: en claro o en oscuro.
+ * 8.7.j: espejo del rediseño de la app (decisiones 32–33): los MISMOS tokens
+ * de apps/mobile/src/tema/tema.ts y la MISMA regla de personalización de
+ * MarcaContext:
+ *   - degradado de 3 tonos: con colores propios, del color principal (profundo
+ *     → principal); sin ellos, el de Nexvio (#2E1A8C → #4A35D6 → #5A46F0);
+ *   - brillo de la esquina: con colores propios, el principal 45 % más claro;
+ *     sin ellos, el coral;
+ *   - borde de las tarjetas: el principal semitransparente;
+ *   - barra de pestañas flotante con la pestaña activa en pastilla blanca.
+ * Si cambia el diseño de la app, cambiar también aquí.
  */
 function VistaPreviaCelular({
   congreso,
   colorP,
   colorS,
+  propio,
   logo,
   portada,
   oscuro = false,
@@ -516,115 +542,161 @@ function VistaPreviaCelular({
   congreso: Congreso;
   colorP: string;
   colorS: string;
+  /** ¿El congreso tiene color principal propio? (si no, los de Nexvio) */
+  propio: boolean;
   logo: string | null;
   portada: string | null;
   oscuro?: boolean;
 }) {
   const fecha = (iso: string) =>
     new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(/\./g, '');
-  // La misma paleta de la app (apps/mobile/src/tema/tema.ts).
+  // La misma paleta de la app (apps/mobile/src/tema/tema.ts, 8.7.j).
   const c = oscuro
-    ? { fondo: '#0B0A12', tarjeta: '#16151F', borde: '#26252F', texto: '#FAFAFA', suave: '#A1A1AA', tenue: '#71717A' }
-    : { fondo: '#F5F6FA', tarjeta: '#FFFFFF', borde: '#ECEDF3', texto: '#0E1525', suave: '#6B7385', tenue: '#9AA1B2' };
+    ? { fondo: '#0D0B18', tarjeta: '#17152A', borde: '#2A2645', texto: '#F4F3FA', suave: '#B9B5CC', ambarFondo: 'rgba(245,158,11,0.10)', ambarBorde: 'rgba(245,158,11,0.45)', ambarTexto: '#FBBF5A' }
+    : { fondo: '#F4F2FF', tarjeta: '#FFFFFF', borde: '#E4DFFB', texto: '#1B1638', suave: '#55506E', ambarFondo: '#FFF6E5', ambarBorde: '#F2C063', ambarTexto: '#8A5300' };
+
+  // La misma regla de MarcaContext (useMarca) en la app.
+  const degradado = propio ? [oscurecer(colorP, 0.5), oscurecer(colorP, 0.2), colorP] : ['#2E1A8C', '#4A35D6', '#5A46F0'];
+  const brillo = propio ? aclarar(colorP, 0.45) : SECUNDARIO_NEXVIO;
+  const fondoMarca = (dir: string, foco: string) =>
+    `radial-gradient(${foco}, ${rgba(brillo, 0.5)} 0%, ${rgba(brillo, 0)} 60%), linear-gradient(${dir}, ${degradado.join(', ')})`;
+  const bordeMarca = rgba(colorP, oscuro ? 0.6 : 0.45);
+  const textoPrimario = legibleSobre(colorP, c.tarjeta);
+
+  const charlas = (congreso.sesiones ?? []).filter((s) => s.tipo !== 'break').length;
+  const ponentes = congreso.ponentes?.length ?? 0;
 
   return (
     <div className="mx-auto w-[300px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 shadow-2xl">
-      <div className="h-[580px] overflow-hidden rounded-[1.9rem] transition-colors" style={{ backgroundColor: c.fondo }}>
-        {/* Cabecera con el degradado del color principal */}
-        <div
-          className="relative overflow-hidden rounded-b-3xl px-4 pb-4 pt-8"
-          style={{ background: `linear-gradient(135deg, ${colorP}, ${oscurecer(colorP, 0.3)})` }}
-        >
-          <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
-          <div className="relative flex items-center gap-2.5">
+      <div className="relative h-[600px] overflow-hidden rounded-[1.9rem] transition-colors" style={{ backgroundColor: c.fondo }}>
+        {/* ---- Cabecera: degradado de 3 tonos + brillo ---- */}
+        <div className="rounded-b-[22px] px-3.5 pb-3.5 pt-8 text-white" style={{ background: fondoMarca('160deg', '110% 90% at 100% 0%') }}>
+          <div className="flex items-center gap-2.5">
             {logo && (
-              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logo} alt="" className="h-full w-full object-contain" />
               </span>
             )}
-            <p className="line-clamp-2 flex-1 font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold leading-tight text-white">
+            <p className="line-clamp-3 flex-1 font-[family-name:var(--font-space-grotesk)] text-[15px] font-bold leading-tight">
               {congreso.nombre}
             </p>
-            <span
-              className="rounded-full px-2 py-0.5 text-[9px] font-bold"
-              style={{ backgroundColor: colorS, color: textoSobre(colorS) }}
-            >
-              EN CURSO
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[9.5px] font-semibold text-white/90">
+            <span className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold" style={{ backgroundColor: colorS, color: textoSobre(colorS) }}>
+              <span className="h-1 w-1 rounded-full" style={{ backgroundColor: textoSobre(colorS) }} /> EN CURSO
             </span>
+            <span className="flex items-center gap-1">
+              <CalendarDays className="h-2.5 w-2.5" /> {fecha(congreso.fecha_inicio)} – {fecha(congreso.fecha_fin)}
+            </span>
+            {(congreso.lugar || congreso.ciudad) && (
+              <span className="flex min-w-0 items-center gap-1 truncate">
+                <MapPin className="h-2.5 w-2.5 shrink-0" /> {[congreso.lugar, congreso.ciudad].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </div>
+          <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+            {[
+              [charlas, charlas === 1 ? 'charla' : 'charlas'],
+              [ponentes, ponentes === 1 ? 'ponente' : 'ponentes'],
+              ['Día 1', 'de 2'],
+            ].map(([v, t]) => (
+              <div key={String(t)} className="rounded-[10px] border border-white/20 bg-white/[0.13] px-2 py-1.5">
+                <p className="font-[family-name:var(--font-space-grotesk)] text-[13px] font-bold leading-none">{v}</p>
+                <p className="mt-0.5 text-[8.5px] font-semibold text-white/85">{t}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="space-y-2.5 p-3">
           {portada && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={portada} alt="" className="aspect-[16/9] w-full rounded-xl object-cover" />
+            <img src={portada} alt="" className="aspect-[16/9] w-full rounded-[14px] object-cover" />
           )}
-          <div className="space-y-1 text-[11px]" style={{ color: c.suave }}>
-            <p className="flex items-center gap-1.5">
-              <CalendarDays className="h-3 w-3" /> {fecha(congreso.fecha_inicio)} – {fecha(congreso.fecha_fin)}
+
+          {/* ---- AHORA (ejemplo) ---- */}
+          <div className="space-y-1.5 rounded-[14px] border-[1.5px] p-2.5" style={{ backgroundColor: c.tarjeta, borderColor: bordeMarca }}>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1 rounded-full px-1.5 py-px text-[7.5px] font-bold" style={{ backgroundColor: oscuro ? 'rgba(244,63,94,0.16)' : '#FDE7EB', color: oscuro ? '#FB7185' : '#C8102E' }}>
+                <span className="h-1 w-1 rounded-full bg-current" /> EN VIVO
+              </span>
+              <span className="text-[9px] font-semibold" style={{ color: c.suave }}>10:00 – 11:00 · Salón 2</span>
+            </div>
+            <p className="font-[family-name:var(--font-space-grotesk)] text-[12px] font-bold leading-tight" style={{ color: c.texto }}>
+              Charla que está pasando ahora
             </p>
-            {(congreso.lugar || congreso.ciudad) && (
-              <p className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3" /> {[congreso.lugar, congreso.ciudad].filter(Boolean).join(' · ')}
-              </p>
-            )}
+            <div className="flex h-7 items-center justify-center gap-1 rounded-[9px] text-[10px] font-bold" style={{ backgroundColor: colorP, color: textoSobre(colorP) }}>
+              Entrar a la sala en vivo <ArrowRight className="h-3 w-3" />
+            </div>
           </div>
 
-          {/* Franja de sponsors (8.5.e) */}
+          {/* ---- Sponsors ---- */}
           {congreso.sponsors.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide" style={{ color: c.tenue }}>Con el apoyo de</p>
-              <div className="flex gap-1.5 overflow-hidden">
-                {congreso.sponsors.slice(0, 4).map((s) => (
-                  <span
-                    key={s.id}
-                    className="flex h-9 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white p-1"
-                    style={{ borderColor: c.borde }}
-                  >
-                    {s.logo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.logo_url} alt="" className="max-h-full max-w-full object-contain" />
-                    ) : (
-                      <span className="text-[8px] font-bold text-slate-400">{s.nombre.slice(0, 6)}</span>
-                    )}
-                  </span>
-                ))}
-              </div>
+            <div className="flex gap-1.5 overflow-hidden">
+              {congreso.sponsors.slice(0, 4).map((s) => (
+                <span key={s.id} className="flex h-8 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white p-1" style={{ borderColor: c.borde }}>
+                  {s.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.logo_url} alt="" className="max-h-full max-w-full object-contain" />
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400">{s.nombre.slice(0, 6)}</span>
+                  )}
+                </span>
+              ))}
             </div>
           )}
 
-          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: c.tenue }}>Agenda</p>
-          <div className="flex gap-1.5">
-            <span className="rounded-lg px-2.5 py-1 text-[10px] font-bold text-white" style={{ backgroundColor: colorP }}>
-              Día 1
+          {/* ---- Agenda en línea de tiempo ---- */}
+          <div className="flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: rgba(colorP, oscuro ? 0.2 : 0.1), color: textoPrimario }}>
+              <Clock className="h-3 w-3" />
             </span>
-            <span
-              className="rounded-lg border px-2.5 py-1 text-[10px] font-bold"
-              style={{ backgroundColor: c.tarjeta, borderColor: c.borde, color: c.suave }}
-            >
-              Día 2
-            </span>
+            <span className="font-[family-name:var(--font-space-grotesk)] text-[12px] font-bold" style={{ color: c.texto }}>Agenda</span>
           </div>
-          {[
-            { hora: '09:00 – 10:00', titulo: 'Conferencia inaugural', barra: colorP, vivo: false },
-            { hora: '10:00 – 11:00', titulo: 'Charla en vivo', barra: colorS, vivo: true },
-          ].map((x) => (
-            <div key={x.titulo} className="flex overflow-hidden rounded-xl border" style={{ backgroundColor: c.tarjeta, borderColor: c.borde }}>
-              <span className="w-1" style={{ backgroundColor: x.barra }} />
-              <div className="flex-1 p-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold" style={{ color: oscuro ? legibleSobre(colorP, c.tarjeta) : colorP }}>{x.hora}</span>
-                  {x.vivo && (
-                    <span className="rounded-full bg-rose-100 px-1.5 text-[8px] font-bold text-rose-600">EN VIVO</span>
-                  )}
-                </div>
-                <p className="text-[11px] font-bold" style={{ color: c.texto }}>{x.titulo}</p>
+          <div className="grid grid-cols-[30px_1fr] items-start gap-x-2 gap-y-1.5">
+            <span className="pt-2 text-[9.5px] font-bold" style={{ color: c.texto }}>9:30</span>
+            <div className="flex items-center gap-1.5 rounded-[10px] border-[1.5px] border-dashed px-2 py-1.5" style={{ backgroundColor: c.ambarFondo, borderColor: c.ambarBorde, color: c.ambarTexto }}>
+              <Coffee className="h-3 w-3" /> <span className="text-[10px] font-bold">Pausa de café</span>
+            </div>
+            <span className="pt-2 text-[9.5px] font-bold" style={{ color: c.texto }}>10:00</span>
+            <div className="flex overflow-hidden rounded-[10px] border-[1.5px]" style={{ backgroundColor: c.tarjeta, borderColor: bordeMarca }}>
+              <span className="w-1" style={{ backgroundColor: colorP }} />
+              <div className="flex-1 p-2">
+                <p className="text-[9px] font-bold" style={{ color: textoPrimario }}>10:00 – 11:00</p>
+                <p className="text-[10.5px] font-bold" style={{ color: c.texto }}>Conferencia inaugural</p>
               </div>
             </div>
-          ))}
+          </div>
+        </div>
+
+        {/* ---- Barra de pestañas flotante (siempre con la marca) ---- */}
+        <div className="absolute inset-x-0 bottom-0 px-2 pb-2.5 pt-6" style={{ background: `linear-gradient(180deg, transparent, ${c.fondo} 45%)` }}>
+          <div className="grid h-11 grid-cols-4 items-center rounded-[15px] px-1 shadow-lg" style={{ background: fondoMarca('90deg', '60% 220% at 100% 50%') }}>
+            {[
+              { Icono: Home, texto: 'Congreso', activa: true },
+              { Icono: Star, texto: 'Mi agenda' },
+              { Icono: Users, texto: 'Networking' },
+              { Icono: CircleUser, texto: 'Perfil' },
+            ].map(({ Icono, texto, activa }) => (
+              <span
+                key={texto}
+                className={cn('mx-0.5 flex h-9 flex-col items-center justify-center gap-px rounded-[11px] text-[7.5px] font-bold', !activa && 'text-white/80')}
+                style={activa ? { backgroundColor: '#FFFFFF', color: legibleSobre(colorP, '#FFFFFF') } : undefined}
+              >
+                <Icono className="h-3.5 w-3.5" /> {texto}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/** "#5A46F0" + 0.45 -> "rgba(90,70,240,0.45)" (como conAlfa de la app). */
+function rgba(hex: string, alfa: number) {
+  const h = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return `rgba(${r},${g},${b},${alfa})`;
 }

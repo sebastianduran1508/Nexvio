@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Path } from 'react-native-svg';
 import type { TarjetaPersona as Persona } from '../lib/tipos';
 import { bandera, iniciales } from './ui';
 import { F } from '../tema/tema';
@@ -66,6 +67,32 @@ export function Insignia({ tipo, pequena }: { tipo: NonNullable<Persona['insigni
   );
 }
 
+/**
+ * 8.7.j: una red de nodos sutil (el símbolo de Nexvio) de fondo en las
+ * tarjetas SIN foto, para que no se vean planas. Solo adorno.
+ */
+function RedDeNodos() {
+  return (
+    <Svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 300 400"
+      preserveAspectRatio="xMidYMid slice"
+      style={[StyleSheet.absoluteFill, { opacity: 0.22 }]}
+      pointerEvents="none"
+    >
+      <Path d="M30 70 L110 35 L190 95 L280 50 M110 35 L135 170 L245 195 L280 50 M135 170 L50 235" stroke="#fff" strokeWidth={1.5} fill="none" />
+      <Circle cx={30} cy={70} r={5} fill="#fff" />
+      <Circle cx={110} cy={35} r={6} fill="#fff" />
+      <Circle cx={190} cy={95} r={4} fill="#fff" />
+      <Circle cx={280} cy={50} r={6} fill="#FF7A59" />
+      <Circle cx={135} cy={170} r={5} fill="#fff" />
+      <Circle cx={245} cy={195} r={4} fill="#fff" />
+      <Circle cx={50} cy={235} r={5} fill="#fff" />
+    </Svg>
+  );
+}
+
 export default function TarjetaPersona({
   persona,
   style,
@@ -87,6 +114,7 @@ export default function TarjetaPersona({
         <Image source={{ uri: p.foto_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, est.sinFoto]}>
+          <RedDeNodos />
           <Text style={[est.iniciales, compacta && { fontSize: 46 }]}>{iniciales(p.nombre)}</Text>
         </LinearGradient>
       )}

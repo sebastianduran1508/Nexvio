@@ -15,11 +15,13 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
 import type { ConexionRed, Perfil, PonenteRed, TarjetaPersona as Persona } from '../lib/tipos';
-import { Avatar, Cabecera, Cargando, Vacio, bandera } from '../components/ui';
+import { Avatar, Cabecera, Cargando, Vacio, bandera, useBordeMarca } from '../components/ui';
+import { legibleSobre, textoSobre } from '../lib/color';
 import TarjetaPersona from '../components/TarjetaPersona';
 import MatchModal from '../components/MatchModal';
 import { useMarca } from '../context/MarcaContext';
@@ -154,19 +156,33 @@ export default function NetworkingScreen({ route, navigation }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
-      <Cabecera compacta titulo="Networking" antetitulo="Conecta con el congreso" colores={marca.degradado}>
+      <Cabecera
+        compacta
+        titulo="Networking"
+        antetitulo="Conecta con el congreso"
+        colores={marca.degradado}
+        derecha={
+          // 8.7.j: cuántas personas quedan por descubrir (como el mockup)
+          personas && pila.length > 0 ? (
+            <View style={est.porDescubrir}>
+              <Text style={est.porDescubrirTexto}>{pila.length} por descubrir</Text>
+            </View>
+          ) : undefined
+        }
+      >
         <View style={est.segmentos}>
           {(['descubrir', 'explorar', 'conexiones'] as Vista[]).map((v) => {
             const activa = vista === v;
             const n = v === 'conexiones' ? conexiones.length : 0;
             return (
               <TouchableOpacity key={v} style={[est.segmento, activa && est.segmentoActivo]} onPress={() => setVista(v)}>
-                <Text style={[est.segmentoTexto, { color: activa ? marca.primario : 'rgba(255,255,255,0.9)' }]}>
+                <Text style={[est.segmentoTexto, { color: activa ? legibleSobre(marca.primario, '#FFFFFF') : 'rgba(255,255,255,0.9)' }]}>
                   {v === 'descubrir' ? 'Descubrir' : v === 'explorar' ? 'Explorar' : 'Conexiones'}
                 </Text>
                 {n > 0 && (
-                  <View style={[est.contador, { backgroundColor: activa ? marca.primario : '#fff' }]}>
-                    <Text style={[est.contadorTexto, { color: activa ? '#fff' : marca.primario }]}>{n}</Text>
+                  // 8.7.j: el contador en el color de acento (coral en Nexvio)
+                  <View style={[est.contador, { backgroundColor: marca.acento }]}>
+                    <Text style={[est.contadorTexto, { color: marca.textoAcento }]}>{n}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -177,7 +193,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
 
       {yo?.visible_networking === false && (
         <View style={[est.aviso, { backgroundColor: t.coralSuave }]}>
-          <Ionicons name="eye-off-outline" size={16} color={t.coral} />
+          <Ionicons name="eye-off-outline" size={16} color={t.coralTexto} />
           <Text style={[est.avisoTexto, { color: t.texto }]}>
             Estás oculto: los demás no te ven. Actívalo en Perfil → Aparecer en networking.
           </Text>
@@ -305,6 +321,13 @@ function Descubrir({
     outputRange: [1, 0.93, 1],
     extrapolate: 'clamp',
   });
+  // 8.7.j: la de atrás se asoma un poco por arriba (se nota que hay más gente)
+  // y baja a su sitio mientras arrastras la de adelante.
+  const subirSiguiente = pos.x.interpolate({
+    inputRange: [-ANCHO / 2, 0, ANCHO / 2],
+    outputRange: [0, -14, 0],
+    extrapolate: 'clamp',
+  });
 
   if (!actual) {
     return (
@@ -341,7 +364,7 @@ function Descubrir({
 
       <View style={{ flex: 1 }}>
         {siguiente && (
-          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: escalaSiguiente }] }]}>
+          <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: subirSiguiente }, { scale: escalaSiguiente }] }]}>
             <TarjetaPersona persona={siguiente} style={{ flex: 1 }} />
           </Animated.View>
         )}
@@ -367,9 +390,10 @@ function Descubrir({
       </View>
 
       <View style={est.botones}>
-        <BotonRedondo icono="close" color="#F43F5E" tamano={58} onPress={() => salir('izq')} etiqueta="Ahora no" />
-        <BotonRedondo icono="information" color={t.textoSuave} tamano={44} onPress={() => abrirPerfil(actual)} etiqueta="Ver perfil" />
-        <BotonRedondo icono="heart" color="#fff" fondo={marca.primario} tamano={66} onPress={() => salir('der')} etiqueta="Me interesa" />
+        <BotonRedondo icono="close" color={t.textoSuave} tamano={58} onPress={() => salir('izq')} etiqueta="Ahora no" />
+        <BotonRedondo icono="information" color={marca.primarioTexto} tamano={44} onPress={() => abrirPerfil(actual)} etiqueta="Ver perfil" />
+        {/* 8.7.j: 💜 con degradado del color principal al brillo (violeta → coral en Nexvio) */}
+        <BotonRedondo icono="heart" color="#fff" degradado={[marca.primario, marca.brillo]} tamano={70} onPress={() => salir('der')} etiqueta="Me interesa" />
       </View>
     </View>
   );
@@ -378,31 +402,41 @@ function Descubrir({
 function BotonRedondo({
   icono,
   color,
-  fondo,
+  degradado,
   tamano,
   onPress,
   etiqueta,
 }: {
   icono: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
-  fondo?: string;
+  /** 8.7.j: relleno en degradado (el 💜). Sin él: blanco con el borde de marca. */
+  degradado?: readonly [string, string];
   tamano: number;
   onPress: () => void;
   etiqueta: string;
 }) {
   const t = useTema();
+  const borde = useBordeMarca();
+  const forma = { width: tamano, height: tamano, borderRadius: tamano / 2 };
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
       accessibilityLabel={etiqueta}
       style={[
-        { width: tamano, height: tamano, borderRadius: tamano / 2, backgroundColor: fondo ?? t.tarjeta },
+        forma,
         est.redondo,
+        degradado ? null : { backgroundColor: t.tarjeta, borderWidth: 1.5, borderColor: borde },
         sombra(t, 2),
       ]}
     >
-      <Ionicons name={icono} size={tamano * 0.46} color={color} />
+      {degradado ? (
+        <LinearGradient colors={degradado} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[forma, est.redondo]}>
+          <Ionicons name={icono} size={tamano * 0.44} color={color} />
+        </LinearGradient>
+      ) : (
+        <Ionicons name={icono} size={tamano * 0.44} color={color} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -426,6 +460,7 @@ function Explorar({
 }) {
   const t = useTema();
   const marca = useMarca();
+  const bordeMarca = useBordeMarca();
   const [q, setQ] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const normal = (s?: string | null) => (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -490,7 +525,7 @@ function Explorar({
               onChangeText={setQ}
               placeholder="Busca por nombre, cargo, empresa…"
               placeholderTextColor={t.textoTenue}
-              style={[est.buscador, { backgroundColor: t.tarjeta, borderColor: t.borde, color: t.texto }]}
+              style={[est.buscador, { backgroundColor: t.tarjeta, borderColor: bordeMarca, color: t.texto }]}
             />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -500,9 +535,9 @@ function Explorar({
                 <TouchableOpacity
                   key={c.id}
                   onPress={() => setFiltro(c.id)}
-                  style={[est.chip, { backgroundColor: activo ? marca.primario : t.tarjeta, borderColor: activo ? marca.primario : t.borde }]}
+                  style={[est.chip, { backgroundColor: activo ? marca.primario : t.tarjeta, borderColor: activo ? marca.primario : bordeMarca }]}
                 >
-                  <Text style={[est.chipTexto, { color: activo ? '#fff' : t.texto }]}>{c.texto}</Text>
+                  <Text style={[est.chipTexto, { color: activo ? textoSobre(marca.primario) : t.texto }]}>{c.texto}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -554,6 +589,7 @@ function Conexiones({
 }) {
   const t = useTema();
   const marca = useMarca();
+  const bordeMarca = useBordeMarca();
   return (
     <FlatList
       data={conexiones}
@@ -579,7 +615,7 @@ function Conexiones({
         const nombre = [c.con.nombre, c.con.apellidos].filter(Boolean).join(' ');
         return (
           <TouchableOpacity
-            style={[est.conexion, { backgroundColor: t.tarjeta, borderColor: t.borde }]}
+            style={[est.conexion, { backgroundColor: t.tarjeta, borderColor: bordeMarca }]}
             onPress={() => alAbrir(c)}
             activeOpacity={0.8}
           >
@@ -603,9 +639,15 @@ function Conexiones({
 
 const est = StyleSheet.create({
   segmentos: {
-    flexDirection: 'row', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.16)',
+    flexDirection: 'row', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.13)',
+    borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1,
     borderRadius: 14, padding: 4, gap: 4,
   },
+  porDescubrir: {
+    backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.24)', borderWidth: 1,
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  porDescubrirTexto: { color: '#fff', fontFamily: F.negrita, fontSize: 11.5 },
   segmento: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
   segmentoActivo: { backgroundColor: '#fff' },
   segmentoTexto: { fontFamily: F.negrita, fontSize: 13 },
@@ -637,7 +679,7 @@ const est = StyleSheet.create({
   },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, marginBottom: 6 },
   bannerTexto: { flex: 1, fontFamily: F.semi, fontSize: 13.5, lineHeight: 19 },
-  conexion: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, padding: 12 },
+  conexion: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1.5, padding: 12 },
   conexionNombre: { fontFamily: F.negrita, fontSize: 15.5 },
   conexionSub: { fontFamily: F.medio, fontSize: 12.5, marginTop: 1 },
 });

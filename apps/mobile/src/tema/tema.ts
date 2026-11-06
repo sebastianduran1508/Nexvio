@@ -2,7 +2,12 @@ import { createContext, useContext } from 'react';
 import { Platform, useColorScheme, type ViewStyle } from 'react-native';
 
 /**
- * TEMA VISUAL DE LA APP (rediseño "Opción A" del mockup).
+ * TEMA VISUAL DE LA APP.
+ *
+ * 8.7.j: paleta "Violeta vivo" — LA MISMA del panel web (decisión 32), para
+ * que app y panel se vean como un solo producto. Antes (feria) el claro era
+ * gris (#F5F6FA); ahora es lavanda, con bordes violeta tenue y un texto
+ * secundario más oscuro que cumple contraste AA (4.5:1).
  *
  * Por qué un objeto de colores además de los tokens de NativeWind:
  * las pantallas usan StyleSheet (no className), y StyleSheet no entiende las
@@ -27,54 +32,79 @@ export type Paleta = {
   primarioSuave: string; // fondos violeta muy claritos
   coral: string;
   coralSuave: string;
+  coralTexto: string; // 8.7.j: coral para TEXTO (el #FF7A59 no se lee sobre blanco)
   verde: string;
   verdeSuave: string;
   rojo: string;
   rojoSuave: string;
+  // 8.7.j: tipos de la agenda, iguales al panel (café ámbar, almuerzo verde, taller cian)
+  ambarSuave: string;
+  ambarBorde: string;
+  ambarTexto: string;
+  verdeBorde: string;
+  cian: string;
+  cianSuave: string;
+  cianTexto: string;
   input: string;
   barraFondo: string;
   oscuro: boolean;
 };
 
 const CLARO: Paleta = {
-  fondo: '#F5F6FA',
+  fondo: '#F4F2FF', // lavanda (panel: --background)
   tarjeta: '#FFFFFF',
-  borde: '#ECEDF3',
-  texto: '#0E1525',
-  textoSuave: '#6B7385',
-  textoTenue: '#9AA1B2',
+  borde: '#E4DFFB', // violeta tenue (panel: --border)
+  texto: '#1B1638',
+  textoSuave: '#55506E', // contraste AA (panel: --muted-foreground)
+  textoTenue: '#6E6987',
   primario: '#5A46F0',
-  primarioTexto: '#5A46F0',
-  primarioSuave: '#EEF0FF',
+  primarioTexto: '#4A35D6',
+  primarioSuave: '#EEEBFF',
   coral: '#FF7A59',
   coralSuave: '#FFEDE7',
-  verde: '#16A34A',
+  coralTexto: '#B4441F',
+  verde: '#15803D',
   verdeSuave: '#DCFCE7',
-  rojo: '#E11D48',
-  rojoSuave: '#FEE2E2',
-  input: '#F5F6FA',
-  barraFondo: '#EEF0F5',
+  rojo: '#C8102E',
+  rojoSuave: '#FDE7EB',
+  ambarSuave: '#FFF6E5',
+  ambarBorde: '#F2C063',
+  ambarTexto: '#8A5300',
+  verdeBorde: '#86D7A4',
+  cian: '#06B6D4',
+  cianSuave: '#E3F7FB',
+  cianTexto: '#0B6577',
+  input: '#F4F2FF',
+  barraFondo: '#F1EEFF',
   oscuro: false,
 };
 
 const OSCURO: Paleta = {
-  fondo: '#0B0A12',
-  tarjeta: '#16151F',
-  borde: '#26252F',
-  texto: '#FAFAFA',
-  textoSuave: '#A1A1AA',
-  textoTenue: '#71717A',
+  fondo: '#0D0B18', // panel oscuro: --background
+  tarjeta: '#17152A',
+  borde: '#2A2645',
+  texto: '#F4F3FA',
+  textoSuave: '#B9B5CC',
+  textoTenue: '#9C97B5',
   primario: '#5A46F0',
-  primarioTexto: '#9D90FF',
-  primarioSuave: 'rgba(90,70,240,0.18)',
+  primarioTexto: '#A99FFF',
+  primarioSuave: 'rgba(109,92,255,0.20)',
   coral: '#FF7A59',
   coralSuave: 'rgba(255,122,89,0.16)',
+  coralTexto: '#FF9B80',
   verde: '#4ADE80',
   verdeSuave: 'rgba(34,197,94,0.16)',
   rojo: '#FB7185',
   rojoSuave: 'rgba(244,63,94,0.16)',
-  input: '#1E1D29',
-  barraFondo: '#26252F',
+  ambarSuave: 'rgba(245,158,11,0.10)',
+  ambarBorde: 'rgba(245,158,11,0.45)',
+  ambarTexto: '#FBBF5A',
+  verdeBorde: 'rgba(34,197,94,0.45)',
+  cian: '#22D3EE',
+  cianSuave: 'rgba(6,182,212,0.16)',
+  cianTexto: '#67E3F5',
+  input: '#221F38',
+  barraFondo: '#221F38',
   oscuro: true,
 };
 
@@ -96,8 +126,17 @@ export function useTema(): Paleta {
   return oscuro ? OSCURO : CLARO;
 }
 
-/** Los colores del degradado de marca (iguales en claro y oscuro). */
-export const DEGRADADO = ['#5A46F0', '#7C3AED'] as const;
+/**
+ * El degradado de marca (igual en claro y oscuro), el mismo del menú del panel:
+ * de un violeta profundo arriba a la izquierda al violeta de marca abajo a la
+ * derecha. Encima va un BRILLO coral en la esquina (ver <Brillo /> en ui.tsx).
+ * Si el congreso tiene colores propios, useMarca() arma uno equivalente con
+ * los suyos.
+ */
+export const DEGRADADO = ['#2E1A8C', '#4A35D6', '#5A46F0'] as const;
+
+/** Tipo de un degradado: 2 o más colores (lo que pide LinearGradient). */
+export type Degradado = readonly [string, string, ...string[]];
 
 /**
  * Las fuentes del mockup. Se cargan UNA vez en App.tsx con useFonts().
@@ -121,8 +160,8 @@ export function sombra(t: Paleta, nivel: 1 | 2 = 1): ViewStyle {
   if (t.oscuro) return {};
   return Platform.select<ViewStyle>({
     ios: {
-      shadowColor: '#101525',
-      shadowOpacity: nivel === 1 ? 0.05 : 0.08,
+      shadowColor: '#2E1A8C', // 8.7.j: sombra violeta tenue, como el panel
+      shadowOpacity: nivel === 1 ? 0.07 : 0.1,
       shadowRadius: nivel === 1 ? 12 : 20,
       shadowOffset: { width: 0, height: nivel === 1 ? 4 : 8 },
     },

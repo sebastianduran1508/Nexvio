@@ -10,6 +10,7 @@ import { MiAgendaProvider } from '../context/MiAgendaContext';
 import { MiCongresoProvider, useMiCongreso } from '../context/MiCongresoContext';
 import ElegirCongresoScreen, { SinCongresoScreen } from '../screens/ElegirCongresoScreen';
 import { Cargando, Vacio } from '../components/ui';
+import { BarraPestanas } from '../components/BarraPestanas';
 import { F, useTema } from '../tema/tema';
 
 /**
@@ -31,6 +32,9 @@ import { F, useTema } from '../tema/tema';
  *
  * Ninguna pantalla usa la cabecera nativa: cada una pinta la suya con
  * degradado (<Cabecera />). Por eso headerShown: false.
+ *
+ * 8.7.j: la barra de abajo es nuestra (<BarraPestanas />, violeta y
+ * flotante). La pestaña activa usa el ícono RELLENO; las demás, el de contorno.
  */
 const Tab = createBottomTabNavigator();
 
@@ -52,20 +56,15 @@ function Contenido() {
   return (
     <MiAgendaProvider congresoId={actual?.id}>
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: t.primarioTexto,
-        tabBarInactiveTintColor: t.textoTenue,
-        tabBarStyle: { backgroundColor: t.tarjeta, borderTopColor: t.borde },
-        tabBarLabelStyle: { fontFamily: F.negrita, fontSize: 11 },
-      }}
+      tabBar={(props) => <BarraPestanas {...props} />}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: t.fondo } }}
     >
       {/* El nombre "CongresosTab" se conserva: la notificación push navega a él (8.6). */}
       <Tab.Screen
         name="CongresosTab"
         options={{
           title: 'Congreso',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />,
         }}
       >
         {/* key: si cambia de congreso, el stack arranca de cero en el nuevo. */}
@@ -83,7 +82,7 @@ function Contenido() {
         name="MiAgendaTab"
         options={{
           title: 'Mi agenda',
-          tabBarIcon: ({ color, size }) => <Ionicons name="star-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'star' : 'star-outline'} color={color} size={size} />,
         }}
       >
         {() =>
@@ -100,7 +99,7 @@ function Contenido() {
         name="NetworkingTab"
         options={{
           title: 'Networking',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={size} />,
         }}
       >
         {() =>
@@ -118,7 +117,7 @@ function Contenido() {
         component={PerfilStack}
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} />,
         }}
       />
     </Tab.Navigator>

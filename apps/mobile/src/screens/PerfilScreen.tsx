@@ -12,9 +12,11 @@ import { rangoFechas } from '../lib/formato';
 import { api, apiSubirImagen } from '../lib/api';
 import { elegirFoto } from '../lib/foto';
 import type { Perfil } from '../lib/tipos';
-import { Avatar, Boton, Tarjeta, TituloSeccion } from '../components/ui';
-import { DEGRADADO, F, useTema } from '../tema/tema';
-import { useApariencia } from '../tema/TemaProvider';
+import { Avatar, Boton, Brillo, Tarjeta, TituloSeccion, bandera } from '../components/ui';
+import { F, useTema } from '../tema/tema';
+import { useApariencia, type PreferenciaTema } from '../tema/TemaProvider';
+import { useMarca } from '../context/MarcaContext';
+import { legibleSobre, textoSobre } from '../lib/color';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
 type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
@@ -28,16 +30,19 @@ type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
  *  - 8.7.c ✅: foto (tocar el avatar: cámara, galería o quitar) y "Mis datos".
  *  - 8.7.d ✅: "¿Cómo me ven?" y el interruptor "Aparecer en networking".
  *  - 8.7.g ✅: Apariencia (como el congreso / teléfono / claro / oscuro).
+ *  - 8.7.j: rediseño del mockup — cabecera horizontal (foto grande + nombre +
+ *    cargo + "@usuario · país"), Apariencia con selector directo aquí mismo y
+ *    los colores del congreso en íconos e interruptor.
  */
 export default function PerfilScreen({ navigation }: Props) {
   const { yo, signOut } = useAuth();
   const { actual, congresos, cambiar } = useMiCongreso();
   const t = useTema();
+  const marca = useMarca();
   const insets = useSafeAreaInsets();
   const nombre = [yo?.nombre, yo?.apellidos].filter(Boolean).join(' ');
   const version = Constants.expoConfig?.version ?? '1.0.0';
-  const { preferencia, modo } = useApariencia();
-  const textoApariencia = preferencia === 'oscuro' ? 'Oscuro' : preferencia === 'claro' ? 'Claro' : 'Por defecto';
+  const { preferencia, cambiarPreferencia } = useApariencia();
 
   // 8.7.c: el perfil (para la foto y el resumen de "Mis datos"). Se recarga al
   // volver a la pantalla, por si se editó en "Mis datos".
@@ -96,31 +101,46 @@ export default function PerfilScreen({ navigation }: Props) {
     <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* ---------- Encabezado con la persona ---------- */}
       <LinearGradient
-        colors={DEGRADADO}
+        colors={marca.degradado}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[est.hero, { paddingTop: insets.top + 28 }]}
+        end={{ x: 0.6, y: 1 }}
+        style={[est.hero, { paddingTop: insets.top + 22 }]}
       >
-        <View style={[est.circulo, { width: 220, height: 220, right: -70, top: -70 }]} />
-        <View style={[est.circulo, { width: 140, height: 140, left: -50, bottom: -60 }]} />
-        <TouchableOpacity
-          style={est.avatarAro}
-          onPress={() => setMenuFoto(true)}
-          activeOpacity={0.85}
-          accessibilityLabel="Cambiar foto de perfil"
-        >
-          <Avatar nombre={nombre || '?'} tamano={96} foto={perfil?.foto_url} />
-          {subiendo && (
-            <View style={est.subiendo}>
-              <ActivityIndicator color="#fff" />
+        <Brillo color={marca.brillo} />
+        <View style={est.heroFila}>
+          <TouchableOpacity
+            style={est.avatarAro}
+            onPress={() => setMenuFoto(true)}
+            activeOpacity={0.85}
+            accessibilityLabel="Cambiar foto de perfil"
+          >
+            <Avatar nombre={nombre || '?'} tamano={84} foto={perfil?.foto_url} />
+            {subiendo && (
+              <View style={est.subiendo}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            )}
+            <View style={[est.camara, { borderColor: marca.primario }]}>
+              <Ionicons name="camera" size={15} color={legibleSobre(marca.primario, '#FFFFFF')} />
             </View>
-          )}
-          <View style={[est.camara, { backgroundColor: t.coral }]}>
-            <Ionicons name="camera" size={15} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={est.nombre} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>{nombre}</Text>
+            {perfil?.cargo || perfil?.empresa ? (
+              <Text style={est.puesto} numberOfLines={2}>
+                {[perfil?.cargo, perfil?.empresa].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
+            {yo?.username ? (
+              <View style={est.chipUsuario}>
+                <Text style={est.chipUsuarioTexto} numberOfLines={1}>
+                  @{yo.username}
+                  {perfil?.pais ? ` · ${bandera(perfil.pais_codigo)} ${perfil.pais}` : ''}
+                </Text>
+              </View>
+            ) : null}
           </View>
-        </TouchableOpacity>
-        <Text style={est.nombre}>{nombre}</Text>
-        {yo?.username ? <Text style={est.usuario}>@{yo.username}</Text> : null}
+        </View>
         {!perfil?.foto_url && !subiendo && (
           <Text style={est.pista}>Toca tu foto para agregar una</Text>
         )}
@@ -172,14 +192,16 @@ export default function PerfilScreen({ navigation }: Props) {
               <Fila
                 icono="eye"
                 titulo="¿Cómo me ven?"
+                subtitulo="Tu tarjeta tal como la ven en Descubrir"
+                destacada
                 onPress={() => navigation.navigate('ComoMeVen')}
               />
               <Separador />
             </>
           )}
           <View style={est.fila}>
-            <View style={[est.icono, { backgroundColor: t.primarioSuave }]}>
-              <Ionicons name="people" size={18} color={t.primarioTexto} />
+            <View style={[est.icono, { backgroundColor: marca.primarioSuave }]}>
+              <Ionicons name="people" size={18} color={marca.primarioTexto} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[est.filaTitulo, { color: t.texto }]}>Aparecer en networking</Text>
@@ -193,7 +215,7 @@ export default function PerfilScreen({ navigation }: Props) {
               value={perfil?.visible_networking !== false}
               onValueChange={cambiarVisible}
               disabled={!perfil}
-              trackColor={{ true: t.primario, false: t.borde }}
+              trackColor={{ true: marca.primario, false: t.borde }}
               thumbColor="#fff"
             />
           </View>
@@ -215,13 +237,32 @@ export default function PerfilScreen({ navigation }: Props) {
 
         {/* ---------- Ajustes (8.7.g) ---------- */}
         <TituloSeccion texto="Ajustes" />
-        <Tarjeta style={est.grupo}>
-          <Fila
-            icono={modo === 'oscuro' ? 'moon' : 'sunny'}
-            titulo="Apariencia"
-            subtitulo={textoApariencia}
-            onPress={() => navigation.navigate('Apariencia')}
-          />
+        {/* 8.7.j: el selector va aquí mismo (antes había que entrar a otra pantalla) */}
+        <Tarjeta style={{ padding: 14, gap: 10 }}>
+          <Text style={[est.ajusteTitulo, { color: t.textoSuave }]}>APARIENCIA</Text>
+          <View style={[est.segmentos, { backgroundColor: t.barraFondo }]} accessibilityRole="radiogroup">
+            {(
+              [
+                ['congreso', 'Por defecto'],
+                ['claro', 'Claro'],
+                ['oscuro', 'Oscuro'],
+              ] as [PreferenciaTema, string][]
+            ).map(([valor, texto]) => {
+              const activa = preferencia === valor || (valor === 'congreso' && preferencia === 'sistema');
+              return (
+                <TouchableOpacity
+                  key={valor}
+                  onPress={() => cambiarPreferencia(valor)}
+                  activeOpacity={0.8}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: activa }}
+                  style={[est.segmento, activa && { backgroundColor: marca.primario }]}
+                >
+                  <Text style={[est.segmentoTexto, { color: activa ? textoSobre(marca.primario) : t.textoSuave }]}>{texto}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </Tarjeta>
 
         {/* ---------- Ayuda ---------- */}
@@ -298,18 +339,28 @@ function Fila({
   titulo,
   subtitulo,
   onPress,
+  destacada,
 }: {
   icono: React.ComponentProps<typeof Ionicons>['name'];
   titulo: string;
   subtitulo?: string;
   onPress?: () => void;
+  /** 8.7.j: ícono con el degradado de marca (para lo que debe resaltar). */
+  destacada?: boolean;
 }) {
   const t = useTema();
+  const marca = useMarca();
   const contenido = (
     <>
-      <View style={[est.icono, { backgroundColor: t.primarioSuave }]}>
-        <Ionicons name={icono} size={18} color={t.primarioTexto} />
-      </View>
+      {destacada ? (
+        <LinearGradient colors={[marca.primario, marca.brillo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={est.icono}>
+          <Ionicons name={icono} size={18} color="#fff" />
+        </LinearGradient>
+      ) : (
+        <View style={[est.icono, { backgroundColor: marca.primarioSuave }]}>
+          <Ionicons name={icono} size={18} color={marca.primarioTexto} />
+        </View>
+      )}
       <View style={{ flex: 1 }}>
         <Text style={[est.filaTitulo, { color: t.texto }]} numberOfLines={2}>
           {titulo}
@@ -338,26 +389,38 @@ function Separador() {
 }
 
 const est = StyleSheet.create({
-  hero: { alignItems: 'center', paddingBottom: 30, overflow: 'hidden' },
-  circulo: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
-  avatarAro: { padding: 4, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.35)' },
+  hero: {
+    paddingHorizontal: 20, paddingBottom: 24, overflow: 'hidden',
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+  },
+  heroFila: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  avatarAro: { padding: 3, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.9)' },
   subiendo: {
-    position: 'absolute', top: 4, left: 4, width: 96, height: 96, borderRadius: 31,
+    position: 'absolute', top: 3, left: 3, width: 84, height: 84, borderRadius: 27,
     backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center',
   },
   camara: {
-    position: 'absolute', right: -4, bottom: -4, width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff',
+    position: 'absolute', right: -6, bottom: -6, width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, backgroundColor: '#fff',
   },
-  pista: { color: 'rgba(255,255,255,0.75)', fontFamily: F.medio, fontSize: 12.5, marginTop: 8 },
+  puesto: { color: 'rgba(255,255,255,0.9)', fontFamily: F.semi, fontSize: 13.5 },
+  chipUsuario: {
+    alignSelf: 'flex-start', marginTop: 4, backgroundColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.24)', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  chipUsuarioTexto: { color: '#fff', fontFamily: F.negrita, fontSize: 11.5 },
+  ajusteTitulo: { fontFamily: F.negrita, fontSize: 11.5, letterSpacing: 0.6 },
+  segmentos: { flexDirection: 'row', borderRadius: 12, padding: 4, gap: 4 },
+  segmento: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9 },
+  segmentoTexto: { fontFamily: F.negrita, fontSize: 13 },
+  pista: { color: 'rgba(255,255,255,0.78)', fontFamily: F.medio, fontSize: 12.5, marginTop: 12 },
   fondoHoja: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   hoja: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10 },
   agarre: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 12 },
   hojaTitulo: { fontFamily: F.titulo, fontSize: 17, marginBottom: 6 },
   opcion: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
   opcionTexto: { fontFamily: F.semi, fontSize: 15.5 },
-  nombre: { color: '#fff', fontFamily: F.titulo, fontSize: 22, marginTop: 14, textAlign: 'center', paddingHorizontal: 24 },
-  usuario: { color: 'rgba(255,255,255,0.8)', fontFamily: F.medio, fontSize: 14, marginTop: 3 },
+  nombre: { color: '#fff', fontFamily: F.titulo, fontSize: 22 },
   grupo: { padding: 0, overflow: 'hidden' },
   fila: {
     flexDirection: 'row',

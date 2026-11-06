@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { PoliticaDatos } from '../lib/tipos';
-import { Boton } from '../components/ui';
+import { Boton, Brillo } from '../components/ui';
+import { PRIMARIO_NEXVIO, SECUNDARIO_NEXVIO, conAlfa } from '../lib/color';
 import { DEGRADADO, F, sombra, useTema, type Paleta } from '../tema/tema';
 
 /**
@@ -114,10 +115,11 @@ export default function PrimerIngresoScreen() {
         <LinearGradient
           colors={DEGRADADO}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 0.6, y: 1 }}
           style={[est.hero, { paddingTop: insets.top + 32 }]}
         >
-          <View style={[est.circulo, { width: 220, height: 220, right: -70, top: -60 }]} />
+          {/* 8.7.j: brillo coral (colores de Nexvio: aún no hay congreso abierto) */}
+          <Brillo color={SECUNDARIO_NEXVIO} />
           <Text style={est.heroHola}>¡Hola, {yo?.nombre?.split(' ')[0] ?? ''}! 👋</Text>
           <Text style={est.heroTexto}>
             {pideClave && pideDatos
@@ -131,7 +133,7 @@ export default function PrimerIngresoScreen() {
         <View style={{ paddingHorizontal: 18, marginTop: -26, gap: 16 }}>
           {/* ---------- 1. Contraseña ---------- */}
           {pideClave && (
-            <View style={[est.tarjeta, { backgroundColor: t.tarjeta }, sombra(t)]}>
+            <View style={[est.tarjeta, { backgroundColor: t.tarjeta, borderColor: conAlfa(PRIMARIO_NEXVIO, t.oscuro ? 0.6 : 0.45) }, sombra(t)]}>
               <Paso t={t} numero={pideDatos ? 1 : undefined} icono="key-outline" titulo="Crea tu contraseña" />
               <Text style={[est.texto, { color: t.textoSuave }]}>
                 La que te enviaron es temporal. Elige una que solo tú conozcas.
@@ -189,7 +191,7 @@ export default function PrimerIngresoScreen() {
 
           {/* ---------- 2. Tratamiento de datos ---------- */}
           {pideDatos && (
-            <View style={[est.tarjeta, { backgroundColor: t.tarjeta }, sombra(t)]}>
+            <View style={[est.tarjeta, { backgroundColor: t.tarjeta, borderColor: conAlfa(PRIMARIO_NEXVIO, t.oscuro ? 0.6 : 0.45) }, sombra(t)]}>
               <Paso t={t} numero={pideClave ? 2 : undefined} icono="shield-checkmark-outline" titulo="Tus datos personales" />
 
               {!politica && !errorPolitica && (
@@ -323,10 +325,9 @@ function Paso({
 
 const est = StyleSheet.create({
   hero: { paddingHorizontal: 24, paddingBottom: 52, overflow: 'hidden' },
-  circulo: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroHola: { color: '#fff', fontFamily: F.titulo, fontSize: 27, letterSpacing: -0.4 },
   heroTexto: { color: 'rgba(255,255,255,0.85)', fontFamily: F.normal, fontSize: 15, lineHeight: 21, marginTop: 8 },
-  tarjeta: { borderRadius: 20, padding: 18 },
+  tarjeta: { borderRadius: 20, padding: 18, borderWidth: 1.5 }, // 8.7.j: borde violeta de marca
   fila: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   pasoIcono: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   pasoTitulo: { fontFamily: F.titulo, fontSize: 17 },

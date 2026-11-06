@@ -6,21 +6,24 @@ import { Text, View } from 'react-native';
  * Colores fijos de marca: violeta #5A46F0 + nodo coral #FF7A59. El violeta se
  * ve bien tanto en claro como en oscuro.
  */
-export function NexvioMark({ size = 40 }: { size?: number }) {
+export function NexvioMark({ size = 40, blanca }: { size?: number; blanca?: boolean }) {
+  // 8.7.j: `blanca` = la versión para poner SOBRE el degradado violeta
+  // (líneas y nodos blancos; el nodo coral se mantiene).
+  const c = blanca ? '#FFFFFF' : '#5A46F0';
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
       <Path
         d="M16 48 L16 16 L48 48 L48 16"
-        stroke="#5A46F0"
+        stroke={c}
         strokeWidth={3.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity={0.9}
       />
-      <Circle cx={16} cy={48} r={5.4} fill="#5A46F0" />
-      <Circle cx={16} cy={16} r={5.4} fill="#5A46F0" />
-      <Circle cx={32} cy={32} r={4.4} fill="#5A46F0" />
-      <Circle cx={48} cy={48} r={5.4} fill="#5A46F0" />
+      <Circle cx={16} cy={48} r={5.4} fill={c} />
+      <Circle cx={16} cy={16} r={5.4} fill={c} />
+      <Circle cx={32} cy={32} r={4.4} fill={c} />
+      <Circle cx={48} cy={48} r={5.4} fill={c} />
       <Circle cx={48} cy={16} r={5.6} fill="#FF7A59" />
     </Svg>
   );

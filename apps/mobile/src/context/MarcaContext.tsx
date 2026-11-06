@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import { useTema } from '../tema/tema';
+import { DEGRADADO, useTema, type Degradado } from '../tema/tema';
 import {
   PRIMARIO_NEXVIO,
   SECUNDARIO_NEXVIO,
+  aclarar,
   conAlfa,
   legibleSobre,
   oscurecer,
@@ -58,8 +59,22 @@ export function useMarca() {
     return {
       /** Rellenos: botones, pestaña de día activa, barras. */
       primario,
-      /** Degradado de la cabecera: el principal hacia uno 30 % más oscuro. */
-      degradado: [primario, propio ? oscurecer(primario, 0.3) : '#7C3AED'] as const,
+      /**
+       * Degradado de la cabecera y de la barra de pestañas (8.7.j): de una
+       * versión profunda del color principal hasta el principal. Con los
+       * colores de Nexvio es exactamente el del panel.
+       */
+      degradado: (propio
+        ? [oscurecer(primario, 0.5), oscurecer(primario, 0.2), primario]
+        : DEGRADADO) as Degradado,
+      /**
+       * 8.7.j: el brillo de la esquina. Con Nexvio, el coral (como el panel).
+       * Con colores propios, una versión CLARA DEL MISMO principal — no el
+       * secundario: el brillo es semitransparente y se MEZCLA con el fondo, y
+       * dos colores opuestos (naranja + verde azulado) dan un tono barroso.
+       * Bug visto al probar el 8.7.j (6-nov).
+       */
+      brillo: propio ? aclarar(primario, 0.45) : SECUNDARIO_NEXVIO,
       /** Textos e íconos con el color de marca, legibles sobre el fondo actual. */
       primarioTexto: propio ? legibleSobre(primario, t.tarjeta) : t.primarioTexto,
       /** Fondos suaves con el color de marca. */

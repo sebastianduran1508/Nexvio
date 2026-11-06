@@ -1230,13 +1230,16 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
 - ✅ **8.7.h** Pulido visual del panel web — variante A "Violeta vivo"
   (decisiones 22–27). Un solo commit junto con 8.7.f y 8.7.g.
 - ✅ **8.7.i** Pruebas + documentación (GUIA § 27) + cierre del bloque.
-- **8.7.j** Rediseño visual de la APP alineado con el panel "Violeta vivo"
-  (decisión 31): mockup primero → paleta y componentes (`tema.ts`, `ui.tsx`)
-  → ícono, splash y nombre "Nexvio" → animaciones de marca → revisión en el
-  teléfono + GUIA § 27 ampliada.
+- ✅ **8.7.j** Rediseño visual de la APP alineado con el panel "Violeta vivo"
+  (decisiones 31–34): j1 base (paleta, cabecera con brillo, barra flotante) ·
+  j2 pantallas (Congreso con cabecera plegable, Mi agenda, Networking,
+  Perfil, Entrar, Primer ingreso) · j3 marca nativa (ícono, splash nativo y
+  splash animado, nombre "Nexvio", paquete `com.nexvio.app`) · j4 vista
+  previa del panel · j5 documentación (GUIA § 27.11–27.13). Además: eliminar
+  conexión (decisión 34) con su prueba `e2e_fase8_7j_conexion.js`.
 
-~~✅ BLOQUE 8.7 COMPLETO (5-nov-2026).~~ → **Reabierto el 5-nov (noche) por la
-decisión 31; se cierra al terminar el 8.7.j.**
+**✅ BLOQUE 8.7 COMPLETO (6-nov-2026)** — reabierto el 5-nov por la decisión
+31 y cerrado de nuevo con el 8.7.j.
 
 ### Decisión 30 — La reunión con el cliente va al FINAL (5-nov-2026)
 
@@ -1287,11 +1290,83 @@ cambios:**
 - **Panel → Apariencia:** la vista previa del celular se actualiza al diseño
   nuevo (es parte del 8.7.j).
 
+### Decisión 33 — Ajustes tras probar la base del 8.7.j (6-nov-2026)
+
+- **Brillo de la esquina con colores propios = el MISMO principal, 45 % más
+  claro** (no el secundario). El brillo es semitransparente y se mezcla con
+  el fondo: naranja + secundario verde azulado daba un verde barroso. El
+  coral queda solo para Nexvio; el secundario sigue en EN CURSO, NUEVO, etc.
+- **Panel → Apariencia: el botón "Usar la de Nexvio" → "Colores de Nexvio"**
+  y reinicia SOLO los colores (antes también quitaba logo y portada).
+- La vista previa del celular en el panel (j4) debe mostrar el degradado de
+  3 tonos y el brillo, no un solo color.
+
+### Decisión 34 — Eliminar una conexión (6-nov-2026)
+
+- Sebastián: se debe poder "revocar el match", con un botón pequeño y poco
+  visible. Útil para probar el match sin crear perfiles nuevos, y además
+  normal en estas apps y coherente con la Ley 1581 (la persona controla quién
+  ve su contacto).
+- **Opción A elegida:** al eliminarla, las dos personas **vuelven a
+  aparecerse en Descubrir** como si nunca se hubieran visto (se borran el
+  chat, la conexión y los "Me interesa" de ambos). Si el cliente pide un
+  "Bloquear" (que no se vuelvan a ver), se agrega aparte.
+- `DELETE /conexiones/:id`: solo las dos personas de la conexión (las demás,
+  404). Sin migración. Enlace gris "Eliminar conexión" en el perfil de la
+  persona, con confirmación.
+- De paso: "Son conexión" → "¡Ya están conectados!".
+
+### Decisión 35 — La app en ESPAÑOL, INGLÉS y PORTUGUÉS (6-nov-2026)
+
+Sebastián: los congresos son internacionales; "como MÍNIMO inglés", y
+portugués porque a Bogotá vienen muchos brasileños.
+1. **Solo la app** por ahora (la usan los asistentes internacionales). El
+   panel web queda en español; se puede hacer después.
+2. **Idioma = el del teléfono**; quien quiera lo cambia en Perfil → Ajustes →
+   Idioma (Por defecto · Español · English · Português), guardado en el
+   teléfono como el tema. Si el teléfono está en otro idioma → inglés.
+   **No** hay idioma por defecto elegido por el organizador.
+3. **es / en / pt-BR.**
+- Se traducen: textos de la app, fechas y horas (hoy fijos en 'es-CO'),
+  errores que ve el asistente y la **política de datos** (en/pt con nota de
+  que prevalece la versión en español — ley colombiana; sube la versión).
+- **No** se traduce lo que escribe el organizador (charlas, avisos…).
+- Técnica: `i18next` + `react-i18next` + `expo-localization` (nativa →
+  instalar ANTES del development build).
+- **Cronograma:** nuevo **Bloque 8.8 — Idiomas**; el build pasa al **8.9**.
+
 Mismo método de siempre.
 
 ---
 
-## 📍 PUNTO DE RETOMA (5-nov-2026, noche) — Bloque 8.7 cerrado
+## 📍 PUNTO DE RETOMA (6-nov-2026, tarde) — Bloque 8.7 cerrado (con el 8.7.j)
+
+**Hecho:** 8.7.a → 8.7.j. El 8.7.j rediseñó la app (decisiones 31–34) y
+agregó "Eliminar conexión". Detalle técnico en GUIA § 27.11–27.13.
+
+**Commit pendiente (lo hace Sebastián; el del 8.7.i ya está: `213b3cc`):**
+```
+feat(8.7.j): rediseño de la app "Violeta vivo" — barra flotante, cabecera plegable, Mi agenda, Networking y Perfil nuevos, splash animado e ícono, vista previa del panel, eliminar conexión
+```
+
+**SIGUIENTE (en este orden, decisiones 30 y 35):**
+1. **Bloque 8.8 — Idiomas (es / en / pt-BR) en la app** (decisión 35).
+2. **Bloque 8.9 — Development build con EAS + FCM + prueba de push real**
+   (paquete `com.nexvio.app`, cuenta Expo `duran1508`, Firebase con
+   proyecto nuevo). Ahí se verán el ícono y el splash nativo por primera vez.
+3. **Fase 9** (pruebas, carga, seguridad, Ley 1581).
+4. **Fase 7** (WhatsApp + IA).
+5. **Reunión con el cliente** con todo terminado.
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan al tomarlas; verificar SIEMPRE los archivos tras
+copiarlos al PC; correr `npx tsc --noEmit` tras cada cambio grande de la app.
+Credenciales nunca en el repo.
+
+---
+
+## (Histórico) PUNTO DE RETOMA (5-nov-2026, noche) — Bloque 8.7 cerrado
 
 **Hecho:** 8.7.a → 8.7.i completos. El 8.7.i dejó:
 - `prisma/tests/e2e_fase8_7h_panel.js` (**33 verificaciones**): editar congreso

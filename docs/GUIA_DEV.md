@@ -2,9 +2,11 @@
 
 > **Nota (nov-2026):** **Bloque 8.7 cerrado** (§ 27): la app móvil está
 > completa (entrada con usuario, solo su congreso, perfil y Ley 1581,
-> networking tipo Tinder, Mi agenda, patrocinios, tema claro/oscuro) y el panel
-> tiene su diseño definitivo ("Violeta vivo"). Lo siguiente: reunión con el
-> cliente, development build con EAS + push real, Fase 9 y Fase 7.
+> networking tipo Tinder, Mi agenda, patrocinios, tema claro/oscuro) y app y
+> panel comparten el diseño "Violeta vivo" (§ 27.11, 8.7.j: barra flotante,
+> cabecera plegable, splash animado e ícono). Lo siguiente: **8.8 Idiomas
+> (es/en/pt-BR)**, 8.9 development build + push real, Fase 9, Fase 7 y la
+> reunión con el cliente.
 
 > **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.6 cerrados, más el sprint
 > de la **feria** (§ 23). El 8.4 (§ 24) dejó la agenda, los speakers y Supabase
@@ -590,6 +592,7 @@ node prisma/tests/e2e_fase8_7e_agenda.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7f_patrocinio.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7g_tema.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7h_panel.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7j_conexion.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -2925,7 +2928,113 @@ Todas con el backend corriendo, desde `apps\backend`, con
 | `e2e_fase8_7e_agenda.js` | ⭐, conteo, aviso a quienes la marcaron, borrar charla con ⭐ |
 | `e2e_fase8_7f_patrocinio.js` | varios sponsors en orden, sponsor ajeno 400, borrar sponsor |
 | `e2e_fase8_7g_tema.js` | tema por defecto del congreso |
+| `e2e_fase8_7j_conexion.js` | **15 verificaciones** (8.7.j): match → alguien de fuera no puede eliminarla (404) → eliminarla borra chat, conexión e intereses → vuelven a aparecerse y hacen un match nuevo con chat vacío |
 | `e2e_fase8_7h_panel.js` | **33 verificaciones** (8.7.i): editar congreso (todas las reglas de 27.8, incluido el horario de verano), `GET /sesiones/:id` (staff 200, asistente 403, 404, 401), preguntas con apellidos/foto solo para el staff, `_count` y `personalizacion` en `/congresos` |
 
 Resultado del cierre (5-nov-2026): **todas en verde**, junto con
 `e2e_fase5_preguntas.js` y `e2e_fase8_4_agenda.js` como regresión.
+
+### 27.11. El rediseño de la app (8.7.j)
+
+Al terminar el 8.7.h el panel quedó en "Violeta vivo", pero la app seguía con
+la paleta gris de la feria: parecían dos productos (decisión 31). El 8.7.j
+la alineó con el panel, con el mismo método: **mockup primero** (lienzo
+"Nexvio · Rediseño de la app" en claude.ai, aprobado sin cambios — decisión 32).
+
+| Parte | Qué | Archivos |
+|---|---|---|
+| j1 · Base | Paleta del panel, cabecera con brillo, barra violeta flotante | `tema/tema.ts`, `context/MarcaContext.tsx`, `components/ui.tsx`, `components/BarraPestanas.tsx`, `navigation/AppTabs.tsx` |
+| j2 · Pantallas | Congreso (cabecera plegable, AHORA/PRÓXIMA, línea de tiempo), Mi agenda, Networking, Perfil, Entrar, Primer ingreso | `screens/*`, `components/Patrocinio.tsx`, `components/TarjetaPersona.tsx`, `components/Logo.tsx` |
+| j3 · Marca nativa | Ícono, splash nativo, splash animado, nombre "Nexvio", paquete `com.nexvio.app` | `assets/*`, `app.json`, `components/SplashAnimado.tsx`, `App.tsx` |
+| j4 · Panel | La vista previa de Apariencia ahora es espejo de la app nueva | `apps/web/.../apariencia/page.tsx` |
+| Extra | Eliminar una conexión (decisión 34) | `networking.service/controller.ts`, `PerfilPersonaScreen.tsx` |
+
+**Cómo se reparte el color** (lo más importante para la personalización):
+
+```
+                         ¿el congreso tiene color principal propio?
+                          ├─ NO  → Nexvio: degradado #2E1A8C → #4A35D6 → #5A46F0 + brillo coral
+                          └─ SÍ  → degradado [principal 50 % más oscuro → 20 % → principal]
+                                   + brillo = el MISMO principal 45 % más claro
+useMarca() (MarcaContext) ──► Cabecera · BarraPestanas · botones · borde de las tarjetas
+```
+
+- **Brillo** (`<Brillo />` en `ui.tsx`): `LinearGradient` no hace degradados
+  redondos, así que se imita con uno diagonal del color semitransparente a
+  transparente, encima del degradado.
+- **Borde de marca** (`useBordeMarca()`): el principal al 45 % (60 % en
+  oscuro). Lo usa `<Tarjeta>` siempre, así TODAS las tarjetas lo tienen.
+- **Entrar y Primer ingreso** usan SIEMPRE los colores de Nexvio: aún no hay
+  congreso abierto, y al cerrar sesión no debe quedar el color del anterior.
+
+**Piezas nuevas reutilizables** (en `ui.tsx` salvo que se diga):
+`Brillo`, `useBordeMarca`, `TituloConIcono` (título con chip de ícono, como
+`ChipTitulo` del panel), `HoraDosPisos` ("10:00" grande + "a. m." debajo),
+`<Cabecera plegable>`, `BarraPestanas.tsx`, `SplashAnimado.tsx` y
+`<NexvioMark blanca />` (en `Logo.tsx`).
+
+**La cabecera plegable** (Congreso). Ejemplo: la parte extra (fechas +
+indicadores) mide 150 px y la persona baja 60 px:
+
+```
+scrollY = 60 ──► la cabecera SUBE 60 (translateY -60)
+             ──► su contenido BAJA 60 (+60): el título se queda quieto
+             ──► el borde de abajo sube "como una cortina" y tapa lo extra,
+                 que además se desvanece (opacity 1 → 0 en el 70 % del recorrido)
+scrollY ≥ 150 ──► queda compacta y ya no cambia
+```
+
+Todo con `Animated` y el **native driver** (corre en el hilo nativo, sin
+tirones). Como la cabecera flota (`position: absolute`), la lista deja arriba
+un espacio igual a su alto (`paddingTop`), que la cabecera le avisa con `alMedir`.
+
+**Los dos splash:**
+1. **Nativo** (`app.json` → plugin `expo-splash-screen`): imagen fija violeta
+   `#4A35D6` con la N blanca, mientras arranca Android. **No se ve en Expo Go
+   ni en el development build** (traen el suyo): solo en preview/producción.
+2. **Animado** (`SplashAnimado.tsx`): `App.tsx` mantiene el nativo
+   (`preventAutoHideAsync`) hasta que cargan las fuentes, pinta el animado
+   ENCIMA de la app (que ya va cargando por detrás) y esconde el nativo. ~4 s:
+   nodos con rebote → se dibuja la N → "Nexvio" → el nodo coral late → se
+   desvanece. Lo del SVG va con el driver de JS (SVG no admite el nativo).
+
+**Ícono:** `icon.png` (iOS y respaldo), y en Android el adaptativo en capas
+(`adaptive-icon.png` = la N; `adaptive-icon-background.png` = el degradado;
+`adaptive-icon-monochrome.png` = íconos temáticos de Android 13+). En tamaño
+chico va sin el nodo del centro. Se generaron desde el SVG con Playwright.
+Solo se verán en la app compilada (8.9).
+
+### 27.12. Eliminar una conexión (decisión 34)
+
+`DELETE /conexiones/:id` — solo una de las dos personas (otra → 404, sin
+confirmar que existe). En **una transacción** y en este orden (lo que depende
+primero): mensajes → conexión → los "Me interesa" de ambos en ese congreso.
+Resultado (opción A): se vuelven a aparecer en Descubrir y pueden volver a
+hacer match, con un chat nuevo y vacío. En la app: enlace gris "Eliminar
+conexión" al final de la tarjeta "¡Ya están conectados!", con confirmación.
+
+### 27.13. Gotchas del 8.7.j (¡para no repetirlos!)
+
+- **NativeWind + `Pressable` con el estilo como función**
+  (`style={({ pressed }) => [...]}`) **pierde los estilos en silencio**: las
+  pestañas quedaron amontonadas a la izquierda y sin pastilla. Usar
+  `TouchableOpacity` con estilo normal.
+- **Colores semitransparentes se MEZCLAN con lo de abajo.** El brillo en el
+  color secundario daba verde barroso sobre naranja. Para brillos/velos, usar
+  una variante del mismo color.
+- **La hora "7:30 a. m." trae un espacio ESPECIAL** (` `/` `) que
+  no es `' '`. Separar con `\s` (regex), no con `indexOf(' ')`. Resuelto una
+  vez en `HoraDosPisos`.
+- **`opacity` en una tarjeta entera apaga también el texto** (quedaba gris e
+  ilegible). Para "ya pasó", mejor una etiqueta (TERMINÓ) y un borde tenue.
+- **Una prop agregada al tipo pero no recibida** al desempacar
+  (`function Fila({ icono, titulo })` sin `destacada`) → "Property 'destacada'
+  doesn't exist" al pintar. **Correr `npx tsc --noEmit` en `apps\mobile`
+  después de cada cambio grande** (no hace falta detener Expo).
+- **Librerías nativas de Expo:** instalarlas con `npx expo install <paquete>`
+  (elige la versión del SDK), no con `pnpm add`. Las nativas (como
+  `expo-splash-screen`) conviene tenerlas ANTES del development build.
+- **La vista previa del panel es una COPIA del diseño de la app** (web vs.
+  React Native, no comparten código). Si cambia la app, cambiarla también.
+- **El botón "Usar la de Nexvio" quitaba logo y portada:** ahora es "Colores
+  de Nexvio" y solo reinicia los colores.
