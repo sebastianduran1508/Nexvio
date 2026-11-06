@@ -1,5 +1,11 @@
 # Guía de desarrollo — Nexvio
 
+> **Nota (nov-2026):** **Bloque 8.7 cerrado** (§ 27): la app móvil está
+> completa (entrada con usuario, solo su congreso, perfil y Ley 1581,
+> networking tipo Tinder, Mi agenda, patrocinios, tema claro/oscuro) y el panel
+> tiene su diseño definitivo ("Violeta vivo"). Lo siguiente: reunión con el
+> cliente, development build con EAS + push real, Fase 9 y Fase 7.
+
 > **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.6 cerrados, más el sprint
 > de la **feria** (§ 23). El 8.4 (§ 24) dejó la agenda, los speakers y Supabase
 > Storage; el 8.5 (§ 25), los sponsors y la marca de cada congreso; el 8.6
@@ -573,6 +579,17 @@ node prisma/tests/e2e_fase8_5_personalizacion.js <orgEmail> <orgPass>
 # porque espera al programador) y ayuda (superadmin + organizador)
 node prisma/tests/e2e_fase8_6_notificaciones.js <orgEmail> <orgPass> <asisEmail> <asisPass>
 node prisma/tests/e2e_fase8_6_ayuda.js <adminEmail> <adminPass> <orgEmail> <orgPass>
+
+# Fase 8 - Bloque 8.7: app móvil completa + panel (todas con el organizador;
+# crean y borran sus propios asistentes de prueba). Detalle en § 27.10.
+node prisma/tests/e2e_fase8_7a_entrada.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7b_acceso.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7c_perfil_legal.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7d_networking.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7e_agenda.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7f_patrocinio.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7g_tema.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_7h_panel.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -2694,3 +2711,221 @@ Al **borrar una sesión**:
 - `prisma/tests/e2e_fase8_6_ayuda.js` — **10 verificaciones**: lectura y 403 del
   organizador, borrador invisible, publicar, reordenar, borrar, y **el segundo
   cerrojo directo en la base**.
+
+---
+
+## 27. La app móvil completa y el pulido del panel (Bloque 8.7)
+
+La app deja de ser "una lista de congresos" y pasa a ser **la app de UN
+congreso**: el asistente entra con su usuario, acepta el tratamiento de datos,
+ve solo su evento, arma su agenda, hace networking y elige su tema. El panel,
+de paso, estrenó su cara definitiva ("Violeta vivo").
+
+| Sub-paso | Qué | Dónde |
+|---|---|---|
+| 8.7.a | Entrada: login por usuario, primer ingreso (nueva clave + aceptar datos), ojito | App + panel |
+| 8.7.b | "Mi congreso": el asistente ve SOLO el suyo (y el backend lo hace cumplir) | Backend + app |
+| 8.7.c | Perfil editable con foto + parte legal (Ley 1581): revocar, supresión, datos del responsable | Backend + panel + app |
+| 8.7.d | Networking tipo Tinder: Descubrir, Explorar, Conexiones, "¿Cómo me ven?" | Backend + panel + app |
+| 8.7.e | Mi agenda (⭐) + aviso "solo a quienes marcaron la charla" | Backend + panel + app |
+| 8.7.f | "Patrocinada por…" (uno o varios sponsors por charla) | Backend + panel + app |
+| 8.7.g | Tema por defecto del congreso + Claro/Oscuro por persona | Panel + app |
+| 8.7.h | Pulido visual del panel (variante A), portada del congreso, moderación, editar congreso | Panel + backend |
+| 8.7.i | Pruebas + esta documentación | — |
+
+Las decisiones (1–29) están en el `HANDOFF.md` ("Decisiones del 8.7" y siguientes).
+
+### 27.1. Entrada a la app (8.7.a)
+
+Ejemplo: el organizador importa a "Laura Gómez" desde el Excel. Laura recibe
+su **usuario** (no un correo) y una contraseña temporal.
+
+```
+App: usuario + clave ──► POST /auth/resolver-usuario ──► su correo interno
+                     ──► Supabase Auth (login normal) ──► token
+¿Primer ingreso? ──sí──► PrimerIngresoScreen: nueva clave + "Acepto el
+                          tratamiento de mis datos" (guarda acepto_datos_en
+                          y la versión de la política)
+```
+
+- El texto de la política vive en `src/legal/politica-datos.ts` y lleva
+  **versión** (`POLITICA_DATOS_VERSION`, hoy `2026-11-v4`). Cada vez que la app
+  empieza a mostrar un dato nuevo (descripción, edad, contacto), la versión
+  sube y a la persona se le pide aceptar de nuevo.
+- El "ojito" para ver la clave está en la app y en el login del panel.
+
+### 27.2. "Ve solo su congreso" se cumple en el backend (8.7.b)
+
+Esconder botones en la app **no es seguridad**: cualquiera con el token puede
+llamar a la API a mano. Por eso el portero está en el servidor:
+
+- `src/acceso/acceso-congreso.guard.ts` → `AccesoCongresoGuard` +
+  `@SoloInscritos('congreso' | 'sesion' | ..., 'paramId')`. Si el usuario es
+  **participante** y no tiene una inscripción **confirmada** en ese congreso,
+  responde **404** (no 403: así ni siquiera confirma que el congreso existe).
+  El staff pasa (el RLS ya lo limita a su organización).
+- La sala en vivo de Socket.io (`join_sesion`) aplica la misma regla.
+- `GET /congresos` le devuelve al asistente **solo los suyos**.
+- Se **cerró la auto-inscripción**: solo el staff inscribe (Excel o panel).
+  Las pruebas viejas usan el ayudante `prisma/tests/_inscribir.js`.
+- En la app: `MiCongresoContext` decide: uno → entra directo; varios → selector;
+  ninguno → pantalla "sin congreso". Barra de abajo: 🏠 Congreso · 📅 Mi agenda
+  · 🤝 Networking · 👤 Perfil (todo lo demás vive en Perfil).
+
+### 27.3. Perfil y Ley 1581 (8.7.c)
+
+- **Editable por la persona:** foto (cámara o galería, recorte cuadrado,
+  `src/lib/foto.ts`), cargo, empresa, teléfono, país, descripción (máx. 500) y
+  edad. **No editables:** nombre y documento (vienen del Excel).
+- **Edad = año de nacimiento**, no la fecha completa (minimización: basta para
+  "34 años").
+- **Revocar** ("deja de usar mis datos", reversible): se registra cuándo, sale
+  del networking, se cierra la sesión y al volver se pide aceptar otra vez.
+- **Supresión** ("bórralos"): la app **registra la solicitud** y el organizador
+  la atiende en **Panel → Privacidad** (la organización puede tener deberes de
+  conservar datos, p. ej. certificados).
+- **Datos del responsable** (razón social, NIT, dirección, correo, teléfono,
+  área, enlace a su política): los editan el organizador y el superadmin, y se
+  insertan en el texto de la política (art. 13 del Decreto 1377).
+
+### 27.4. Networking tipo Tinder (8.7.d)
+
+```
+Descubrir ── deslizar → "Me interesa"  ──┐   si los dos dijeron que sí
+          └─ deslizar ← "Ahora no" (se    ├──► ¡Es un match! ──► Conexiones + chat
+             guarda; se puede restablecer)┘
+Explorar ── cuadrícula + buscador + filtro país/empresa (+ Ponentes)
+```
+
+- Solo aparece quien **aceptó** la política y tiene encendido "Aparecer en
+  networking".
+- **El match desbloquea más datos**, pero el contacto (WhatsApp, correo,
+  LinkedIn) solo si la otra persona activó "Compartir mi contacto" — y **cada
+  dato tiene su propio interruptor** (consentimiento granular). Un dato apagado
+  **no sale del servidor**, ni siquiera oculto en la respuesta.
+- Un speaker se puede **vincular a una cuenta** desde el panel: entonces aparece
+  en Descubrir con la insignia PONENTE.
+- Componentes clave: `TarjetaPersona.tsx`, `MatchModal.tsx`,
+  `PerfilPersonaScreen.tsx`, `ComoMeVenScreen.tsx`.
+
+### 27.5. Mi agenda (8.7.e) y "Patrocinada por" (8.7.f)
+
+- ⭐ en cada charla (los breaks no se marcan). Tabla `sesion_favorita` con RLS.
+  `MiAgendaContext` es **una sola memoria** para que la estrella cambie igual en
+  todas las pantallas. Mi agenda muestra AHORA / PRÓXIMA, avisa cruces y apaga
+  las pasadas.
+- El panel ve "⭐ 34" (**solo el número, nunca quiénes**) y puede enviar un
+  aviso con destino **"Quienes la marcaron"**.
+- Sponsors por charla: tabla intermedia `sesion_sponsor` (como
+  `sesion_ponente`), en el orden elegido. Solo sponsors **de ese congreso**
+  (400 si no). Borrar el sponsor deja la charla sin patrocinio, sin error.
+
+### 27.6. Tema claro/oscuro (8.7.g)
+
+Ejemplo: el organizador eligió "Oscuro" para su congreso, pero Laura prefiere
+"Claro". **Manda la elección de Laura.**
+
+```
+Perfil → Ajustes → Apariencia:  Por defecto | Claro | Oscuro   (se guarda en el teléfono)
+                                    │
+                                    └─► lo que eligió el organizador (Panel → Apariencia)
+TemaProvider resuelve el modo ──► TemaCtx ──► useTema() en cada pantalla
+```
+
+Como todas las pantallas ya usaban `useTema()`, **ninguna tuvo que cambiar**.
+El tema del congreso se recuerda en el teléfono para que la app no "parpadee"
+de claro a oscuro al abrir.
+
+### 27.7. El panel "Violeta vivo" (8.7.h)
+
+- **Marco siempre violeta** (menú y barra, en claro y en oscuro):
+  `fondo-marca-lateral` / `fondo-marca-barra` en `globals.css`. En el celular
+  el menú es un cajón (☰).
+- **Tokens:** fondo lavanda `#F4F2FF`, bordes `#E4DFFB`, texto secundario
+  `#55506E` (contraste AA), sombra violeta en `--shadow-sm` (al cambiar el
+  token, **todas** las tarjetas la tomaron sin tocar cada pantalla). Oscuro:
+  `#0D0B18` / `#17152A`.
+- **Piezas reutilizables:** `EncabezadoPagina`, `ChipTitulo`, `EsqueletoPagina`
+  (`components/panel/encabezado-pagina.tsx`) y `TarjetaCongreso`
+  (`components/panel/tarjeta-congreso.tsx`), usada en Congresos, Panorama y el
+  selector de congreso. Las pantallas usan `contenido-panel` (hasta 1600 px).
+- **Portada del congreso** (`/congresos/:id`), **Agenda** como línea de tiempo,
+  **Moderación en vivo** (`/sesiones/:id`) a todo el ancho.
+
+Lo que se sumó al backend (sin migraciones):
+
+| Ruta | Qué trae ahora |
+|---|---|
+| `GET /auth/yo` | `organizacion.nombre` (para la barra superior) |
+| `GET /congresos` | `personalizacion` (logo, colores) + `_count` (sesiones, inscritos confirmados) |
+| `GET /congresos/:id` | `_count.inscripciones` |
+| `GET /sesiones/:id` | **nueva**, solo staff: la sesión con su congreso, ponentes, sponsors y ⭐ |
+| `GET /sesiones/:id/preguntas` | al **staff**: nombre, apellidos y foto; al **asistente**: solo el nombre |
+| `PATCH /congresos/:id` | estado + `correr_sesiones` y las reglas de fechas (abajo) |
+
+### 27.8. Editar un congreso sin romper la agenda
+
+Caso real: *"era del 20 al 22… ya no es el 20 sino el 23"*.
+
+| Cambio | Resultado |
+|---|---|
+| Fin antes del inicio | **400** |
+| Alargar el fin (22 → 23) | 200, la agenda no se toca |
+| Mover el inicio (20 → 23) **sin** "Correr la agenda" | **409**: "2 sesiones quedarían fuera (2026-12-20, 2026-12-22)…" — y no cambia nada |
+| Mover el inicio **con** `correr_sesiones: true` | 200: todas las sesiones se corren 3 días, **a la misma hora del reloj** |
+| Acortar dejando sesiones fuera | **409** |
+| Cambiar la zona horaria con sesiones | **409** (cambiaría la hora de toda la agenda) |
+
+¿Por qué "la hora del reloj" y no "sumar 72 horas"? Porque en una ciudad con
+horario de verano, sumar horas fijas corre las charlas una hora. Ejemplo
+probado: en New York una charla a las **09:00 del 29-oct** (13:00 UTC), corrida
+una semana, queda a las **09:00 del 5-nov** (14:00 UTC, porque el 1-nov cambió
+la hora). Todo ocurre en **una transacción**: si algo falla, no se mueve nada.
+
+### 27.9. Gotchas del bloque (¡para no repetirlos!)
+
+- **Verificar SIEMPRE los archivos después de copiarlos al PC.** Dos veces llegó
+  una versión vieja. Nunca editar y copiar en paralelo: primero se termina de
+  editar, luego se copia, luego se revisa (líneas, final del archivo, sintaxis).
+- **Transacciones a mano en las pruebas:** `prisma.$transaction(fn, { maxWait:
+  15000, timeout: 20000 })` — la misma paciencia que `runInTenant`. Con los
+  valores por defecto (5 s) fallan a ratos contra Supabase.
+- **Smart App Control de Windows bloquea `schema-engine`** de Prisma (las
+  migraciones fallan sin explicación clara). Solución: desactivarlo en
+  Seguridad de Windows → Control de aplicaciones.
+- **Reiniciar el backend tras cambiar un DTO.** Con `forbidNonWhitelisted`, un
+  campo nuevo que el servidor viejo no conoce da **400 "property X should not
+  exist"**.
+- **Caché vieja de Next** (pantalla que no cambia, "(stale)"): detener el panel
+  y `rmdir /s /q .next` dentro de `apps\web`.
+- **Error de hidratación del botón de tema:** en el panel no se pintan textos o
+  íconos que dependan del tema en el HTML del servidor (el servidor no sabe si
+  el usuario está en oscuro). Se pintan después de montar en el navegador.
+- **Un reemplazo de texto repetido puede caer en varios métodos** (pasó en
+  `preguntas.service`, donde `include: { usuario: ... }` aparece varias veces).
+  Al editar, anclar el cambio al método concreto y revisar el resultado.
+- **Lección del 8.5 ampliada:** cada tabla nueva que cuelga de un congreso o de
+  una sesión (`sesion_favorita`, `sesion_sponsor`…) se suma a su `borrar()` y a
+  la supresión de datos.
+- **Política de datos:** si la app empieza a **mostrar** un dato nuevo de la
+  persona, sube la versión de la política (si no, sería una finalidad no
+  autorizada).
+
+### 27.10. Pruebas de cierre
+
+Todas con el backend corriendo, desde `apps\backend`, con
+`<orgEmail> <orgPass>` (crean sus propios asistentes y los borran al final):
+
+| Prueba | Qué cubre |
+|---|---|
+| `e2e_fase8_7a_entrada.js` | login por usuario, primer ingreso, cambio de clave, aceptar datos |
+| `e2e_fase8_7b_acceso.js` | el portero: 404 a congresos/sesiones/encuestas ajenas, sin auto-inscripción |
+| `e2e_fase8_7c_perfil_legal.js` | perfil, foto, revocar, supresión, datos del responsable |
+| `e2e_fase8_7d_networking.js` | Descubrir, "Ahora no", match, contacto granular, speakers vinculados |
+| `e2e_fase8_7e_agenda.js` | ⭐, conteo, aviso a quienes la marcaron, borrar charla con ⭐ |
+| `e2e_fase8_7f_patrocinio.js` | varios sponsors en orden, sponsor ajeno 400, borrar sponsor |
+| `e2e_fase8_7g_tema.js` | tema por defecto del congreso |
+| `e2e_fase8_7h_panel.js` | **33 verificaciones** (8.7.i): editar congreso (todas las reglas de 27.8, incluido el horario de verano), `GET /sesiones/:id` (staff 200, asistente 403, 404, 401), preguntas con apellidos/foto solo para el staff, `_count` y `personalizacion` en `/congresos` |
+
+Resultado del cierre (5-nov-2026): **todas en verde**, junto con
+`e2e_fase5_preguntas.js` y `e2e_fase8_4_agenda.js` como regresión.

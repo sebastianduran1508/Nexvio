@@ -1214,7 +1214,8 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
     días conservando la hora del reloj en la zona del evento; ninguna sesión
     puede quedar en un día fuera del congreso (409 con los días); la zona no
     se puede cambiar si ya hay sesiones (409). Todo en una transacción.
-    **Pendiente para 8.7.i:** prueba e2e de estas reglas.
+    **Probado en el 8.7.i** (`e2e_fase8_7h_panel.js`), incluido un congreso
+    en New York cuya agenda se corre cruzando el fin del horario de verano.
 
 ### Plan del 8.7
 
@@ -1228,13 +1229,106 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
 - ✅ **8.7.g** Tema por defecto + selector claro/oscuro + fuentes.
 - ✅ **8.7.h** Pulido visual del panel web — variante A "Violeta vivo"
   (decisiones 22–27). Un solo commit junto con 8.7.f y 8.7.g.
-- **8.7.i** Pruebas + documentación (GUIA § 27) + cierre del bloque.
+- ✅ **8.7.i** Pruebas + documentación (GUIA § 27) + cierre del bloque.
+- **8.7.j** Rediseño visual de la APP alineado con el panel "Violeta vivo"
+  (decisión 31): mockup primero → paleta y componentes (`tema.ts`, `ui.tsx`)
+  → ícono, splash y nombre "Nexvio" → animaciones de marca → revisión en el
+  teléfono + GUIA § 27 ampliada.
+
+~~✅ BLOQUE 8.7 COMPLETO (5-nov-2026).~~ → **Reabierto el 5-nov (noche) por la
+decisión 31; se cierra al terminar el 8.7.j.**
+
+### Decisión 30 — La reunión con el cliente va al FINAL (5-nov-2026)
+
+Sebastián: *"es preferible hacer el resto y que nos den el feedback de todo de
+una vez, no hacer después otra reunión"*. Nuevo orden:
+
+1. **Bloque 8.8 — Development build + push real** (EAS + FCM, Android).
+2. **Fase 9** — pruebas, carga, seguridad, Ley 1581.
+3. **Fase 7** — WhatsApp + IA (antes estaba condicionada a que el cliente
+   aprobara el sistema; ahora se construye antes de la reunión).
+4. **Reunión con el cliente** con TODO terminado → los cambios que pida se
+   anotan como decisiones y se aplican; luego se repiten las pruebas e2e
+   (ya existen para cada bloque) y la verificación de la Fase 9 que aplique.
+
+### Decisión 31 — Falta el rediseño de la APP (5-nov-2026, noche)
+
+Sebastián notó que el 8.7 no incluyó un rediseño de la app como el 8.7.h del
+panel. Revisado: la app conserva la paleta de la **feria** (gris `#F5F6FA`,
+bordes `#ECEDF3`, texto secundario `#6B7385`) mientras el panel pasó a
+"Violeta vivo" (lavanda `#F4F2FF`, `#E4DFFB`, `#55506E` con contraste AA,
+marco en degradado violeta): parecen dos productos distintos. Se agrega el
+**8.7.j** y va **antes del build** (8.8): el ícono, el splash y lo nativo
+viven en la app compilada, así se compila una sola vez. Mismo método que el
+panel: **mockup primero** y Sebastián elige. Quedan para después: ¿recordatorio
+10 min antes de charlas con ⭐? (sin decidir), política para el staff y
+Socket.io con suplantación (Fase 9), ERD/C4 al cerrar el Módulo 8.
+Paquete Android acordado para el 8.8: **`com.nexvio.app`** (cuenta Expo
+`duran1508`; Firebase con proyecto nuevo, aparte de VitalSync).
+
+### Decisión 32 — Mockup de la app aprobado (6-nov-2026)
+
+Lienzo "Nexvio · Rediseño de la app" (claude.ai): Splash, Entrar, Congreso,
+Mi agenda, Networking y Perfil en claro y oscuro + ícono. **Aprobado sin
+cambios:**
+- Paleta del panel: lavanda `#F4F2FF`, tarjetas blancas con borde `#E4DFFB`,
+  texto `#1B1638` / secundario `#55506E`, sombra violeta; oscuro `#0D0B18` /
+  `#17152A` / borde `#2A2645` / secundario `#B9B5CC`.
+- Cabecera con degradado de marca (`#2E1A8C → #4A35D6 → #5A46F0`) y brillo
+  coral, bordes inferiores redondeados.
+- **Barra de pestañas violeta flotante** (Sebastián: "me encanta"), activa =
+  pastilla blanca; igual en claro y oscuro.
+- **Splash animado** (nodos que aparecen, línea que se dibuja, nodo coral que
+  late, tres puntos de carga) — "perfecto".
+- Ícono: N blanca con nodo coral sobre el degradado.
+- **Cuidar todo lo de personalización** (pedido de Sebastián): colores del
+  congreso en cabecera/botones, banner y logo, y que las fotos de las personas
+  se vean bien. Con colores propios, la cabecera usa los del congreso.
+- **Panel → Apariencia:** la vista previa del celular se actualiza al diseño
+  nuevo (es parte del 8.7.j).
 
 Mismo método de siempre.
 
 ---
 
-## 📍 PUNTO DE RETOMA (5-nov-2026, tarde) — traspaso a chat nuevo
+## 📍 PUNTO DE RETOMA (5-nov-2026, noche) — Bloque 8.7 cerrado
+
+**Hecho:** 8.7.a → 8.7.i completos. El 8.7.i dejó:
+- `prisma/tests/e2e_fase8_7h_panel.js` (**33 verificaciones**): editar congreso
+  (fin ≥ inicio; alargar no toca la agenda; mover el inicio sin correr → 409
+  sin cambiar nada; con `correr_sesiones` se mueve a la misma hora del reloj;
+  acortar dejando sesiones fuera → 409; zona con sesiones → 409; zona
+  inválida/estado inválido/campo extra → 400; asistente → 403), correr la
+  agenda en New York cruzando el fin del horario de verano, `GET /sesiones/:id`
+  (staff 200 / asistente 403 / 404 / 401), preguntas con apellidos y foto solo
+  para el staff, y `_count` + `personalizacion` en `/congresos`.
+- Corridas de regresión: todas las pruebas del 8.7 (a–h) **en verde**.
+- GUIA_DEV: **§ 27** (todo el bloque + gotchas), comandos en la § 11 y nota
+  nueva en el encabezado.
+
+**Commit pendiente (lo hace Sebastián):**
+
+```
+test(8.7.i): pruebas e2e del panel (editar congreso, moderación, _count) + GUIA § 27 y cierre del Bloque 8.7
+```
+
+**SIGUIENTE (en este orden, decisión 30):**
+0. **8.7.j — Rediseño visual de la app** (decisión 31), luego cerrar el 8.7.
+1. **Bloque 8.8 — Development build con EAS + FCM + prueba de push real**
+   (pendiente desde el 8.6, GUIA § 26.1). Paquete `com.nexvio.app`.
+2. **Fase 9** (pruebas, carga, seguridad, Ley 1581).
+3. **Fase 7** (WhatsApp + IA).
+4. **Reunión con el cliente** con todo terminado: abiertos a todos los cambios
+   que pida (funcionamiento y apariencia); se anotan aquí como decisiones.
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan aquí al tomarlas; verificar SIEMPRE los archivos tras
+copiarlos al PC. Credenciales nunca en el repo.
+
+---
+
+## (Histórico) PUNTO DE RETOMA (5-nov-2026, tarde) — traspaso a chat nuevo
 
 **Hecho:** 8.7.a → 8.7.h completos. a–d con commit propio; **f + g + h van en
 UN solo commit** (lo hace Sebastián al cerrar este chat):
