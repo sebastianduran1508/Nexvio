@@ -10,6 +10,7 @@ import { F, useTema } from '../tema/tema';
 import { AppTabs } from './AppTabs';
 import { alTocarNotificacion, registrarTelefono } from '../lib/push';
 
+import { useTranslation } from 'react-i18next';
 const LoginStack = createNativeStackNavigator();
 
 /**
@@ -93,23 +94,24 @@ export function RootNavigator() {
 /** No se pudo saber quién es la persona (normalmente: sin internet). */
 function SinConexion({ onReintentar, onSalir }: { onReintentar: () => void; onSalir: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: t.fondo }}>
       <Ionicons name="cloud-offline-outline" size={46} color={t.textoTenue} />
       <Text style={{ fontFamily: F.titulo, fontSize: 19, color: t.texto, marginTop: 14 }}>
-        No pudimos conectarnos
+        {tr('conexion.titulo')}
       </Text>
       <Text style={{ fontFamily: F.normal, fontSize: 14, color: t.textoSuave, textAlign: 'center', marginTop: 6 }}>
-        Revisa tu conexión a internet e inténtalo de nuevo.
+        {tr('conexion.texto')}
       </Text>
       <TouchableOpacity
         onPress={onReintentar}
         style={{ marginTop: 20, backgroundColor: t.primario, borderRadius: 14, paddingHorizontal: 26, paddingVertical: 12 }}
       >
-        <Text style={{ fontFamily: F.semi, color: '#fff', fontSize: 15 }}>Reintentar</Text>
+        <Text style={{ fontFamily: F.semi, color: '#fff', fontSize: 15 }}>{tr('comun.reintentar')}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onSalir} style={{ marginTop: 14, padding: 6 }}>
-        <Text style={{ fontFamily: F.medio, color: t.textoTenue }}>Cerrar sesión</Text>
+        <Text style={{ fontFamily: F.medio, color: t.textoTenue }}>{tr('conexion.cerrarSesion')}</Text>
       </TouchableOpacity>
     </View>
   );

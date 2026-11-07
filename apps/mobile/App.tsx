@@ -19,6 +19,9 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { MarcaProvider } from './src/context/MarcaContext';
 import { TemaProvider } from './src/tema/TemaProvider';
 import { SplashAnimado } from './src/components/SplashAnimado';
+// 8.8: idiomas (es / en / pt). Importarlo arranca i18next con el idioma del teléfono.
+import { IdiomaProvider } from './src/i18n/IdiomaProvider';
+import { DialogoProvider } from './src/components/Dialogo';
 
 // 8.7.j: el splash NATIVO se queda hasta que digamos (cuando ya podemos pintar
 // el animado, que es igual de violeta). Así no hay un parpadeo blanco entre los dos.
@@ -59,13 +62,18 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      {/* 8.8: el idioma va por fuera de todo: hasta el login se traduce. */}
+      <IdiomaProvider>
       <AuthProvider>
         {/* La marca del congreso abierto (8.5): la fija el detalle y la leen sus pantallas hijas. */}
         <MarcaProvider>
           {/* 8.7.g: claro/oscuro según la persona y el congreso (dentro de
               MarcaProvider porque lee el tema que eligió el organizador). */}
           <TemaProvider>
-            <RootNavigator />
+            {/* 8.8: diálogos propios (reemplazan Alert.alert); dentro del tema y la marca */}
+            <DialogoProvider>
+              <RootNavigator />
+            </DialogoProvider>
           </TemaProvider>
         </MarcaProvider>
         {/* Texto blanco en la barra de estado: todas las pantallas tienen cabecera violeta. */}
@@ -73,6 +81,7 @@ export default function App() {
         {/* 8.7.j: encima de todo; la app ya va cargando por detrás. */}
         {intro && <SplashAnimado alTerminar={terminarIntro} />}
       </AuthProvider>
+      </IdiomaProvider>
     </SafeAreaProvider>
   );
 }

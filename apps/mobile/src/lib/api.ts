@@ -1,5 +1,15 @@
 import { supabase } from './supabase';
 import { API_URL } from './config';
+import i18n from '../i18n';
+
+/**
+ * 8.8: la app le dice al backend en qué idioma va, para que los mensajes de
+ * error y la política de datos lleguen traducidos. Es una cabecera PROPIA
+ * (no Accept-Language) para que el panel web, que no la manda, siga en español.
+ */
+function cabeceraIdioma() {
+  return { 'X-Idioma': i18n.language || 'es' };
+}
 
 /**
  * Ayudante para llamar al backend con el token de la sesion actual.
@@ -17,6 +27,7 @@ export async function api<T = any>(
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
+      ...cabeceraIdioma(),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
@@ -50,7 +61,7 @@ export async function apiSubirImagen<T = any>(path: string, uri: string): Promis
 
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: { ...cabeceraIdioma(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: form,
   });
   let json: any = null;

@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from './supabase-admin.service';
 import { POLITICA_DATOS_VERSION, politicaDatos } from '../legal/politica-datos';
+import type { Idioma } from '../idioma/idioma';
 
 /**
  * Las dos piezas de autenticación propias de Nexvio (Bloque 8.3).
@@ -107,7 +108,7 @@ export class AuthService {
    * La política vigente, con el nombre de la organización como responsable
    * (8.7.a). La app la muestra antes de pedir la aceptación.
    */
-  async politica(orgId: string | undefined) {
+  async politica(orgId: string | undefined, idioma: Idioma = 'es') {
     // 8.7.c: con los DATOS LEGALES de la organización (responsable, contacto,
     // área que atiende), que exige el art. 13 del Decreto 1377.
     const org = orgId
@@ -115,7 +116,7 @@ export class AuthService {
           tx.organizacion.findFirst({ where: { id: orgId } }),
         )
       : null;
-    return politicaDatos(org ?? { nombre: 'Nexvio' });
+    return politicaDatos(org ?? { nombre: 'Nexvio' }, idioma);
   }
 
   /**

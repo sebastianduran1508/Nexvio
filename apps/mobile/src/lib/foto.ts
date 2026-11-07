@@ -1,7 +1,9 @@
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
+import i18n from '../i18n';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 
+import { aviso } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 /**
  * Elegir la foto de perfil (8.7.c): cámara o galería, recorte cuadrado y, lo
  * importante, ACHICARLA antes de subir:
@@ -18,14 +20,12 @@ export async function elegirFoto(origen: 'camara' | 'galeria'): Promise<string |
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (!permiso.granted) {
-    Alert.alert(
-      'Necesitamos tu permiso',
-      origen === 'camara'
-        ? 'Para tomar tu foto, permite el acceso a la cámara en los ajustes del teléfono.'
-        : 'Para elegir tu foto, permite el acceso a tus fotos en los ajustes del teléfono.',
+    aviso(
+      i18n.t('dialogo.permisoTitulo'),
+      origen === 'camara' ? i18n.t('dialogo.permisoCamara') : i18n.t('dialogo.permisoFotos'),
       [
-        { text: 'Ahora no', style: 'cancel' },
-        { text: 'Abrir ajustes', onPress: () => void Linking.openSettings() },
+        { text: i18n.t('dialogo.ahoraNo'), style: 'cancel' },
+        { text: i18n.t('dialogo.abrirAjustes'), onPress: () => void Linking.openSettings() },
       ],
     );
     return null;

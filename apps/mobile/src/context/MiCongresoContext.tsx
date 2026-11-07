@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import type { Congreso } from '../lib/tipos';
 import { useAuth } from './AuthContext';
 
+import i18n from '../i18n';
 /**
  * "MI CONGRESO" (Bloque 8.7.b) — en qué congreso(s) está la persona y cuál ve.
  *
@@ -55,7 +56,7 @@ export function MiCongresoProvider({ children }: { children: React.ReactNode }) 
       else if (guardado && lista.some((c) => c.id === guardado)) setActualId(guardado);
       else setActualId(null); // 0, o varios sin elegir (o el guardado ya no está)
     } catch (e: any) {
-      setError(e?.message ?? 'No se pudieron cargar tus congresos');
+      setError(e?.message ?? i18n.t('miCongreso.errorCarga'));
     } finally {
       setCargando(false);
     }

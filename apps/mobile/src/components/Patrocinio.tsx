@@ -5,6 +5,7 @@ import type { SponsorCharla } from '../lib/tipos';
 import { F, useTema } from '../tema/tema';
 import { conAlfa } from '../lib/color';
 
+import { useTranslation } from 'react-i18next';
 /**
  * "PATROCINADA POR…" (8.7.f) — uno o varios sponsors, en dos tamaños:
  *  - linea:  bajo una charla de la agenda
@@ -24,6 +25,7 @@ export default function Patrocinio({
   esBreak?: boolean;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   if (sponsors.length === 0) return null;
 
   if (variante === 'linea') {
@@ -31,7 +33,7 @@ export default function Patrocinio({
       <View style={est.linea}>
         <View style={est.lineaAntes}>
           <Ionicons name="ribbon-outline" size={13} color={t.coralTexto} />
-          <Text style={[est.lineaTexto, { color: t.coralTexto }]}>{esBreak ? 'Patrocinado por' : 'Patrocinada por'}</Text>
+          <Text style={[est.lineaTexto, { color: t.coralTexto }]}>{esBreak ? tr('patrocinio.patrocinadoPor') : tr('patrocinio.patrocinadaPor')}</Text>
         </View>
         {sponsors.map((sp) => (
           <View key={sp.id} style={[est.lineaItem, { backgroundColor: t.coralSuave, borderColor: conAlfa('#FF7A59', t.oscuro ? 0.55 : 0.45) }]}>
@@ -48,7 +50,7 @@ export default function Patrocinio({
   return (
     <View style={[est.franja, { backgroundColor: t.tarjeta, borderColor: t.borde }]}>
       <Text style={[est.franjaAntes, { color: t.textoTenue }]}>
-        {esBreak ? 'Es posible gracias a' : 'Esta charla es posible gracias a'}
+        {esBreak ? tr('patrocinio.esPosible') : tr('patrocinio.charlaPosible')}
       </Text>
       {sponsors.map((sp) => {
         const abrir = sp.sitio_web ? () => void Linking.openURL(sp.sitio_web!) : undefined;

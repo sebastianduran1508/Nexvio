@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Image,
   ScrollView,
@@ -44,6 +43,8 @@ import { ultimoAvisoVisto } from '../lib/push';
 import BotonFavorito from '../components/BotonFavorito';
 import Patrocinio from '../components/Patrocinio';
 
+import { useTranslation } from 'react-i18next';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 
 /**
@@ -73,6 +74,7 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const { id } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const fijarMarca = useFijarMarca();
   const [detalle, setDetalle] = useState<CongresoDetalle | null>(null);
@@ -106,7 +108,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         tema_default: d.personalizacion?.tema_default ?? 'sistema', // 8.7.g
       });
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo cargar el congreso');
+      avisoError(tr('comun.error'), e.message ?? tr('congreso.errorCarga'));
     } finally {
       setCargando(false);
     }
@@ -155,8 +157,8 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
   const indiceHoy = dias.findIndex(([k]) => k === hoy);
   const indicadorDia =
     vivo && indiceHoy >= 0
-      ? { valor: `Día ${indiceHoy + 1}`, texto: `de ${dias.length}` }
-      : { valor: String(dias.length), texto: dias.length === 1 ? 'día' : 'días' };
+      ? { valor: tr('congreso.indDia', { n: indiceHoy + 1 }), texto: tr('congreso.indDe', { total: dias.length }) }
+      : { valor: String(dias.length), texto: tr('congreso.indDias', { count: dias.length }) };
   const abrirSesion = (s: Sesion) =>
     navigation.navigate('Sesion', { sesionId: s.id, titulo: s.titulo, sponsors: s.sponsors?.map((x) => x.sponsor) });
 
@@ -173,7 +175,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         {/* 8.7.j: fechas, lugar e indicadores; al bajar se esconden (cabecera plegable) */}
         <View style={est.cabMeta}>
           {/* EN CURSO va aquí y no junto al título: así el nombre usa todo el ancho */}
-          {vivo ? <Etiqueta texto="EN CURSO" punto colores={[marca.acento, marca.textoAcento]} /> : null}
+          {vivo ? <Etiqueta texto={tr('congreso.enCurso')} punto colores={[marca.acento, marca.textoAcento]} /> : null}
           <View style={est.cabMetaItem}>
             <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={est.cabMetaTexto}>{rangoFechas(detalle.fecha_inicio, detalle.fecha_fin)}</Text>
@@ -188,8 +190,8 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
           )}
         </View>
         <View style={est.indicadores}>
-          <Indicador valor={String(charlas.length)} texto={charlas.length === 1 ? 'charla' : 'charlas'} />
-          <Indicador valor={String(detalle.ponentes.length)} texto={detalle.ponentes.length === 1 ? 'ponente' : 'ponentes'} />
+          <Indicador valor={String(charlas.length)} texto={tr('congreso.indCharlas', { count: charlas.length })} />
+          <Indicador valor={String(detalle.ponentes.length)} texto={tr('congreso.indPonentes', { count: detalle.ponentes.length })} />
           <Indicador valor={indicadorDia.valor} texto={indicadorDia.texto} />
         </View>
       </Cabecera>
@@ -231,16 +233,16 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
             <Ionicons name="notifications-outline" size={20} color={marca.primarioTexto} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[est.netTitulo, { color: t.texto }]}>Avisos del congreso</Text>
+            <Text style={[est.netTitulo, { color: t.texto }]}>{tr('congreso.avisosTitulo')}</Text>
             <Text style={[est.netTexto, { color: t.textoSuave }]}>
               {avisos.total === 0
-                ? 'Aquí llegan los mensajes del organizador'
-                : `${avisos.total} aviso${avisos.total === 1 ? '' : 's'}`}
+                ? tr('congreso.avisosVacio')
+                : tr('congreso.avisosCuenta', { count: avisos.total })}
             </Text>
           </View>
           {avisos.nuevos > 0 && (
             <Etiqueta
-              texto={`${avisos.nuevos} NUEVO${avisos.nuevos === 1 ? '' : 'S'}`}
+              texto={tr('congreso.nuevos', { count: avisos.nuevos })}
               colores={[marca.acento, marca.textoAcento]}
             />
           )}
@@ -251,17 +253,17 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
             la pestaña Networking de la barra de abajo. */}
 
         {/* ---------- Agenda por día ---------- */}
-        <TituloConIcono texto="Agenda" icono="time-outline" />
+        <TituloConIcono texto={tr('congreso.agenda')} icono="time-outline" />
         {dias.length > 0 && zonaDelTelefono() ? (
           <View style={est.zona}>
             <Ionicons name="globe-outline" size={13} color={t.textoTenue} />
             <Text style={[est.zonaTexto, { color: t.textoTenue }]}>
-              Horas en tu zona horaria ({zonaDelTelefono()})
+              {tr('congreso.zona', { zona: zonaDelTelefono() })}
             </Text>
           </View>
         ) : null}
         {dias.length === 0 ? (
-          <Vacio texto="Este congreso aún no tiene sesiones." icono="time-outline" />
+          <Vacio texto={tr('congreso.sinSesiones')} icono="time-outline" />
         ) : (
           <>
             {dias.length > 1 && (
@@ -282,7 +284,7 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
                     >
                       <Text style={[est.diaSemana, { color: activo ? 'rgba(255,255,255,0.85)' : t.textoSuave }]}>
                         {semana}
-                        {k === hoy ? ' · hoy' : ''}
+                        {k === hoy ? ` · ${tr('congreso.hoy')}` : ''}
                       </Text>
                       <Text style={[est.diaNum, { color: activo ? '#fff' : t.texto }]}>{dia}</Text>
                     </TouchableOpacity>
@@ -308,9 +310,9 @@ export default function CongresoDetalleScreen({ route, navigation }: Props) {
         )}
 
         {/* ---------- Ponentes ---------- */}
-        <TituloConIcono texto="Ponentes" icono="mic-outline" />
+        <TituloConIcono texto={tr('congreso.ponentes')} icono="mic-outline" />
         {detalle.ponentes.length === 0 ? (
-          <Vacio texto="Aún no hay ponentes registrados." icono="mic-outline" />
+          <Vacio texto={tr('congreso.sinPonentes')} icono="mic-outline" />
         ) : (
           <View style={{ gap: 10 }}>
             {detalle.ponentes.map((p) => (
@@ -336,13 +338,14 @@ function Indicador({ valor, texto }: { valor: string; texto: string }) {
 /** 8.7.j: la charla que está pasando AHORA, grande y con botón para entrar. */
 function TarjetaAhora({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const ponentes = sesion.ponentes?.map((x) => x.ponente) ?? [];
   const p = ponentes[0];
   return (
     <Tarjeta style={{ gap: 10, marginBottom: 10 }}>
       <View style={est.sesionArriba}>
-        <Etiqueta texto="EN VIVO" tono="rojo" punto />
+        <Etiqueta texto={tr('congreso.enVivo')} tono="rojo" punto />
         <Text style={[est.ahoraHora, { color: t.textoSuave }]} numberOfLines={1}>
           {hora(sesion.inicio)} – {hora(sesion.fin)}{sesion.sala ? ` · ${sesion.sala}` : ''}
         </Text>
@@ -354,7 +357,7 @@ function TarjetaAhora({ sesion, onPress }: { sesion: Sesion; onPress: () => void
           <Avatar nombre={p.nombre} foto={p.foto_url} tamano={34} />
           <View style={{ flex: 1 }}>
             <Text style={[est.netTitulo, { color: t.texto, fontSize: 13.5 }]} numberOfLines={1}>
-              {p.nombre}{ponentes.length > 1 ? ` y ${ponentes.length - 1} más` : ''}
+              {ponentes.length > 1 ? tr('congreso.yMas', { nombre: p.nombre, n: ponentes.length - 1 }) : p.nombre}
             </Text>
             {[p.cargo, p.empresa].filter(Boolean).length ? (
               <Text style={[est.netTexto, { color: t.textoSuave }]} numberOfLines={1}>
@@ -365,7 +368,7 @@ function TarjetaAhora({ sesion, onPress }: { sesion: Sesion; onPress: () => void
         </View>
       ) : null}
       <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[est.ahoraBoton, { backgroundColor: marca.primario }]}>
-        <Text style={[est.ahoraBotonTexto, { color: textoSobre(marca.primario) }]}>Entrar a la sala en vivo</Text>
+        <Text style={[est.ahoraBotonTexto, { color: textoSobre(marca.primario) }]}>{tr('congreso.entrarSala')}</Text>
         <Ionicons name="arrow-forward" size={17} color={textoSobre(marca.primario)} />
       </TouchableOpacity>
     </Tarjeta>
@@ -375,11 +378,12 @@ function TarjetaAhora({ sesion, onPress }: { sesion: Sesion; onPress: () => void
 /** 8.7.j: la siguiente charla, en una fila compacta ("en 25 min"). */
 function FilaProxima({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const min = Math.round((Date.parse(sesion.inicio) - Date.now()) / 60000);
   const cuando =
-    min < 60 ? `en ${Math.max(min, 1)} min`
-    : claveDia(sesion.inicio) === hoyISO() ? `hoy ${hora(sesion.inicio)}`
+    min < 60 ? tr('tiempo.enMin', { n: Math.max(min, 1) })
+    : claveDia(sesion.inicio) === hoyISO() ? tr('tiempo.hoyHora', { hora: hora(sesion.inicio) })
     : `${etiquetaDia(claveDia(sesion.inicio)).semana} ${etiquetaDia(claveDia(sesion.inicio)).dia}`;
   return (
     <Tarjeta onPress={onPress} style={est.proxima}>
@@ -387,7 +391,7 @@ function FilaProxima({ sesion, onPress }: { sesion: Sesion; onPress: () => void 
         <Text style={[est.proximaChipTexto, { color: marca.primarioTexto }]}>{cuando}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[est.proximaEtiqueta, { color: t.textoSuave }]}>PRÓXIMA · {hora(sesion.inicio)}</Text>
+        <Text style={[est.proximaEtiqueta, { color: t.textoSuave }]}>{tr('congreso.proxima', { hora: hora(sesion.inicio) })}</Text>
         <Text style={[est.netTitulo, { color: t.texto }]} numberOfLines={1}>{sesion.titulo}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
@@ -403,6 +407,7 @@ function FilaProxima({ sesion, onPress }: { sesion: Sesion; onPress: () => void 
  */
 function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const bordeMarca = useBordeMarca();
   const esBreak = sesion.tipo === 'break';
@@ -448,11 +453,11 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
             {horario}
           </Text>
           {vivo ? (
-            <Etiqueta texto="EN VIVO" tono="rojo" punto />
+            <Etiqueta texto={tr('congreso.enVivo')} tono="rojo" punto />
           ) : sesion.tipo === 'taller' ? (
-            <Etiqueta texto="TALLER" tono="cian" />
+            <Etiqueta texto={tr('congreso.taller')} tono="cian" />
           ) : sesion.tipo === 'plenaria' ? (
-            <Etiqueta texto="PLENARIA" tono="coral" />
+            <Etiqueta texto={tr('congreso.plenaria')} tono="coral" />
           ) : null}
           {/* 8.7.e: agregar a Mi agenda */}
           <BotonFavorito sesionId={sesion.id} />
@@ -479,7 +484,7 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
 
         <View style={est.sesionLink}>
           <Ionicons name="chatbubbles-outline" size={14} color={marca.primarioTexto} />
-          <Text style={[est.sesionLinkTexto, { color: marca.primarioTexto }]}>Preguntas y encuestas</Text>
+          <Text style={[est.sesionLinkTexto, { color: marca.primarioTexto }]}>{tr('congreso.preguntasEncuestas')}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -493,13 +498,14 @@ function ItemAgenda({ sesion, onPress }: { sesion: Sesion; onPress: () => void }
  */
 function FranjaSponsors({ sponsors, onPress }: { sponsors: Sponsor[]; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   return (
     <View style={{ marginTop: 18 }}>
       <TouchableOpacity onPress={onPress} style={est.franjaTitulo} hitSlop={6}>
-        <Text style={[est.franjaTexto, { color: t.textoSuave }]}>CON EL APOYO DE</Text>
+        <Text style={[est.franjaTexto, { color: t.textoSuave }]}>{tr('congreso.conApoyo')}</Text>
         <View style={est.franjaVer}>
-          <Text style={[est.franjaVerTexto, { color: marca.primarioTexto }]}>Ver todos</Text>
+          <Text style={[est.franjaVerTexto, { color: marca.primarioTexto }]}>{tr('congreso.verTodos')}</Text>
           <Ionicons name="chevron-forward" size={14} color={marca.primarioTexto} />
         </View>
       </TouchableOpacity>
@@ -529,6 +535,7 @@ function FranjaSponsors({ sponsors, onPress }: { sponsors: Sponsor[]; onPress: (
 /** Ficha del ponente: foto (si hay) o iniciales, cargo, empresa y bandera. */
 function FichaPonente({ ponente }: { ponente: Ponente }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const cargoEmpresa = [ponente.cargo, ponente.empresa].filter(Boolean).join(' · ');
   // El borde de color de marca ya lo pone <Tarjeta> (useBordeMarca).
   return (

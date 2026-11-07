@@ -12,6 +12,7 @@ import ElegirCongresoScreen, { SinCongresoScreen } from '../screens/ElegirCongre
 import { Cargando, Vacio } from '../components/ui';
 import { BarraPestanas } from '../components/BarraPestanas';
 import { F, useTema } from '../tema/tema';
+import { useTranslation } from 'react-i18next';
 
 /**
  * La app del asistente, una vez pasó la puerta del primer ingreso.
@@ -48,6 +49,8 @@ export function AppTabs() {
 
 function Contenido() {
   const t = useTema();
+  // 8.8: textos según el idioma. (Ojo: aquí `t` ya es el tema; el traductor se llama `tr`.)
+  const { t: tr } = useTranslation();
   const { cargando, error, congresos, actual, recargar } = useMiCongreso();
 
   if (cargando) return <Cargando />;
@@ -63,7 +66,7 @@ function Contenido() {
       <Tab.Screen
         name="CongresosTab"
         options={{
-          title: 'Congreso',
+          title: tr('tabs.congreso'),
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />,
         }}
       >
@@ -81,7 +84,7 @@ function Contenido() {
       <Tab.Screen
         name="MiAgendaTab"
         options={{
-          title: 'Mi agenda',
+          title: tr('tabs.miAgenda'),
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'star' : 'star-outline'} color={color} size={size} />,
         }}
       >
@@ -90,7 +93,7 @@ function Contenido() {
             <MiAgendaStack key={actual.id} congresoId={actual.id} />
           ) : (
             <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
-              <Vacio icono="star-outline" texto="Elige tu congreso en la pestaña Congreso para ver tu agenda." />
+              <Vacio icono="star-outline" texto={tr('miCongreso.vacioAgenda')} />
             </View>
           )
         }
@@ -98,7 +101,7 @@ function Contenido() {
       <Tab.Screen
         name="NetworkingTab"
         options={{
-          title: 'Networking',
+          title: tr('tabs.networking'),
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={size} />,
         }}
       >
@@ -107,7 +110,7 @@ function Contenido() {
             <NetworkingStack key={actual.id} congresoId={actual.id} />
           ) : (
             <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
-              <Vacio icono="people-outline" texto="Elige tu congreso en la pestaña Congreso para ver su networking." />
+              <Vacio icono="people-outline" texto={tr('miCongreso.vacioNetworking')} />
             </View>
           )
         }
@@ -116,7 +119,7 @@ function Contenido() {
         name="PerfilTab"
         component={PerfilStack}
         options={{
-          title: 'Perfil',
+          title: tr('tabs.perfil'),
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} color={color} size={size} />,
         }}
       />
@@ -127,6 +130,7 @@ function Contenido() {
 
 function ErrorCarga({ mensaje, onReintentar }: { mensaje: string; onReintentar: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: t.fondo }}>
       <Ionicons name="cloud-offline-outline" size={44} color={t.textoTenue} />
@@ -137,7 +141,7 @@ function ErrorCarga({ mensaje, onReintentar }: { mensaje: string; onReintentar: 
         onPress={onReintentar}
         style={{ marginTop: 18, backgroundColor: t.primario, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 11 }}
       >
-        <Text style={{ fontFamily: F.semi, color: '#fff' }}>Reintentar</Text>
+        <Text style={{ fontFamily: F.semi, color: '#fff' }}>{tr('comun.reintentar')}</Text>
       </TouchableOpacity>
     </View>
   );

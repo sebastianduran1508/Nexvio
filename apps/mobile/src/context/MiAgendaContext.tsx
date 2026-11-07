@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { api } from '../lib/api';
+import i18n from '../i18n';
 
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 /**
  * MI AGENDA (8.7.e) — qué charlas tiene marcadas la persona con ⭐.
  *
@@ -70,7 +71,7 @@ export function MiAgendaProvider({ congresoId, children }: { congresoId?: string
         else nuevo.add(sesionId);
         return nuevo;
       });
-      Alert.alert('No se pudo guardar', e?.message ?? 'Revisa tu conexión e intenta de nuevo');
+      avisoError(i18n.t('dialogo.noGuardarFavorito'), e?.message ?? i18n.t('dialogo.revisaConexion'));
     }
   }, []);
 

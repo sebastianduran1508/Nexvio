@@ -1,5 +1,9 @@
+import { locale } from '../i18n';
+
 /**
- * Formatos de fecha y hora en español (es-CO).
+ * Formatos de fecha y hora.
+ * 8.8: en el IDIOMA ACTIVO (locale(): es-CO / en-US / pt-BR), ya no siempre
+ * en español: "vie 6 nov · 10:00 a. m." / "Fri, Nov 6 · 10:00 AM" / "sex., 6 de nov. · 10:00".
  *
  * OJO con las fechas de los congresos: el backend las guarda como fecha "pura"
  * (sin hora) y llegan como "2026-10-24T00:00:00.000Z" (medianoche en UTC).
@@ -13,7 +17,7 @@ export function fecha(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso);
   return d
-    .toLocaleDateString('es-CO', {
+    .toLocaleDateString(locale(), {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -33,9 +37,9 @@ export function rangoFechas(ini?: string, fin?: string): string {
   const opt = (o: Intl.DateTimeFormatOptions) =>
     ({ ...o, timeZone: 'UTC' }) as Intl.DateTimeFormatOptions;
   const izq = mismoMes
-    ? a.toLocaleDateString('es-CO', opt({ day: 'numeric' }))
-    : a.toLocaleDateString('es-CO', opt({ day: 'numeric', month: 'short' }));
-  const der = b.toLocaleDateString('es-CO', opt({ day: 'numeric', month: 'short', year: 'numeric' }));
+    ? a.toLocaleDateString(locale(), opt({ day: 'numeric' }))
+    : a.toLocaleDateString(locale(), opt({ day: 'numeric', month: 'short' }));
+  const der = b.toLocaleDateString(locale(), opt({ day: 'numeric', month: 'short', year: 'numeric' }));
   return `${izq} – ${der}`.replace(/\./g, '');
 }
 
@@ -44,7 +48,7 @@ export function mesDia(iso: string): { mes: string; dia: string } {
   const d = new Date(iso);
   return {
     mes: d
-      .toLocaleDateString('es-CO', { month: 'short', timeZone: 'UTC' })
+      .toLocaleDateString(locale(), { month: 'short', timeZone: 'UTC' })
       .replace(/\./g, '')
       .toUpperCase(),
     dia: String(d.getUTCDate()),
@@ -66,7 +70,7 @@ export function enCurso(ini: string, fin: string): boolean {
 export function hora(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 /** Clave del día LOCAL de un instante: "2026-10-24". Sirve para agrupar la agenda. */
@@ -81,8 +85,8 @@ export function claveDia(iso: string): string {
 export function etiquetaDia(clave: string): { semana: string; dia: string } {
   const [y, m, d] = clave.split('-').map(Number);
   const f = new Date(y, m - 1, d, 12); // mediodía local: sin sustos de zona horaria
-  const semana = f.toLocaleDateString('es-CO', { weekday: 'short' }).replace(/\./g, '');
-  const dia = f.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace(/\./g, '');
+  const semana = f.toLocaleDateString(locale(), { weekday: 'short' }).replace(/\./g, '');
+  const dia = f.toLocaleDateString(locale(), { day: 'numeric', month: 'short' }).replace(/\./g, '');
   return { semana: semana.charAt(0).toUpperCase() + semana.slice(1), dia };
 }
 

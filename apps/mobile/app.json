@@ -45,7 +45,8 @@
           "photosPermission": "Nexvio usa tus fotos para que elijas tu foto de perfil.",
           "cameraPermission": "Nexvio usa la cámara para que tomes tu foto de perfil."
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }

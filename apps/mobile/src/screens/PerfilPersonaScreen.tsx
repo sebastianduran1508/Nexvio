@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Dimensions, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,9 @@ import { useMarca } from '../context/MarcaContext';
 import { F, useTema } from '../tema/tema';
 import type { NetworkingStackParamList } from '../navigation/NetworkingStack';
 
+import i18n, { locale } from '../i18n';
+import { useTranslation } from 'react-i18next';
+import { aviso, avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<NetworkingStackParamList, 'PerfilPersona'>;
 
 const ANCHO = Dimensions.get('window').width;
@@ -35,6 +38,7 @@ const ANCHO = Dimensions.get('window').width;
 export default function PerfilPersonaScreen({ route, navigation }: Props) {
   const { persona: inicial, congresoId, sinCuenta } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const insets = useSafeAreaInsets();
   const [p, setP] = useState<Persona>(inicial);
@@ -69,7 +73,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
         setP((x) => ({ ...x, estado: 'enviado' }));
       }
     } catch (e: any) {
-      Alert.alert('No se pudo enviar', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('perfilPersona.noEnviar'), e?.message ?? tr('comun.intentaDeNuevo'));
     } finally {
       setEnviando(false);
     }
@@ -83,13 +87,13 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
   function eliminarConexion() {
     const id = p.conexionId;
     if (!id) return;
-    Alert.alert(
-      `¿Eliminar la conexión con ${p.nombre}?`,
-      'Se borrará el chat y ya no podrán ver el contacto del otro. Volverán a aparecerse en Descubrir. No se puede deshacer.',
+    aviso(
+      tr('perfilPersona.eliminarTitulo', { nombre: p.nombre }),
+      tr('perfilPersona.eliminarTexto'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: tr('comun.cancelar'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: tr('comun.eliminar'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -97,7 +101,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
               setContacto(null);
               setP((x) => ({ ...x, estado: 'ninguno', conexionId: undefined }));
             } catch (e: any) {
-              Alert.alert('No se pudo eliminar', e?.message ?? 'Intenta de nuevo');
+              avisoError(tr('perfilPersona.noEliminar'), e?.message ?? tr('comun.intentaDeNuevo'));
             }
           },
         },
@@ -126,7 +130,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={[est.atras, { top: insets.top + 10 }]}
             onPress={() => navigation.goBack()}
-            accessibilityLabel="Volver"
+            accessibilityLabel={tr('navegacion.volver')}
           >
             <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
@@ -145,7 +149,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
             <View style={[est.aviso, { backgroundColor: marca.primarioSuave }]}>
               <Text style={{ fontSize: 18 }}>💜</Text>
               <Text style={[est.avisoTexto, { color: t.texto }]}>
-                {p.nombre.split(' ')[0]} quiere conectar contigo. Si también te interesa, ¡es un match!
+                {tr('perfilPersona.quiereConectar', { nombre: p.nombre.split(' ')[0] })}
               </Text>
             </View>
           )}
@@ -156,7 +160,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
 
           {p.descripcion ? (
             <View>
-              <Text style={[est.seccion, { color: t.textoTenue }]}>{sinCuenta || p.insignia === 'ponente' ? 'SOBRE EL PONENTE' : 'SOBRE MÍ'}</Text>
+              <Text style={[est.seccion, { color: t.textoTenue }]}>{sinCuenta || p.insignia === 'ponente' ? tr('perfilPersona.sobrePonente') : tr('perfilPersona.sobreMi')}</Text>
               <Text style={[est.descripcion, { color: t.texto }]}>{p.descripcion}</Text>
             </View>
           ) : null}
@@ -169,10 +173,13 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
                   <Ionicons name="checkmark-done" size={16} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[est.contactoTitulo, { color: t.texto }]}>¡Ya están conectados!</Text>
+                  <Text style={[est.contactoTitulo, { color: t.texto }]}>{tr('perfilPersona.conectados')}</Text>
                   <Text style={[est.charlaCuando, { color: t.textoSuave }]}>
-                    Desde el {new Date(contacto.conectados_desde).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })} ·{' '}
-                    {contacto.mensajes}/{contacto.limite_mensajes} mensajes
+                    {tr('perfilPersona.desde', {
+                      fecha: new Date(contacto.conectados_desde).toLocaleDateString(locale(), { day: 'numeric', month: 'long' }),
+                      usados: contacto.mensajes,
+                      limite: contacto.limite_mensajes,
+                    })}
                   </Text>
                 </View>
               </View>
@@ -189,29 +196,29 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
                     />
                   ) : null}
                   {contacto.correo ? (
-                    <BotonContacto icono="mail" color="#5A46F0" titulo="Correo" valor={contacto.correo} onPress={() => abrir(`mailto:${contacto.correo}`)} />
+                    <BotonContacto icono="mail" color="#5A46F0" titulo={tr('perfilPersona.correo')} valor={contacto.correo} onPress={() => abrir(`mailto:${contacto.correo}`)} />
                   ) : null}
                   {contacto.linkedin ? (
-                    <BotonContacto icono="logo-linkedin" color="#0A66C2" titulo="LinkedIn" valor="Ver su perfil" onPress={() => abrir(contacto.linkedin!)} />
+                    <BotonContacto icono="logo-linkedin" color="#0A66C2" titulo="LinkedIn" valor={tr('perfilPersona.verSuPerfil')} onPress={() => abrir(contacto.linkedin!)} />
                   ) : null}
                 </View>
               ) : (
                 <Text style={[est.nota, { color: t.textoTenue, marginTop: 10, textAlign: 'left' }]}>
-                  Aún no comparte su contacto. ¡Pregúntaselo por el chat!
+                  {tr('perfilPersona.sinContacto')}
                 </Text>
               )}
 
               {/* 8.7.j (decisión 34): discreto a propósito — pequeño y gris */}
               <TouchableOpacity onPress={eliminarConexion} style={est.eliminar} hitSlop={8}>
                 <Ionicons name="person-remove-outline" size={13} color={t.textoTenue} />
-                <Text style={[est.eliminarTexto, { color: t.textoTenue }]}>Eliminar conexión</Text>
+                <Text style={[est.eliminarTexto, { color: t.textoTenue }]}>{tr('perfilPersona.eliminarConexion')}</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {p.charlas.length > 0 && (
             <View style={{ gap: 8 }}>
-              <Text style={[est.seccion, { color: t.textoTenue }]}>SUS CHARLAS</Text>
+              <Text style={[est.seccion, { color: t.textoTenue }]}>{tr('perfilPersona.susCharlas')}</Text>
               {p.charlas.map((c) => (
                 <View key={c.id} style={[est.charla, { backgroundColor: t.tarjeta, borderColor: t.borde }]}>
                   <View style={est.charlaIcono}>
@@ -228,7 +235,7 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
 
           {sinCuenta && (
             <Text style={[est.nota, { color: t.textoTenue }]}>
-              Este ponente no usa la app, así que no se puede conectar con él aquí. ¡Búscalo en su charla!
+              {tr('perfilPersona.sinCuenta')}
             </Text>
           )}
         </View>
@@ -238,14 +245,14 @@ export default function PerfilPersonaScreen({ route, navigation }: Props) {
       {!sinCuenta && p.estado && (
         <View style={[est.pie, { paddingBottom: insets.bottom + 14, backgroundColor: t.fondo, borderColor: t.borde }]}>
           {p.estado === 'correspondido' && p.conexionId ? (
-            <BotonPie texto="Enviar mensaje" icono="chatbubbles" fondo="#16A34A" onPress={() => chatear(p.conexionId!)} />
+            <BotonPie texto={tr('perfilPersona.enviarMensaje')} icono="chatbubbles" fondo="#16A34A" onPress={() => chatear(p.conexionId!)} />
           ) : p.estado === 'enviado' ? (
             <View style={[est.esperando, { backgroundColor: marca.primarioSuave }]}>
               <Ionicons name="heart" size={18} color={marca.primarioTexto} />
-              <Text style={[est.esperandoTexto, { color: marca.primarioTexto }]}>Le diste 💜 · esperando su respuesta</Text>
+              <Text style={[est.esperandoTexto, { color: marca.primarioTexto }]}>{tr('perfilPersona.esperando')}</Text>
             </View>
           ) : (
-            <BotonPie texto="Me interesa" icono="heart" fondo={marca.primario} onPress={meInteresa} cargando={enviando} />
+            <BotonPie texto={tr('perfilPersona.meInteresa')} icono="heart" fondo={marca.primario} onPress={meInteresa} cargando={enviando} />
           )}
         </View>
       )}
@@ -272,7 +279,8 @@ function soloDigitos(tel: string) {
 }
 
 function abrir(url: string) {
-  Linking.openURL(url).catch(() => Alert.alert('No se pudo abrir', 'Revisa que tengas la aplicación instalada.'));
+  // 8.8: función suelta -> i18n.t
+  Linking.openURL(url).catch(() => avisoError(i18n.t('perfilPersona.noAbrir'), i18n.t('perfilPersona.instalada')));
 }
 
 function BotonContacto({
@@ -289,6 +297,7 @@ function BotonContacto({
   onPress: () => void;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   return (
     <TouchableOpacity style={[est.botonContacto, { backgroundColor: t.fondo }]} onPress={onPress} activeOpacity={0.8}>
       <View style={[est.botonContactoIcono, { backgroundColor: color }]}>
@@ -305,6 +314,7 @@ function BotonContacto({
 
 function Dato({ icono, texto }: { icono: React.ComponentProps<typeof Ionicons>['name']; texto: string }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Ionicons name={icono} size={17} color={t.textoTenue} />
@@ -326,6 +336,7 @@ function BotonPie({
   onPress: () => void;
   cargando?: boolean;
 }) {
+  const { t: tr } = useTranslation(); // 8.8
   return (
     <TouchableOpacity
       style={[est.botonPie, { backgroundColor: fondo, opacity: cargando ? 0.6 : 1 }]}
@@ -334,7 +345,7 @@ function BotonPie({
       activeOpacity={0.85}
     >
       <Ionicons name={icono} size={20} color="#fff" />
-      <Text style={est.botonPieTexto}>{cargando ? 'Enviando…' : texto}</Text>
+      <Text style={est.botonPieTexto}>{cargando ? tr('perfilPersona.enviando') : texto}</Text>
     </TouchableOpacity>
   );
 }

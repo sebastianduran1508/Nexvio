@@ -8,6 +8,7 @@ import { claveDia, enVivo, etiquetaDia, hora } from '../lib/formato';
 import type { CongresoDetalle, Sesion } from '../lib/tipos';
 import { Cabecera, Cargando, Etiqueta, HoraDosPisos, Tarjeta, Vacio, useBordeMarca } from '../components/ui';
 import { textoSobre } from '../lib/color';
+import i18n from '../i18n';
 import BotonFavorito from '../components/BotonFavorito';
 import Patrocinio from '../components/Patrocinio';
 import { useMiAgenda } from '../context/MiAgendaContext';
@@ -15,6 +16,7 @@ import { useMarca } from '../context/MarcaContext';
 import { F, sombra, useTema } from '../tema/tema';
 import type { MiAgendaStackParamList } from '../navigation/MiAgendaStack';
 
+import { useTranslation } from 'react-i18next';
 type Props = NativeStackScreenProps<MiAgendaStackParamList, 'MiAgenda'>;
 
 /** ¿Se cruzan dos charlas? (una empieza antes de que la otra termine) */
@@ -24,11 +26,12 @@ const seCruzan = (a: Sesion, b: Sesion) =>
 /** "en 25 min" · "en 2 h" · "mañana 10:00" · "vie 13 · 10:00" */
 function cuandoEmpieza(iso: string) {
   const min = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
-  if (min < 60) return `en ${Math.max(min, 1)} min`;
-  if (min < 6 * 60) return `en ${Math.round(min / 60)} h`;
+  // 8.8: función suelta -> i18n.t
+  if (min < 60) return i18n.t('tiempo.enMin', { n: Math.max(min, 1) });
+  if (min < 6 * 60) return i18n.t('tiempo.enH', { n: Math.round(min / 60) });
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
-  if (claveDia(iso) === claveDia(manana.toISOString())) return `mañana ${hora(iso)}`;
+  if (claveDia(iso) === claveDia(manana.toISOString())) return i18n.t('tiempo.mananaHora', { hora: hora(iso) });
   const e = etiquetaDia(claveDia(iso));
   return `${e.semana} ${e.dia} · ${hora(iso)}`;
 }
@@ -47,6 +50,7 @@ function cuandoEmpieza(iso: string) {
 export default function MiAgendaScreen({ route, navigation }: Props) {
   const { congresoId } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const { ids, recargar } = useMiAgenda();
   const [detalle, setDetalle] = useState<CongresoDetalle | null>(null);
@@ -58,7 +62,7 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
       setDetalle(d);
       setError(null);
     } catch (e: any) {
-      setError(e?.message ?? 'No se pudo cargar tu agenda');
+      setError(e?.message ?? tr('miAgenda.errorCarga'));
     }
   }, [congresoId, recargar]);
 
@@ -105,11 +109,11 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
-        antetitulo={detalle?.nombre ?? 'Tu congreso'}
-        titulo="Mi agenda"
+        antetitulo={detalle?.nombre ?? tr('miAgenda.tuCongreso')}
+        titulo={tr('miAgenda.titulo')}
         subtitulo={
           mias.length > 0
-            ? `${mias.length} charla${mias.length === 1 ? '' : 's'} marcada${mias.length === 1 ? '' : 's'} · ${dias.length} día${dias.length === 1 ? '' : 's'}`
+            ? `${tr('miAgenda.marcadas', { count: mias.length })} · ${tr('miAgenda.dias', { count: dias.length })}`
             : undefined
         }
         colores={marca.degradado}
@@ -127,16 +131,16 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
           <View style={[est.vacioIcono, { backgroundColor: t.ambarSuave }]}>
             <Ionicons name="star" size={34} color="#F59E0B" />
           </View>
-          <Text style={[est.vacioTitulo, { color: t.texto }]}>Tu agenda está vacía</Text>
+          <Text style={[est.vacioTitulo, { color: t.texto }]}>{tr('miAgenda.vacioTitulo')}</Text>
           <Text style={[est.vacioTexto, { color: t.textoSuave }]}>
-            Toca la ⭐ en las charlas que no te quieres perder y aparecerán aquí, ordenadas por hora.
+            {tr('miAgenda.vacioTexto')}
           </Text>
           <TouchableOpacity
             style={[est.vacioBoton, { backgroundColor: marca.primario }]}
             onPress={() => navigation.getParent()?.navigate('CongresosTab')}
           >
             <Ionicons name="calendar-outline" size={17} color={textoSobre(marca.primario)} />
-            <Text style={[est.vacioBotonTexto, { color: textoSobre(marca.primario) }]}>Ver la agenda del congreso</Text>
+            <Text style={[est.vacioBotonTexto, { color: textoSobre(marca.primario) }]}>{tr('miAgenda.verAgenda')}</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
@@ -149,16 +153,16 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
             <View style={est.urgentes}>
               {ahora && (
                 <Tarjeta style={est.urgente} onPress={() => abrir(ahora)}>
-                  <Etiqueta texto="AHORA" tono="rojo" punto />
+                  <Etiqueta texto={tr('miAgenda.ahora')} tono="rojo" punto />
                   <Text style={[est.urgenteTitulo, { color: t.texto }]} numberOfLines={3}>{ahora.titulo}</Text>
                   <Text style={[est.urgenteMeta, { color: t.textoSuave }]} numberOfLines={1}>
-                    Hasta las {hora(ahora.fin)}{ahora.sala ? ` · ${ahora.sala}` : ''}
+                    {tr('miAgenda.hastaLas', { hora: hora(ahora.fin) })}{ahora.sala ? ` · ${ahora.sala}` : ''}
                   </Text>
                 </Tarjeta>
               )}
               {proxima && (
                 <Tarjeta style={est.urgente} onPress={() => abrir(proxima)}>
-                  <Etiqueta texto={`PRÓXIMA · ${cuandoEmpieza(proxima.inicio).toUpperCase()}`} colores={[marca.primarioSuave, marca.primarioTexto]} />
+                  <Etiqueta texto={tr('miAgenda.proxima', { cuando: cuandoEmpieza(proxima.inicio).toUpperCase() })} colores={[marca.primarioSuave, marca.primarioTexto]} />
                   <Text style={[est.urgenteTitulo, { color: t.texto }]} numberOfLines={3}>{proxima.titulo}</Text>
                   <Text style={[est.urgenteMeta, { color: t.textoSuave }]} numberOfLines={1}>
                     {hora(proxima.inicio)}{proxima.sala ? ` · ${proxima.sala}` : ''}
@@ -173,8 +177,10 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
             <View style={[est.aviso, { backgroundColor: t.ambarSuave, borderColor: t.ambarBorde }]}>
               <Ionicons name="warning-outline" size={18} color={t.ambarTexto} />
               <Text style={[est.avisoTexto, { color: t.ambarTexto }]}>
-                Tienes charlas que se cruzan el {etiquetaDia(claveDia(cruceGeneral.inicio)).semana}{' '}
-                {etiquetaDia(claveDia(cruceGeneral.inicio)).dia} a las {hora(cruceGeneral.inicio)}. Elige a cuál ir.
+                {tr('miAgenda.cruceAviso', {
+                  dia: `${etiquetaDia(claveDia(cruceGeneral.inicio)).semana} ${etiquetaDia(claveDia(cruceGeneral.inicio)).dia}`,
+                  hora: hora(cruceGeneral.inicio),
+                })}
               </Text>
             </View>
           )}
@@ -186,10 +192,10 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
               <View key={clave} style={{ marginTop: 20 }}>
                 <View style={est.diaFila}>
                   <Text style={[est.dia, { color: t.texto }]}>
-                    {clave === hoy ? `Hoy · ${e.semana} ${e.dia}` : `${e.semana} ${e.dia}`}
+                    {clave === hoy ? tr('miAgenda.hoyDia', { dia: `${e.semana} ${e.dia}` }) : `${e.semana} ${e.dia}`}
                   </Text>
                   <Text style={[est.diaCuenta, { color: t.textoSuave }]}>
-                    {sesiones.length} charla{sesiones.length === 1 ? '' : 's'}
+                    {tr('miAgenda.charlas', { count: sesiones.length })}
                   </Text>
                 </View>
                 <View style={{ gap: 10 }}>
@@ -221,6 +227,7 @@ export default function MiAgendaScreen({ route, navigation }: Props) {
  */
 function FilaCharla({ sesion: s, cruce, onPress }: { sesion: Sesion; cruce?: Sesion; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const bordeMarca = useBordeMarca();
   const paso = new Date(s.fin) < new Date();
@@ -229,13 +236,13 @@ function FilaCharla({ sesion: s, cruce, onPress }: { sesion: Sesion; cruce?: Ses
   // 8.7.j: el estado va en una PASTILLA (como "EN CURSO"), no en texto suelto.
   // [texto, fondo, color, ícono o punto]
   const estado: [string, string, string, 'punto' | 'check' | null] | null = paso
-    ? ['TERMINÓ', t.barraFondo, t.textoSuave, 'check']
+    ? [tr('miAgenda.termino'), t.barraFondo, t.textoSuave, 'check']
     : vivo
-      ? ['EN VIVO', t.rojoSuave, t.rojo, 'punto']
+      ? [tr('congreso.enVivo'), t.rojoSuave, t.rojo, 'punto']
       : s.tipo === 'taller'
-        ? ['TALLER', t.cianSuave, t.cianTexto, null]
+        ? [tr('congreso.taller'), t.cianSuave, t.cianTexto, null]
         : s.tipo === 'plenaria'
-          ? ['PLENARIA', t.coralSuave, t.coralTexto, null]
+          ? [tr('congreso.plenaria'), t.coralSuave, t.coralTexto, null]
           : null;
 
   return (
@@ -270,7 +277,7 @@ function FilaCharla({ sesion: s, cruce, onPress }: { sesion: Sesion; cruce?: Ses
           <View style={[est.cruce, { backgroundColor: t.ambarSuave }]}>
             <Ionicons name="warning-outline" size={13} color={t.ambarTexto} />
             <Text style={[est.cruceTexto, { color: t.ambarTexto }]} numberOfLines={2}>
-              Se cruza con «{cruce.titulo}»
+              {tr('miAgenda.seCruza', { titulo: cruce.titulo })}
             </Text>
           </View>
         )}

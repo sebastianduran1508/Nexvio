@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -22,6 +21,8 @@ import { Boton, Cabecera, Cargando, Tarjeta, TituloSeccion, bandera } from '../c
 import { F, useTema } from '../tema/tema';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
+import { useTranslation } from 'react-i18next';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<PerfilStackParamList, 'EditarPerfil'>;
 
 /**
@@ -68,6 +69,9 @@ const CAMPOS: Record<
 
 /** Los campos que van en la sección "Contacto para tus conexiones"... */
 const DE_CONTACTO = ['telefono', 'contacto_email', 'linkedin_url'];
+
+/** 8.8: los campos que tienen textos en el diccionario (editarPerfil.campos.<campo>). */
+type CampoTexto = 'cargo' | 'empresa' | 'descripcion' | 'anio_nacimiento' | 'telefono' | 'contacto_email' | 'linkedin_url';
 /** ...y el interruptor individual de cada uno (consentimiento granular). */
 const INTERRUPTOR: Record<string, 'compartir_telefono' | 'compartir_correo' | 'compartir_linkedin'> = {
   telefono: 'compartir_telefono',
@@ -88,6 +92,7 @@ const ORDEN = ['cargo', 'empresa', 'descripcion', 'anio_nacimiento', 'telefono',
  */
 export default function EditarPerfilScreen({ navigation }: Props) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const insets = useSafeAreaInsets();
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -101,7 +106,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
         setPerfil(p);
         setForm(valoresDe(p));
       })
-      .catch((e) => setMensaje({ ok: false, texto: e?.message ?? 'No se pudo cargar tu perfil' }));
+      .catch((e) => setMensaje({ ok: false, texto: e?.message ?? tr('editarPerfil.errorCarga') }));
   }, []);
 
   const cambios = useMemo(
@@ -115,7 +120,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
     try {
       const anio = (form.anio_nacimiento ?? '').trim();
       if (anio && !/^\d{4}$/.test(anio)) {
-        setMensaje({ ok: false, texto: 'El año de nacimiento son 4 números (ej. 1992).' });
+        setMensaje({ ok: false, texto: tr('editarPerfil.anioInvalido') });
         return;
       }
       const cuerpo: Record<string, string | number | null> = Object.fromEntries(
@@ -126,9 +131,9 @@ export default function EditarPerfilScreen({ navigation }: Props) {
       const p = await api<Perfil>('PATCH', '/perfil', cuerpo);
       setPerfil(p);
       setForm(valoresDe(p));
-      setMensaje({ ok: true, texto: '¡Listo! Tus datos quedaron actualizados.' });
+      setMensaje({ ok: true, texto: tr('editarPerfil.listo') });
     } catch (e: any) {
-      setMensaje({ ok: false, texto: e?.message ?? 'No se pudo guardar' });
+      setMensaje({ ok: false, texto: e?.message ?? tr('editarPerfil.noGuardar') });
     } finally {
       setGuardando(false);
     }
@@ -137,7 +142,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
   if (!perfil) {
     return (
       <View style={{ flex: 1, backgroundColor: t.fondo }}>
-        <Cabecera compacta titulo="Mis datos" onAtras={() => navigation.goBack()} />
+        <Cabecera compacta titulo={tr('editarPerfil.titulo')} onAtras={() => navigation.goBack()} />
         {mensaje ? <Text style={[est.errorSolo, { color: t.rojo }]}>{mensaje.texto}</Text> : <Cargando />}
       </View>
     );
@@ -153,10 +158,13 @@ export default function EditarPerfilScreen({ navigation }: Props) {
   /** Un campo del formulario (se usa en las dos tarjetas). */
   const pintarCampo = (c: string) => {
     const cfg = CAMPOS[c];
+    // 8.8: la etiqueta, el ejemplo y la ayuda salen del diccionario, en el idioma activo
+    const id = c as CampoTexto;
+    const ayuda = tr(`editarPerfil.campos.${id}.ayuda`);
     return (
       <View key={c} style={{ marginBottom: 14 }}>
         <View style={est.labelFila}>
-          <Text style={[est.label, { color: t.textoSuave }]}>{cfg.etiqueta}</Text>
+          <Text style={[est.label, { color: t.textoSuave }]}>{tr(`editarPerfil.campos.${id}.etiqueta`)}</Text>
           {cfg.multilinea ? (
             <Text style={[est.contador, { color: (form[c] ?? '').length > cfg.max * 0.9 ? t.coral : t.textoTenue }]}>
               {(form[c] ?? '').length}/{cfg.max}
@@ -169,7 +177,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
             style={[campoEstilo, { paddingLeft: 42 }, cfg.multilinea && est.area]}
             value={form[c] ?? ''}
             onChangeText={(v) => setForm((f) => ({ ...f, [c]: c === 'anio_nacimiento' ? v.replace(/\D/g, '') : v }))}
-            placeholder={cfg.placeholder}
+            placeholder={tr(`editarPerfil.campos.${id}.placeholder`)}
             placeholderTextColor={t.textoTenue}
             keyboardType={cfg.teclado ?? 'default'}
             autoCapitalize={cfg.teclado === 'email-address' || cfg.teclado === 'url' ? 'none' : 'sentences'}
@@ -178,7 +186,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
             multiline={cfg.multilinea}
           />
         </View>
-        {cfg.ayuda ? <Text style={[est.ayuda, { color: t.textoTenue }]}>{cfg.ayuda}</Text> : null}
+        {ayuda ? <Text style={[est.ayuda, { color: t.textoTenue }]}>{ayuda}</Text> : null}
       </View>
     );
   };
@@ -204,42 +212,42 @@ export default function EditarPerfilScreen({ navigation }: Props) {
       setPerfil(p);
     } catch (e: any) {
       setPerfil(antes);
-      Alert.alert('No se pudo cambiar', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('editarPerfil.noCambiar'), e?.message ?? tr('comun.intentaDeNuevo'));
     }
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.fondo }} behavior="padding">
-      <Cabecera compacta titulo="Mis datos" onAtras={() => navigation.goBack()} />
+      <Cabecera compacta titulo={tr('editarPerfil.titulo')} onAtras={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 30 }} keyboardShouldPersistTaps="handled">
         {/* ---------- Lo que no se puede cambiar ---------- */}
-        <TituloSeccion texto="Tu identidad" />
+        <TituloSeccion texto={tr('editarPerfil.tuIdentidad')} />
         <Tarjeta style={{ gap: 12 }}>
-          <Dato etiqueta="Nombre" valor={[perfil.nombre, perfil.apellidos].filter(Boolean).join(' ')} />
+          <Dato etiqueta={tr('editarPerfil.nombre')} valor={[perfil.nombre, perfil.apellidos].filter(Boolean).join(' ')} />
           {perfil.numero_documento ? (
-            <Dato etiqueta="Documento" valor={`${perfil.tipo_documento ?? ''} ${perfil.numero_documento}`.trim()} />
+            <Dato etiqueta={tr('editarPerfil.documento')} valor={`${perfil.tipo_documento ?? ''} ${perfil.numero_documento}`.trim()} />
           ) : null}
-          {perfil.username ? <Dato etiqueta="Usuario" valor={`@${perfil.username}`} /> : null}
+          {perfil.username ? <Dato etiqueta={tr('editarPerfil.usuario')} valor={`@${perfil.username}`} /> : null}
           <View style={[est.nota, { backgroundColor: t.primarioSuave }]}>
             <Ionicons name="lock-closed" size={14} color={t.primarioTexto} />
             <Text style={[est.notaTexto, { color: t.primarioTexto }]}>
-              Estos datos los registró tu organización. Si alguno está mal, pídele al organizador que lo corrija.
+              {tr('editarPerfil.registro')}
             </Text>
           </View>
         </Tarjeta>
 
         {/* ---------- Lo que sí ---------- */}
-        <TituloSeccion texto="Tu perfil profesional" />
+        <TituloSeccion texto={tr('editarPerfil.perfilProfesional')} />
         <Tarjeta>
           {editables.map(pintarCampo)}
 
           {perfil.editables.includes('pais_codigo') && (
             <View>
-              <Text style={[est.label, { color: t.textoSuave }]}>País</Text>
+              <Text style={[est.label, { color: t.textoSuave }]}>{tr('editarPerfil.pais')}</Text>
               <TouchableOpacity style={[campoEstilo, est.selector]} onPress={() => setElegirPais(true)} activeOpacity={0.8}>
                 <Text style={{ fontSize: 20 }}>{form.pais_codigo ? bandera(form.pais_codigo) : '🌎'}</Text>
                 <Text style={[est.selectorTexto, { color: form.pais ? t.texto : t.textoTenue }]}>
-                  {form.pais || 'Elige tu país'}
+                  {form.pais || tr('editarPerfil.eligePais')}
                 </Text>
                 <Ionicons name="chevron-down" size={18} color={t.textoTenue} />
               </TouchableOpacity>
@@ -250,13 +258,13 @@ export default function EditarPerfilScreen({ navigation }: Props) {
         {/* ---------- Contacto para las conexiones (8.7.d) ---------- */}
         {deContacto.length > 0 && (
           <>
-            <TituloSeccion texto="Contacto para tus conexiones" />
+            <TituloSeccion texto={tr('editarPerfil.contactoConexiones')} />
             <Tarjeta>
               <View style={est.interruptor}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[est.interruptorTitulo, { color: t.texto }]}>Compartir mi contacto</Text>
+                  <Text style={[est.interruptorTitulo, { color: t.texto }]}>{tr('editarPerfil.compartir')}</Text>
                   <Text style={[est.ayuda, { color: t.textoTenue, marginTop: 2 }]}>
-                    Solo las personas con las que hagas match verán estos datos. Nadie más.
+                    {tr('editarPerfil.compartirAyuda')}
                   </Text>
                 </View>
                 <Switch
@@ -276,7 +284,7 @@ export default function EditarPerfilScreen({ navigation }: Props) {
                     <View style={[est.datoContacto, { backgroundColor: activo ? t.verdeSuave : t.barraFondo }]}>
                       <Ionicons name={activo ? 'eye' : 'eye-off'} size={15} color={activo ? t.verde : t.textoTenue} />
                       <Text style={[est.datoContactoTexto, { color: activo ? t.verde : t.textoTenue }]}>
-                        {activo ? 'Lo verán tus conexiones' : 'No se comparte'}
+                        {activo ? tr('editarPerfil.loVeran') : tr('editarPerfil.noSeComparte')}
                       </Text>
                       <Switch
                         value={!!perfil[k]}
@@ -301,14 +309,14 @@ export default function EditarPerfilScreen({ navigation }: Props) {
         )}
 
         <Boton
-          texto="Guardar cambios"
+          texto={tr('editarPerfil.guardar')}
           icono="checkmark"
           onPress={() => (cambios ? void guardar() : undefined)}
           cargando={guardando}
           style={{ marginTop: 20, opacity: cambios ? 1 : 0.5 }}
         />
         <Text style={[est.pie, { color: t.textoTenue }]}>
-          En el networking todos ven tu foto, cargo, empresa, país, descripción y edad. Tu contacto, solo tus conexiones (si lo compartes).
+          {tr('editarPerfil.pie')}
         </Text>
       </ScrollView>
 
@@ -337,6 +345,7 @@ function valoresDe(p: Perfil): Record<string, string> {
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   return (
     <View>
       <Text style={[est.datoEtiqueta, { color: t.textoTenue }]}>{etiqueta}</Text>
@@ -358,6 +367,7 @@ function SelectorPais({
   alElegir: (p: { codigo: string; nombre: string } | null) => void;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const insets = useSafeAreaInsets();
   const [q, setQ] = useState('');
   const normal = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -367,8 +377,8 @@ function SelectorPais({
     <Modal visible={visible} animationType="slide" onRequestClose={alCerrar}>
       <View style={{ flex: 1, backgroundColor: t.tarjeta, paddingTop: insets.top }}>
         <View style={[est.modalCabecera, { borderColor: t.borde }]}>
-          <Text style={[est.modalTitulo, { color: t.texto }]}>Elige tu país</Text>
-          <TouchableOpacity onPress={alCerrar} hitSlop={10} accessibilityLabel="Cerrar">
+          <Text style={[est.modalTitulo, { color: t.texto }]}>{tr('editarPerfil.eligePais')}</Text>
+          <TouchableOpacity onPress={alCerrar} hitSlop={10} accessibilityLabel={tr('comun.cerrar')}>
             <Ionicons name="close" size={26} color={t.texto} />
           </TouchableOpacity>
         </View>
@@ -376,7 +386,7 @@ function SelectorPais({
           <TextInput
             value={q}
             onChangeText={setQ}
-            placeholder="Buscar país…"
+            placeholder={tr('editarPerfil.buscarPais')}
             placeholderTextColor={t.textoTenue}
             style={[est.input, { backgroundColor: t.input, borderColor: t.borde, color: t.texto }]}
             autoCorrect={false}
@@ -390,7 +400,7 @@ function SelectorPais({
           ListFooterComponent={
             actual ? (
               <TouchableOpacity style={est.paisFila} onPress={() => alElegir(null)}>
-                <Text style={[est.paisNombre, { color: t.rojo }]}>Quitar el país</Text>
+                <Text style={[est.paisNombre, { color: t.rojo }]}>{tr('editarPerfil.quitarPais')}</Text>
               </TouchableOpacity>
             ) : null
           }

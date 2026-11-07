@@ -9,9 +9,9 @@ import { useMarca } from '../context/MarcaContext';
 import { F, useTema, type Degradado } from '../tema/tema';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
+import { useTranslation } from 'react-i18next';
 type Props = NativeStackScreenProps<PerfilStackParamList, 'Apariencia'>;
 
-const NOMBRE = { claro: 'Claro', oscuro: 'Oscuro', sistema: 'Según tu teléfono' } as const;
 
 /**
  * APARIENCIA (8.7.g) — cada persona elige cómo ver la app.
@@ -21,6 +21,7 @@ const NOMBRE = { claro: 'Claro', oscuro: 'Oscuro', sistema: 'Según tu teléfono
  */
 export default function AparienciaScreen({ navigation }: Props) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const { preferencia, cambiarPreferencia, temaCongreso, modo } = useApariencia();
 
@@ -33,20 +34,22 @@ export default function AparienciaScreen({ navigation }: Props) {
   }[] = [
     {
       valor: 'congreso',
-      titulo: 'Por defecto',
+      titulo: tr('apariencia.porDefecto'),
       icono: 'color-palette-outline',
       muestra: temaCongreso === 'claro' || temaCongreso === 'oscuro' ? temaCongreso : 'mitad',
     },
-    { valor: 'claro', titulo: 'Claro', icono: 'sunny-outline', muestra: 'claro' },
-    { valor: 'oscuro', titulo: 'Oscuro', icono: 'moon-outline', muestra: 'oscuro' },
+    { valor: 'claro', titulo: tr('apariencia.claro'), icono: 'sunny-outline', muestra: 'claro' },
+    { valor: 'oscuro', titulo: tr('apariencia.oscuro'), icono: 'moon-outline', muestra: 'oscuro' },
   ];
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
-      <Cabecera compacta titulo="Apariencia" onAtras={() => navigation.goBack()} />
+      <Cabecera compacta titulo={tr('perfil.apariencia')} onAtras={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 36 }}>
         <Text style={[est.ahora, { color: t.textoSuave }]}>
-          Ahora estás viendo la app en modo <Text style={{ fontFamily: F.negrita, color: t.texto }}>{NOMBRE[modo].toLowerCase()}</Text>.
+          {tr('aparienciaPantalla.ahoraAntes')}
+          <Text style={{ fontFamily: F.negrita, color: t.texto }}>{tr(`apariencia.${modo}`).toLowerCase()}</Text>
+          {tr('aparienciaPantalla.ahoraDespues')}
         </Text>
         {opciones.map((o) => {
           const activa = preferencia === o.valor;

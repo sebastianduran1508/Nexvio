@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +23,8 @@ import { Avatar, Cabecera, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 import { useMarca } from '../context/MarcaContext';
 
+import { useTranslation } from 'react-i18next';
+import { aviso, avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 // 8.7.d: el chat se mudó a la pestaña Networking.
 type Props = NativeStackScreenProps<NetworkingStackParamList, 'Chat'>;
 
@@ -38,6 +39,7 @@ type Props = NativeStackScreenProps<NetworkingStackParamList, 'Chat'>;
 export default function ChatScreen({ route, navigation }: Props) {
   const { conexionId, nombre, foto, otroId } = route.params;
   const { actual } = useMiCongreso();
+  const { t: tr } = useTranslation(); // 8.8 (arriba: verPerfil lo usa)
 
   /**
    * 8.7.d: tocar su nombre o su foto abre su perfil completo. Pedimos su
@@ -50,12 +52,12 @@ export default function ChatScreen({ route, navigation }: Props) {
       const personas = await api<TarjetaPersona[]>('GET', `/congresos/${actual.id}/networking/personas`);
       const persona = personas.find((x) => x.id === otroId);
       if (!persona) {
-        Alert.alert('Perfil no disponible', 'Esta persona ocultó su perfil del networking.');
+        aviso(tr('chat.perfilNoDisponible'), tr('chat.perfilOculto'));
         return;
       }
       navigation.navigate('PerfilPersona', { persona, congresoId: actual.id });
     } catch (e: any) {
-      Alert.alert('No se pudo abrir el perfil', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('chat.noAbrirPerfil'), e?.message ?? tr('comun.intentaDeNuevo'));
     }
   }
   const { session } = useAuth();
@@ -125,12 +127,12 @@ export default function ChatScreen({ route, navigation }: Props) {
       <Cabecera
         compacta
         titulo={nombre}
-        subtitulo={otroId ? 'Toca para ver su perfil' : 'Conexión de networking'}
+        subtitulo={otroId ? tr('chat.tocaPerfil') : tr('chat.conexionNetworking')}
         onAtras={() => navigation.goBack()}
         alTocarTitulo={otroId ? verPerfil : undefined}
         colores={marca.degradado}
         derecha={
-          <TouchableOpacity onPress={verPerfil} disabled={!otroId} accessibilityLabel={`Ver el perfil de ${nombre}`}>
+          <TouchableOpacity onPress={verPerfil} disabled={!otroId} accessibilityLabel={tr('chat.verPerfilDe', { nombre })}>
             <Avatar nombre={nombre} foto={foto} tamano={38} />
           </TouchableOpacity>
         }
@@ -144,10 +146,10 @@ export default function ChatScreen({ route, navigation }: Props) {
         onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: true })}
         ListHeaderComponent={
           <View style={[est.aviso, { backgroundColor: t.barraFondo }]}>
-            <Text style={[est.avisoTexto, { color: t.textoTenue }]}>Conectaron · pueden chatear</Text>
+            <Text style={[est.avisoTexto, { color: t.textoTenue }]}>{tr('chat.conectaron')}</Text>
           </View>
         }
-        ListEmptyComponent={<Vacio texto="Aún no hay mensajes. ¡Saluda!" icono="hand-left-outline" />}
+        ListEmptyComponent={<Vacio texto={tr('chat.sinMensajes')} icono="hand-left-outline" />}
         renderItem={({ item }) => {
           const mio = item.autor.id === miId;
           return (
@@ -169,14 +171,14 @@ export default function ChatScreen({ route, navigation }: Props) {
 
       <Text style={[est.contador, { color: t.textoTenue }]}>
         {bloqueado
-          ? 'Límite de mensajes alcanzado'
-          : `${restantes} mensaje${restantes === 1 ? '' : 's'} restantes`}
+          ? tr('chat.limite')
+          : tr('chat.restantes', { count: restantes })}
       </Text>
 
       <View style={[est.barraInput, { paddingBottom: insets.bottom + 10 }]}>
         <TextInput
           style={[est.input, { backgroundColor: t.tarjeta, color: t.texto, borderColor: t.borde }]}
-          placeholder={bloqueado ? 'Chat cerrado' : 'Mensaje...'}
+          placeholder={bloqueado ? tr('chat.cerrado') : tr('chat.mensaje')}
           placeholderTextColor={t.textoTenue}
           value={texto}
           onChangeText={setTexto}

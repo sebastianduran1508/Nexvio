@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Alert,
   Image,
   Linking,
   ScrollView,
@@ -19,6 +18,8 @@ import { Cabecera, Cargando, TituloSeccion, Vacio } from '../components/ui';
 import { useMarca } from '../context/MarcaContext';
 import { F, sombra, useTema } from '../tema/tema';
 
+import { useTranslation } from 'react-i18next';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Patrocinadores'>;
 
 /**
@@ -26,10 +27,11 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'Patrocinadores'>;
  * Oro ocupa todo el ancho (es lo que más pagó); General, tres por fila.
  */
 const NIVELES = [
-  { valor: 'oro', titulo: 'Oro', columnas: 1, alto: 110 },
-  { valor: 'plata', titulo: 'Plata', columnas: 2, alto: 80 },
-  { valor: 'bronce', titulo: 'Bronce', columnas: 3, alto: 64 },
-  { valor: 'general', titulo: 'Con el apoyo de', columnas: 3, alto: 56 },
+  // 8.8: el título de cada nivel sale del diccionario (patrocinadores.oro…)
+  { valor: 'oro', columnas: 1, alto: 110 },
+  { valor: 'plata', columnas: 2, alto: 80 },
+  { valor: 'bronce', columnas: 3, alto: 64 },
+  { valor: 'general', columnas: 3, alto: 56 },
 ] as const;
 
 /**
@@ -42,6 +44,7 @@ const NIVELES = [
 export default function PatrocinadoresScreen({ route, navigation }: Props) {
   const { congresoId, nombre } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -50,7 +53,7 @@ export default function PatrocinadoresScreen({ route, navigation }: Props) {
     try {
       setSponsors(await api<Sponsor[]>('GET', `/congresos/${congresoId}/sponsors`));
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudieron cargar los patrocinadores');
+      avisoError(tr('comun.error'), e.message ?? tr('patrocinadores.errorCarga'));
     } finally {
       setCargando(false);
     }
@@ -63,7 +66,7 @@ export default function PatrocinadoresScreen({ route, navigation }: Props) {
     try {
       await Linking.openURL(s.sitio_web);
     } catch {
-      Alert.alert('No se pudo abrir', s.sitio_web);
+      avisoError(tr('patrocinadores.noAbrir'), s.sitio_web);
     }
   }
 
@@ -73,7 +76,7 @@ export default function PatrocinadoresScreen({ route, navigation }: Props) {
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
         compacta
-        titulo="Patrocinadores"
+        titulo={tr('patrocinadores.titulo')}
         subtitulo={nombre}
         onAtras={() => navigation.goBack()}
         colores={marca.degradado}
@@ -81,14 +84,14 @@ export default function PatrocinadoresScreen({ route, navigation }: Props) {
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 0, paddingBottom: 40 }}>
         {sponsors.length === 0 ? (
-          <Vacio texto="Este congreso todavía no tiene patrocinadores." icono="ribbon-outline" />
+          <Vacio texto={tr('patrocinadores.vacio')} icono="ribbon-outline" />
         ) : (
           NIVELES.map((nivel) => {
             const delNivel = sponsors.filter((s) => s.nivel === nivel.valor);
             if (delNivel.length === 0) return null;
             return (
               <View key={nivel.valor}>
-                <TituloSeccion texto={nivel.titulo} />
+                <TituloSeccion texto={tr(`patrocinadores.${nivel.valor}`)} />
                 <View style={est.rejilla}>
                   {delNivel.map((s) => (
                     <TouchableOpacity
@@ -114,7 +117,7 @@ export default function PatrocinadoresScreen({ route, navigation }: Props) {
                             <Text style={[est.nombre, { color: t.texto }]} numberOfLines={1}>{s.nombre}</Text>
                             {s.sitio_web ? (
                               <View style={est.web}>
-                                <Text style={[est.webTexto, { color: marca.primarioTexto }]}>Visitar sitio web</Text>
+                                <Text style={[est.webTexto, { color: marca.primarioTexto }]}>{tr('patrocinadores.visitar')}</Text>
                                 <Ionicons name="open-outline" size={13} color={marca.primarioTexto} />
                               </View>
                             ) : null}

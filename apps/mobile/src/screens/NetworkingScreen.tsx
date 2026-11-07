@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -28,6 +27,8 @@ import { useMarca } from '../context/MarcaContext';
 import { F, sombra, useTema } from '../tema/tema';
 import type { NetworkingStackParamList } from '../navigation/NetworkingStack';
 
+import { useTranslation } from 'react-i18next';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<NetworkingStackParamList, 'Networking'>;
 type Vista = 'descubrir' | 'explorar' | 'conexiones';
 
@@ -69,6 +70,7 @@ export function ponenteComoPersona(p: PonenteRed): Persona {
 export default function NetworkingScreen({ route, navigation }: Props) {
   const { congresoId } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const [vista, setVista] = useState<Vista>('descubrir');
   const [personas, setPersonas] = useState<Persona[] | null>(null);
@@ -106,7 +108,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
           ),
       );
     } catch (e: any) {
-      setError(e?.message ?? 'No se pudo cargar el networking');
+      setError(e?.message ?? tr('networking.errorCarga'));
     }
   }, [congresoId]);
 
@@ -135,7 +137,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
         (lista ?? []).map((x) => (x.id === p.id ? { ...x, estado: dir === 'der' ? 'enviado' : 'descartado' } : x)),
       );
     } catch (e: any) {
-      Alert.alert('No se pudo guardar', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('networking.noGuardar'), e?.message ?? tr('comun.intentaDeNuevo'));
       setPila((pl) => [p, ...pl]); // la devolvemos a la pila
     }
   }
@@ -150,7 +152,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
       await cargar();
       setVista('descubrir');
     } catch (e: any) {
-      Alert.alert('No se pudo', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('networking.noSePudo'), e?.message ?? tr('comun.intentaDeNuevo'));
     }
   }
 
@@ -158,14 +160,14 @@ export default function NetworkingScreen({ route, navigation }: Props) {
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
         compacta
-        titulo="Networking"
-        antetitulo="Conecta con el congreso"
+        titulo={tr('networking.titulo')}
+        antetitulo={tr('networking.antetitulo')}
         colores={marca.degradado}
         derecha={
           // 8.7.j: cuántas personas quedan por descubrir (como el mockup)
           personas && pila.length > 0 ? (
             <View style={est.porDescubrir}>
-              <Text style={est.porDescubrirTexto}>{pila.length} por descubrir</Text>
+              <Text style={est.porDescubrirTexto}>{tr('networking.porDescubrir', { n: pila.length })}</Text>
             </View>
           ) : undefined
         }
@@ -177,7 +179,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
             return (
               <TouchableOpacity key={v} style={[est.segmento, activa && est.segmentoActivo]} onPress={() => setVista(v)}>
                 <Text style={[est.segmentoTexto, { color: activa ? legibleSobre(marca.primario, '#FFFFFF') : 'rgba(255,255,255,0.9)' }]}>
-                  {v === 'descubrir' ? 'Descubrir' : v === 'explorar' ? 'Explorar' : 'Conexiones'}
+                  {tr(`networking.${v}`)}
                 </Text>
                 {n > 0 && (
                   // 8.7.j: el contador en el color de acento (coral en Nexvio)
@@ -195,7 +197,7 @@ export default function NetworkingScreen({ route, navigation }: Props) {
         <View style={[est.aviso, { backgroundColor: t.coralSuave }]}>
           <Ionicons name="eye-off-outline" size={16} color={t.coralTexto} />
           <Text style={[est.avisoTexto, { color: t.texto }]}>
-            Estás oculto: los demás no te ven. Actívalo en Perfil → Aparecer en networking.
+            {tr('networking.oculto')}
           </Text>
         </View>
       )}
@@ -267,6 +269,7 @@ function Descubrir({
   alRestablecer: () => void;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const pos = useRef(new Animated.ValueXY()).current;
   const actual = pila[0];
@@ -335,18 +338,18 @@ function Descubrir({
         <View style={[est.finIcono, { backgroundColor: marca.primarioSuave }]}>
           <Ionicons name="sparkles" size={30} color={marca.primarioTexto} />
         </View>
-        <Text style={[est.finTitulo, { color: t.texto }]}>¡Ya viste a todos!</Text>
+        <Text style={[est.finTitulo, { color: t.texto }]}>{tr('networking.finTitulo')}</Text>
         <Text style={[est.finTexto, { color: t.textoSuave }]}>
-          Cuando lleguen más asistentes aparecerán aquí. Mientras tanto, busca a alguien en Explorar.
+          {tr('networking.finTexto')}
         </Text>
         <TouchableOpacity style={[est.finBoton, { backgroundColor: marca.primario }]} onPress={alExplorar}>
           <Ionicons name="grid-outline" size={17} color="#fff" />
-          <Text style={est.finBotonTexto}>Ir a Explorar</Text>
+          <Text style={est.finBotonTexto}>{tr('networking.irExplorar')}</Text>
         </TouchableOpacity>
         {pasados > 0 && (
           <TouchableOpacity onPress={alRestablecer} style={{ padding: 12 }}>
             <Text style={[est.finEnlace, { color: marca.primarioTexto }]}>
-              Volver a ver a {pasados === 1 ? 'la persona que pasaste' : `las ${pasados} personas que pasaste`}
+              {tr('networking.volverVer', { count: pasados })}
             </Text>
           </TouchableOpacity>
         )}
@@ -358,7 +361,7 @@ function Descubrir({
     <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
       {recibidos > 0 && (
         <Text style={[est.pista, { color: t.textoSuave }]}>
-          💜 {recibidos === 1 ? '1 persona quiere' : `${recibidos} personas quieren`} conectar contigo
+          💜 {tr('networking.quierenConectar', { count: recibidos })}
         </Text>
       )}
 
@@ -381,19 +384,19 @@ function Descubrir({
             <TarjetaPersona persona={actual} style={{ flex: 1 }} />
           </Pressable>
           <Animated.View style={[est.sello, est.selloSi, { opacity: selloSi }]}>
-            <Text style={[est.selloTexto, { color: '#22C55E' }]}>CONECTAR</Text>
+            <Text style={[est.selloTexto, { color: '#22C55E' }]}>{tr('networking.sello')}</Text>
           </Animated.View>
           <Animated.View style={[est.sello, est.selloNo, { opacity: selloNo }]}>
-            <Text style={[est.selloTexto, { color: '#F43F5E' }]}>PASAR</Text>
+            <Text style={[est.selloTexto, { color: '#F43F5E' }]}>{tr('networking.selloNo')}</Text>
           </Animated.View>
         </Animated.View>
       </View>
 
       <View style={est.botones}>
-        <BotonRedondo icono="close" color={t.textoSuave} tamano={58} onPress={() => salir('izq')} etiqueta="Ahora no" />
-        <BotonRedondo icono="information" color={marca.primarioTexto} tamano={44} onPress={() => abrirPerfil(actual)} etiqueta="Ver perfil" />
+        <BotonRedondo icono="close" color={t.textoSuave} tamano={58} onPress={() => salir('izq')} etiqueta={tr('networking.ahoraNo')} />
+        <BotonRedondo icono="information" color={marca.primarioTexto} tamano={44} onPress={() => abrirPerfil(actual)} etiqueta={tr('networking.verPerfil')} />
         {/* 8.7.j: 💜 con degradado del color principal al brillo (violeta → coral en Nexvio) */}
-        <BotonRedondo icono="heart" color="#fff" degradado={[marca.primario, marca.brillo]} tamano={70} onPress={() => salir('der')} etiqueta="Me interesa" />
+        <BotonRedondo icono="heart" color="#fff" degradado={[marca.primario, marca.brillo]} tamano={70} onPress={() => salir('der')} etiqueta={tr('networking.meInteresa')} />
       </View>
     </View>
   );
@@ -416,6 +419,7 @@ function BotonRedondo({
   etiqueta: string;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const borde = useBordeMarca();
   const forma = { width: tamano, height: tamano, borderRadius: tamano / 2 };
   return (
@@ -459,6 +463,7 @@ function Explorar({
   recargar: () => Promise<void>;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const bordeMarca = useBordeMarca();
   const [q, setQ] = useState('');
@@ -499,9 +504,9 @@ function Explorar({
   }, [personas, ponentes, filtro, q]);
 
   const chips: { id: Filtro; texto: string }[] = [
-    { id: 'todos', texto: 'Todos' },
-    { id: 'ponentes', texto: '🎤 Ponentes' },
-    { id: 'organizacion', texto: 'Organización' },
+    { id: 'todos', texto: tr('networking.todos') },
+    { id: 'ponentes', texto: tr('networking.ponentes') },
+    { id: 'organizacion', texto: tr('networking.organizacion') },
     ...paises.map(([codigo, nombre]) => ({ id: codigo, texto: `${bandera(codigo)} ${nombre}` })),
   ];
 
@@ -523,7 +528,7 @@ function Explorar({
             <TextInput
               value={q}
               onChangeText={setQ}
-              placeholder="Busca por nombre, cargo, empresa…"
+              placeholder={tr('networking.buscar')}
               placeholderTextColor={t.textoTenue}
               style={[est.buscador, { backgroundColor: t.tarjeta, borderColor: bordeMarca, color: t.texto }]}
             />
@@ -544,7 +549,7 @@ function Explorar({
           </ScrollView>
         </View>
       }
-      ListEmptyComponent={<Vacio icono="search-outline" texto={q ? `Nadie coincide con «${q}».` : 'Aún no hay nadie aquí.'} />}
+      ListEmptyComponent={<Vacio icono="search-outline" texto={q ? tr('networking.nadieCoincide', { q }) : tr('networking.nadieAqui')} />}
       renderItem={({ item }) => (
         <Pressable onPress={() => abrirPerfil(item.persona, item.sinCuenta)} style={{ width: anchoCelda }}>
           <TarjetaPersona persona={item.persona} compacta style={{ height: anchoCelda * 1.3 }} />
@@ -588,6 +593,7 @@ function Conexiones({
   alDescubrir: () => void;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const bordeMarca = useBordeMarca();
   return (
@@ -601,15 +607,14 @@ function Conexiones({
           <TouchableOpacity style={[est.banner, { backgroundColor: marca.primarioSuave }]} onPress={alDescubrir}>
             <Text style={{ fontSize: 22 }}>💜</Text>
             <Text style={[est.bannerTexto, { color: t.texto }]}>
-              {recibidos === 1 ? '1 persona quiere' : `${recibidos} personas quieren`} conectar contigo. Están primero
-              en Descubrir.
+              {tr('networking.quierenConectar', { count: recibidos })}. {tr('networking.estanPrimero')}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
           </TouchableOpacity>
         ) : null
       }
       ListEmptyComponent={
-        <Vacio icono="people-outline" texto={'Aún no tienes conexiones.\nCuando alguien y tú se den 💜, aparecerá aquí para chatear.'} />
+        <Vacio icono="people-outline" texto={tr('networking.sinConexiones')} />
       }
       renderItem={({ item: c }) => {
         const nombre = [c.con.nombre, c.con.apellidos].filter(Boolean).join(' ');
@@ -626,7 +631,7 @@ function Conexiones({
                 <Text style={[est.conexionSub, { color: t.textoSuave }]} numberOfLines={1}>{c.con.cargo}</Text>
               ) : null}
               <Text style={[est.conexionSub, { color: t.textoTenue }]}>
-                {c.mensajes === 0 ? '¡Escribe el primer mensaje!' : `${c.mensajes}/${c.limite_mensajes} mensajes`}
+                {c.mensajes === 0 ? tr('networking.primerMensaje') : tr('networking.mensajesUsados', { usados: c.mensajes, limite: c.limite_mensajes })}
               </Text>
             </View>
             <Ionicons name="chatbubble-ellipses" size={22} color={marca.primarioTexto} />

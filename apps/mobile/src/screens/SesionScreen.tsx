@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -24,6 +23,8 @@ import { Avatar, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../co
 import { F, useTema } from '../tema/tema';
 import { useMarca } from '../context/MarcaContext';
 
+import { useTranslation } from 'react-i18next';
+import { avisoError, avisoExito } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 // 8.7.e: la misma pantalla vive en dos pestañas (Congreso y Mi agenda), así
 // que sus props se describen por lo que USA, no por una pila en particular.
 type Props = {
@@ -43,6 +44,7 @@ type Props = {
 export default function SesionScreen({ route, navigation }: Props) {
   const { sesionId, titulo, sponsors } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca(); // colores del congreso (8.5)
   const insets = useSafeAreaInsets();
   const [preguntas, setPreguntas] = useState<Pregunta[]>([]);
@@ -99,9 +101,9 @@ export default function SesionScreen({ route, navigation }: Props) {
     try {
       await api('POST', `/sesiones/${sesionId}/preguntas`, { texto: texto.trim() });
       setTexto('');
-      Alert.alert('Enviada', 'Tu pregunta fue enviada. El coordinador la revisara.');
+      avisoExito(tr('sesion.enviadaTitulo'), tr('sesion.enviadaTexto'));
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo enviar');
+      avisoError(tr('comun.error'), e.message ?? tr('sesion.noEnviar'));
     } finally {
       setEnviando(false);
     }
@@ -113,7 +115,7 @@ export default function SesionScreen({ route, navigation }: Props) {
       // El aviso del socket refresca; refrescamos ya por si acaso.
       cargarEncuestas();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo votar');
+      avisoError(tr('comun.error'), e.message ?? tr('sesion.noVotar'));
     }
   }
 
@@ -127,7 +129,7 @@ export default function SesionScreen({ route, navigation }: Props) {
       <Cabecera
         compacta
         titulo={titulo}
-        subtitulo="Preguntas y encuestas en vivo"
+        subtitulo={tr('sesion.subtitulo')}
         onAtras={() => navigation.goBack()}
         colores={marca.degradado}
         logo={marca.logo}
@@ -138,9 +140,9 @@ export default function SesionScreen({ route, navigation }: Props) {
         {/* 8.7.f: "Esta charla es posible gracias a…" */}
         {sponsors?.length ? <Patrocinio sponsors={sponsors} variante="franja" /> : null}
         {/* ---------- ENCUESTA EN VIVO ---------- */}
-        <TituloSeccion texto="Encuesta en vivo" />
+        <TituloSeccion texto={tr('sesion.encuesta')} />
         {encuestas.length === 0 ? (
-          <Vacio texto="No hay ninguna encuesta activa ahora." icono="stats-chart-outline" />
+          <Vacio texto={tr('sesion.sinEncuesta')} icono="stats-chart-outline" />
         ) : (
           <View style={{ gap: 12 }}>
             {encuestas.map((e) => (
@@ -150,9 +152,9 @@ export default function SesionScreen({ route, navigation }: Props) {
         )}
 
         {/* ---------- PREGUNTAS ---------- */}
-        <TituloSeccion texto="Preguntas" />
+        <TituloSeccion texto={tr('sesion.preguntas')} />
         {preguntas.length === 0 ? (
-          <Vacio texto="Aún no hay preguntas aprobadas. ¡Sé el primero!" icono="help-circle-outline" />
+          <Vacio texto={tr('sesion.sinPreguntas')} icono="help-circle-outline" />
         ) : (
           <View style={{ gap: 10 }}>
             {preguntas.map((p) => (
@@ -160,12 +162,12 @@ export default function SesionScreen({ route, navigation }: Props) {
                 <Text style={[est.preguntaTexto, { color: t.texto }]}>{p.texto}</Text>
                 <View style={est.preguntaPie}>
                   <View style={est.autorFila}>
-                    <Avatar nombre={p.usuario?.nombre ?? 'Asistente'} tamano={22} />
+                    <Avatar nombre={p.usuario?.nombre ?? tr('sesion.asistente')} tamano={22} />
                     <Text style={[est.autor, { color: t.textoTenue }]}>
-                      {p.usuario?.nombre ?? 'Asistente'}
+                      {p.usuario?.nombre ?? tr('sesion.asistente')}
                     </Text>
                   </View>
-                  {p.estado === 'respondida' && <Etiqueta texto="RESPONDIDA" tono="verde" />}
+                  {p.estado === 'respondida' && <Etiqueta texto={tr('sesion.respondida')} tono="verde" />}
                 </View>
               </Tarjeta>
             ))}
@@ -182,7 +184,7 @@ export default function SesionScreen({ route, navigation }: Props) {
       >
         <TextInput
           style={[est.input, { backgroundColor: t.input, color: t.texto }]}
-          placeholder="Escribe tu pregunta..."
+          placeholder={tr('sesion.placeholder')}
           placeholderTextColor={t.textoTenue}
           value={texto}
           onChangeText={setTexto}
@@ -210,6 +212,7 @@ function EncuestaCard({
   onVotar: (encuestaId: string, opcionId: string) => void;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const yaVote = encuesta.miVoto !== null;
 
@@ -259,8 +262,9 @@ function EncuestaCard({
           })}
 
       <Text style={[est.totalVotos, { color: t.textoTenue }]}>
-        {encuesta.total} voto{encuesta.total === 1 ? '' : 's'}
-        {encuesta.activa ? ' · en vivo' : ' · cerrada'}
+        {tr('sesion.votos', { count: encuesta.total })}
+        {' · '}
+        {encuesta.activa ? tr('sesion.enVivo') : tr('sesion.cerrada')}
       </Text>
     </Tarjeta>
   );

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -22,6 +21,9 @@ import { Boton, Cabecera, Cargando, Tarjeta, TituloSeccion, Vacio } from '../com
 import { F, useTema } from '../tema/tema';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
+import { locale } from '../i18n';
+import { useTranslation } from 'react-i18next';
+import { aviso, avisoError, avisoExito } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<PerfilStackParamList, 'PoliticaDatos'>;
 
 /**
@@ -39,6 +41,7 @@ type Props = NativeStackScreenProps<PerfilStackParamList, 'PoliticaDatos'>;
 export default function PoliticaDatosScreen({ navigation }: Props) {
   const { yo, signOut } = useAuth();
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const insets = useSafeAreaInsets();
   const [politica, setPolitica] = useState<PoliticaDatos | null>(null);
   const [error, setError] = useState(false);
@@ -68,33 +71,32 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
       setPidiendo(false);
       setMotivo('');
       cargarSolicitudes();
-      Alert.alert(
-        'Solicitud enviada',
-        `${politica?.responsable ?? 'La organización'} tiene hasta 15 días hábiles para responderte. Verás la respuesta aquí.`,
+      avisoExito(
+        tr('privacidad.solicitudEnviada'),
+        tr('privacidad.solicitudTexto', { responsable: politica?.responsable ?? tr('privacidad.laOrganizacion') }),
       );
     } catch (e: any) {
-      Alert.alert('No se pudo enviar', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('privacidad.noEnviar'), e?.message ?? tr('comun.intentaDeNuevo'));
     } finally {
       setEnviando(false);
     }
   }
 
   function revocar() {
-    Alert.alert(
-      '¿Revocar tu autorización?',
-      'Dejaremos de usar tus datos: saldrás del networking, no recibirás avisos y se cerrará tu sesión. ' +
-        'Podrás volver a usar la app cuando quieras, aceptando de nuevo la política.',
+    aviso(
+      tr('privacidad.revocarTitulo'),
+      tr('privacidad.revocarTexto'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: tr('comun.cancelar'), style: 'cancel' },
         {
-          text: 'Revocar',
+          text: tr('privacidad.revocarBoton'),
           style: 'destructive',
           onPress: async () => {
             try {
               await api('POST', '/auth/revocar-datos');
               await signOut();
             } catch (e: any) {
-              Alert.alert('No se pudo revocar', e?.message ?? 'Intenta de nuevo');
+              avisoError(tr('privacidad.noRevocar'), e?.message ?? tr('comun.intentaDeNuevo'));
             }
           },
         },
@@ -104,9 +106,9 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
-      <Cabecera compacta titulo="Tratamiento de datos" onAtras={() => navigation.goBack()} />
+      <Cabecera compacta titulo={tr('privacidad.titulo')} onAtras={() => navigation.goBack()} />
       {error ? (
-        <Vacio icono="cloud-offline-outline" texto="No se pudo cargar la política. Revisa tu conexión." />
+        <Vacio icono="cloud-offline-outline" texto={tr('privacidad.errorCarga')} />
       ) : !politica ? (
         <Cargando />
       ) : (
@@ -115,21 +117,22 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
             <View style={[est.sello, { backgroundColor: t.verdeSuave }]}>
               <Ionicons name="checkmark-circle" size={20} color={t.verde} />
               <Text style={[est.selloTexto, { color: t.verde }]}>
-                Autorizaste esta política el{' '}
-                {new Date(yo.acepto_datos_en).toLocaleString('es-CO', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}{' '}
-                (versión {yo.politica_datos_version}).
+                {tr('privacidad.autorizaste', {
+                  fecha: new Date(yo.acepto_datos_en).toLocaleString(locale(), {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
+                  version: yo.politica_datos_version ?? '',
+                })}
               </Text>
             </View>
           ) : null}
 
           {/* ---------- Tus derechos (8.7.c) ---------- */}
-          <TituloSeccion texto="Tus derechos" />
+          <TituloSeccion texto={tr('privacidad.tusDerechos')} />
           <Tarjeta style={{ gap: 14, marginBottom: 22 }}>
             {ultima && (
               <View
@@ -149,14 +152,14 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text style={[est.estadoTitulo, { color: t.texto }]}>
                     {ultima.estado === 'pendiente'
-                      ? 'Tu solicitud de supresión está en trámite'
+                      ? tr('privacidad.enTramite')
                       : ultima.estado === 'atendida'
-                        ? 'Tu solicitud fue atendida'
-                        : 'Tu solicitud fue rechazada'}
+                        ? tr('privacidad.atendida')
+                        : tr('privacidad.rechazada')}
                   </Text>
                   <Text style={[est.estadoTexto, { color: t.textoSuave }]}>
-                    Enviada el {fechaCorta(ultima.creado_en)}
-                    {ultima.estado === 'pendiente' ? ' · la organización tiene hasta 15 días hábiles para responder.' : '.'}
+                    {tr('privacidad.enviadaEl', { fecha: fechaCorta(ultima.creado_en) })}
+                    {ultima.estado === 'pendiente' ? tr('privacidad.plazo') : '.'}
                   </Text>
                   {ultima.respuesta ? (
                     <Text style={[est.estadoTexto, { color: t.texto, marginTop: 4 }]}>“{ultima.respuesta}”</Text>
@@ -167,22 +170,22 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
 
             <Accion
               icono="trash-outline"
-              titulo="Pedir que borren mis datos"
-              texto="La organización revisa tu solicitud y te responde aquí."
+              titulo={tr('privacidad.pedirBorrar')}
+              texto={tr('privacidad.pedirBorrarSub')}
               onPress={enTramite ? undefined : () => setPidiendo(true)}
               deshabilitada={enTramite}
             />
             <View style={{ height: 1, backgroundColor: t.borde }} />
             <Accion
               icono="hand-left-outline"
-              titulo="Revocar mi autorización"
-              texto="Dejas de usar la app hasta que vuelvas a aceptar."
+              titulo={tr('privacidad.revocar')}
+              texto={tr('privacidad.revocarSub')}
               onPress={revocar}
               peligro
             />
           </Tarjeta>
 
-          <TituloSeccion texto="La política" />
+          <TituloSeccion texto={tr('privacidad.laPolitica')} />
           {politica.secciones.map((s) => (
             <View key={s.titulo} style={{ marginBottom: 18 }}>
               <Text style={[est.titulo, { color: t.texto }]}>{s.titulo}</Text>
@@ -198,14 +201,14 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
             <TouchableOpacity style={est.enlace} onPress={() => void Linking.openURL(politica.url_politica!)}>
               <Ionicons name="open-outline" size={16} color={t.primarioTexto} />
               <Text style={[est.enlaceTexto, { color: t.primarioTexto }]}>
-                Ver la política completa de {politica.responsable}
+                {tr('privacidad.verCompleta', { responsable: politica.responsable })}
               </Text>
             </TouchableOpacity>
           ) : null}
 
           <Text style={[est.version, { color: t.textoTenue }]}>
-            Responsable: {politica.responsable} · Versión {politica.version}
-            {politica.vigente_desde ? ` · Vigente desde el ${politica.vigente_desde}` : ''}
+            {tr('privacidad.pieVersion', { responsable: politica.responsable, version: politica.version })}
+            {politica.vigente_desde ? tr('privacidad.vigente', { fecha: politica.vigente_desde }) : ''}
           </Text>
         </ScrollView>
       )}
@@ -215,25 +218,23 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <Pressable style={est.fondoHoja} onPress={() => setPidiendo(false)}>
             <Pressable style={[est.hoja, { backgroundColor: t.tarjeta, paddingBottom: insets.bottom + 18 }]}>
-              <Text style={[est.hojaTitulo, { color: t.texto }]}>Pedir que borren tus datos</Text>
+              <Text style={[est.hojaTitulo, { color: t.texto }]}>{tr('privacidad.hojaTitulo')}</Text>
               <Text style={[est.hojaTexto, { color: t.textoSuave }]}>
-                Si la organización la aprueba, se borrará tu cuenta, tus chats y tu inscripción, y tu perfil quedará
-                anónimo. No podrás volver a entrar con este usuario. Puede rechazarla solo si la ley le exige conservar
-                algún dato (por ejemplo, para tu certificado), y te explicará por qué.
+                {tr('privacidad.hojaTexto')}
               </Text>
-              <Text style={[est.label, { color: t.textoSuave }]}>Motivo (opcional)</Text>
+              <Text style={[est.label, { color: t.textoSuave }]}>{tr('privacidad.motivo')}</Text>
               <TextInput
                 value={motivo}
                 onChangeText={setMotivo}
-                placeholder="Cuéntale a la organización por qué, si quieres"
+                placeholder={tr('privacidad.motivoPlaceholder')}
                 placeholderTextColor={t.textoTenue}
                 multiline
                 maxLength={500}
                 style={[est.area, { backgroundColor: t.input, borderColor: t.borde, color: t.texto }]}
               />
-              <Boton texto="Enviar solicitud" icono="send" onPress={pedirSupresion} cargando={enviando} variante="peligro" style={{ marginTop: 16 }} />
+              <Boton texto={tr('privacidad.enviarSolicitud')} icono="send" onPress={pedirSupresion} cargando={enviando} variante="peligro" style={{ marginTop: 16 }} />
               <TouchableOpacity onPress={() => setPidiendo(false)} style={{ alignSelf: 'center', padding: 10 }}>
-                <Text style={[est.cancelar, { color: t.textoTenue }]}>Cancelar</Text>
+                <Text style={[est.cancelar, { color: t.textoTenue }]}>{tr('comun.cancelar')}</Text>
               </TouchableOpacity>
             </Pressable>
           </Pressable>
@@ -244,7 +245,7 @@ export default function PoliticaDatosScreen({ navigation }: Props) {
 }
 
 const fechaCorta = (iso: string) =>
-  new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\./g, '');
 
 function Accion({
   icono,
@@ -262,6 +263,7 @@ function Accion({
   deshabilitada?: boolean;
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const color = peligro ? t.rojo : t.primarioTexto;
   return (
     <TouchableOpacity

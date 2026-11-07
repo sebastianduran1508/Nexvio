@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from './ui';
 import { F } from '../tema/tema';
 
+import { useTranslation } from 'react-i18next';
 /**
  * "¡ES UN MATCH!" (8.7.d) — cuando los dos se dieron 💜.
  * Las dos fotos se acercan desde los lados y se superponen; el título "salta".
@@ -35,16 +36,17 @@ export default function MatchModal({
   const der = avance.interpolate({ inputRange: [0, 1], outputRange: [140, 0] });
   const escala = avance.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
   const primerNombre = (otro?.nombre ?? '').split(' ')[0];
+  const { t: tr } = useTranslation(); // 8.8
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={alSeguir}>
       <LinearGradient colors={['rgba(46,26,140,0.97)', 'rgba(124,58,237,0.97)', 'rgba(255,122,89,0.95)']} style={est.fondo}>
-        <Animated.Text style={[est.titulo, { transform: [{ scale: escala }] }]}>¡Es un match!</Animated.Text>
-        <Text style={est.sub}>Tú y {primerNombre} quieren conectar</Text>
+        <Animated.Text style={[est.titulo, { transform: [{ scale: escala }] }]}>{tr('match.titulo')}</Animated.Text>
+        <Text style={est.sub}>{tr('match.sub', { nombre: primerNombre })}</Text>
 
         <View style={est.fotos}>
           <Animated.View style={[est.foto, { transform: [{ translateX: izq }, { rotate: '-8deg' }] }]}>
-            <Avatar nombre={yo?.nombre ?? 'Yo'} foto={yo?.foto_url} tamano={130} />
+            <Avatar nombre={yo?.nombre ?? tr('match.yo')} foto={yo?.foto_url} tamano={130} />
           </Animated.View>
           <Animated.View style={[est.foto, est.fotoDerecha, { transform: [{ translateX: der }, { rotate: '8deg' }] }]}>
             <Avatar nombre={otro?.nombre ?? '?'} foto={otro?.foto_url} tamano={130} />
@@ -56,10 +58,10 @@ export default function MatchModal({
 
         <TouchableOpacity style={est.botonMensaje} onPress={alMensaje} activeOpacity={0.85}>
           <Ionicons name="chatbubbles" size={19} color="#5A46F0" />
-          <Text style={est.botonMensajeTexto}>Enviar mensaje</Text>
+          <Text style={est.botonMensajeTexto}>{tr('match.enviarMensaje')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={alSeguir} style={{ padding: 12 }}>
-          <Text style={est.seguir}>Seguir descubriendo</Text>
+          <Text style={est.seguir}>{tr('match.seguir')}</Text>
         </TouchableOpacity>
       </LinearGradient>
     </Modal>

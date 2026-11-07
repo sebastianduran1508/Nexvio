@@ -11,6 +11,7 @@ import TarjetaPersona from '../components/TarjetaPersona';
 import { F, sombra, useTema } from '../tema/tema';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
+import { useTranslation } from 'react-i18next';
 type Props = NativeStackScreenProps<PerfilStackParamList, 'ComoMeVen'>;
 
 const ANCHO = Dimensions.get('window').width;
@@ -22,6 +23,7 @@ const ANCHO = Dimensions.get('window').width;
  */
 export default function ComoMeVenScreen({ navigation }: Props) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const { actual } = useMiCongreso();
   const [yo, setYo] = useState<Persona | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,15 +33,15 @@ export default function ComoMeVenScreen({ navigation }: Props) {
       if (!actual) return;
       api<Persona>('GET', `/congresos/${actual.id}/networking/mi-tarjeta`)
         .then(setYo)
-        .catch((e) => setError(e?.message ?? 'No se pudo cargar tu tarjeta'));
+        .catch((e) => setError(e?.message ?? tr('comoMeVen.errorCarga')));
     }, [actual]),
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
-      <Cabecera compacta titulo="¿Cómo me ven?" onAtras={() => navigation.goBack()} />
+      <Cabecera compacta titulo={tr('comoMeVen.titulo')} onAtras={() => navigation.goBack()} />
       {!actual ? (
-        <Vacio icono="calendar-outline" texto="Elige tu congreso para ver tu tarjeta." />
+        <Vacio icono="calendar-outline" texto={tr('comoMeVen.eligeCongreso')} />
       ) : error ? (
         <Vacio icono="cloud-offline-outline" texto={error} />
       ) : !yo ? (
@@ -48,9 +50,9 @@ export default function ComoMeVenScreen({ navigation }: Props) {
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, alignItems: 'center' }}>
           {yo.visible_networking === false && (
             <View style={[est.aviso, { backgroundColor: t.coralSuave }]}>
-              <Ionicons name="eye-off-outline" size={16} color={t.coral} />
+              <Ionicons name="eye-off-outline" size={16} color={t.coralTexto} />
               <Text style={[est.avisoTexto, { color: t.texto }]}>
-                Ahora mismo estás oculto: nadie ve esta tarjeta.
+                {tr('comoMeVen.oculto')}
               </Text>
             </View>
           )}
@@ -58,7 +60,7 @@ export default function ComoMeVenScreen({ navigation }: Props) {
             <TarjetaPersona persona={yo} style={{ flex: 1 }} />
           </View>
           <Boton
-            texto="Editar mis datos"
+            texto={tr('comoMeVen.editar')}
             icono="create-outline"
             variante="suave"
             onPress={() => navigation.navigate('EditarPerfil')}

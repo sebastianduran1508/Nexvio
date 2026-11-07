@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMiAgenda } from '../context/MiAgendaContext';
 import { useTema } from '../tema/tema';
 
+import { useTranslation } from 'react-i18next';
 /**
  * La ⭐ de "Mi agenda" (8.7.e). Al tocarla da un pequeño "salto" (crece y
  * vuelve), para que se sienta que pasó algo.
@@ -20,6 +21,7 @@ export default function BotonFavorito({
   tono?: 'normal' | 'claro';
 }) {
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const { esFavorita, alternar } = useMiAgenda();
   const activa = esFavorita(sesionId);
   const escala = useRef(new Animated.Value(1)).current;
@@ -36,7 +38,7 @@ export default function BotonFavorito({
       onPress={tocar}
       hitSlop={12}
       accessibilityRole="button"
-      accessibilityLabel={activa ? 'Quitar de Mi agenda' : 'Agregar a Mi agenda'}
+      accessibilityLabel={activa ? tr('favorito.quitar') : tr('favorito.agregar')}
       accessibilityState={{ selected: activa }}
     >
       <Animated.View style={{ transform: [{ scale: escala }] }}>

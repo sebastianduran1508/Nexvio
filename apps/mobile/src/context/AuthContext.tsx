@@ -12,6 +12,7 @@ import { olvidarTelefono } from '../lib/push';
 import { api } from '../lib/api';
 import type { Yo } from '../lib/tipos';
 
+import i18n from '../i18n'; // 8.8: los errores también se traducen
 /**
  * "Contexto de sesion": una memoria compartida por TODA la app que sabe si hay
  * un usuario logueado. Cualquier pantalla puede leerlo con useAuth().
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   async function signIn(usuarioOCorreo: string, password: string) {
     const texto = usuarioOCorreo.trim();
-    if (!texto || !password) throw new Error('Escribe tu usuario y tu contraseña');
+    if (!texto || !password) throw new Error(i18n.t('entrar.faltanDatos'));
 
     let email = texto;
     if (!texto.includes('@')) {
@@ -99,12 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email = r.email;
       } catch {
         // Mismo mensaje que una clave mala: no revelamos si el usuario existe.
-        throw new Error('Usuario o contraseña incorrectos');
+        throw new Error(i18n.t('entrar.incorrectos'));
       }
     }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('Usuario o contraseña incorrectos');
+    if (error) throw new Error(i18n.t('entrar.incorrectos'));
     // No hace falta setSession aqui: onAuthStateChange lo actualiza solo.
   }
 

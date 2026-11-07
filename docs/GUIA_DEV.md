@@ -593,6 +593,7 @@ node prisma/tests/e2e_fase8_7f_patrocinio.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7g_tema.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7h_panel.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7j_conexion.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_8_idiomas.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -3038,3 +3039,133 @@ conexión" al final de la tarjeta "¡Ya están conectados!", con confirmación.
   React Native, no comparten código). Si cambia la app, cambiarla también.
 - **El botón "Usar la de Nexvio" quitaba logo y portada:** ahora es "Colores
   de Nexvio" y solo reinicia los colores.
+
+---
+
+## 28. La app en tres idiomas (Bloque 8.8)
+
+Decisión 35: los congresos son internacionales. La **app** habla **español,
+inglés y portugués (Brasil)**. El panel web sigue en español.
+
+### 28.1. Cómo elige el idioma
+
+- Por defecto, **el del teléfono**. Si el teléfono está en un idioma que no
+  tenemos (francés, alemán…), sale en **inglés**.
+- La persona lo cambia en **Perfil → Ajustes → Idioma** (Por defecto ·
+  Español · English · Português). Se guarda en el teléfono
+  (`AsyncStorage`, clave `nexvio.idioma`), igual que el tema.
+- **No** se traduce lo que escribe el organizador (charlas, avisos,
+  descripciones): se muestra tal cual lo escribió.
+
+### 28.2. Dónde están los textos
+
+```
+apps/mobile/src/i18n/
+  es.ts     ← el diccionario "maestro" (español)
+  en.ts     ← inglés
+  pt.ts     ← portugués (Brasil)
+  index.ts  ← arranque de i18next, idiomaDelTelefono(), locale()
+  IdiomaProvider.tsx ← guarda/lee la preferencia y cambia el idioma
+  i18next.d.ts       ← hace que TypeScript conozca TODAS las claves
+```
+
+En una pantalla:
+
+```tsx
+const t = useTema();                        // t = el TEMA (colores)…
+const { t: tr } = useTranslation();         // …así que el traductor es "tr"
+<Text>{tr('miAgenda.titulo')}</Text>
+<Text>{tr('miAgenda.charlas', { count: 3 })}</Text>   // plural: _one / _other
+```
+
+Fuera de un componente (contextos, helpers): `i18n.t('clave')`.
+Fechas y horas: `locale()` → `es-CO`, `en-US` o `pt-BR` (todo lo que antes
+decía `'es-CO'` fijo ahora usa `locale()`). En portugués la hora sale en
+formato 24 h (14:30), que es lo normal en Brasil.
+
+### 28.3. ⚠️ La regla de oro: los TRES diccionarios
+
+**Si cambias lo que dice un texto, cámbialo en `es.ts`, `en.ts` y `pt.ts`.**
+
+- Si **agregas** una clave en `es.ts` y olvidas `en.ts` o `pt.ts`,
+  TypeScript se queja (`en` y `pt` son del tipo `Traduccion<typeof es>`):
+  `npx tsc --noEmit` lo detecta. ✅
+- Si solo **cambias el texto** en español y no en los otros, TypeScript NO
+  se entera: el inglés seguirá diciendo lo viejo. Eso hay que recordarlo.
+
+Ejemplo: en `es.ts` cambias `vacia: 'Aún no marcas charlas'` por
+`'Todavía no has guardado charlas'` → busca `vacia` en la misma sección de
+`en.ts` y `pt.ts` y ajústalo también.
+
+### 28.4. Los errores del backend en el idioma de la app (8.8.c)
+
+La app manda en **cada** petición la cabecera propia **`X-Idioma`**
+(`es`/`en`/`pt`), en `src/lib/api.ts`.
+
+**¿Por qué no `Accept-Language`?** Porque los navegadores la mandan solos: el
+panel web en un Chrome en inglés empezaría a recibir errores en inglés. El
+panel no manda `X-Idioma`, así que sigue en español pase lo que pase.
+
+En el backend (`apps/backend/src/idioma/`):
+- `idioma.ts` → `idiomaDe(cabecera)`: `en`, `pt` o, en cualquier otro caso, `es`.
+- `mensajes.ts` → la lista de mensajes que ve un **asistente**, con su
+  traducción. La clave es el texto **exacto** en español.
+- `traducir-errores.filter.ts` → filtro global (se registra en `main.ts`):
+  toma cualquier `HttpException`, busca su mensaje en la lista y lo cambia
+  antes de responder. El código HTTP no cambia.
+
+Los servicios siguen escribiendo sus errores en español, como siempre. Un
+mensaje que no está en la lista sale en español: nunca se rompe nada.
+**Si cambias el texto de un error que ve el asistente, cámbialo también en
+`mensajes.ts`** (si no, ese error deja de traducirse y sale en español).
+
+### 28.5. La política de datos en tres idiomas
+
+`GET /auth/politica-datos` responde en el idioma de `X-Idioma`
+(`legal/politica-datos.ts`, objeto `TEXTOS`). El texto en español **no
+cambió** ni una frase; se agregó la **sección 8 "Idioma"**: *si hay
+diferencias entre versiones, prevalece la versión en español*.
+
+**La versión NO se subió** (sigue `2026-11-v4`, decisión 36): traducir no
+cambia qué se hace con los datos, así que nadie tiene que volver a aceptar.
+Si algún día cambia el FONDO de la política, se cambia en los tres idiomas y
+**ahí sí** se sube la versión.
+
+### 28.6. Avisos con el diseño de Nexvio (`Dialogo`)
+
+Los `Alert.alert` nativos de Android (grises, sin marca) se cambiaron por
+`components/Dialogo.tsx`: tarjeta con el borde de marca, ícono y botones
+tipo píldora. Misma forma de usarlo que `Alert.alert`:
+
+```tsx
+aviso(tr('x.titulo'), tr('x.texto'), [
+  { text: tr('comun.cancelar'), style: 'cancel' },
+  { text: tr('comun.eliminar'), style: 'destructive', onPress: borrar },
+]);
+avisoError(tr('comun.error'), e.message);   // ícono de alerta
+avisoExito(tr('x.listo'), tr('x.enviado')); // ícono de check
+```
+
+Un botón `destructive` pone el diálogo en tono rojo automáticamente.
+**No vuelvas a usar `Alert.alert`** en la app.
+
+### 28.7. Gotchas del 8.8
+
+- En las pantallas `t` ya es el tema: el traductor se llama **`tr`**.
+- `expo-localization` es **nativa**: ya quedó instalada antes del
+  development build (8.9), como debía ser.
+- Hermes (el motor de la app) **no tiene `Intl.DisplayNames`**: los nombres
+  de los países (`lib/paises.ts`) siguen en español. Pendiente menor.
+- El inglés y el portugués los escribió el equipo, no un nativo:
+  **pendiente que un hablante nativo los revise** antes de la reunión con el
+  cliente (sobre todo la política de datos).
+
+### 28.8. Prueba de cierre
+
+`e2e_fase8_8_idiomas.js` (**16 verificaciones**, no crea ni borra nada):
+error traducido con `X-Idioma: en/pt`, sin cabecera o con
+`Accept-Language` sigue en español, 401 también se traduce, validación sigue
+llegando como lista, idioma desconocido → español, y la política en los 3
+idiomas con la misma versión, 8 secciones, fecha y cláusula de prevalencia.
+Resultado (7-nov-2026): **16/16 en verde**, más la revisión manual de la app
+en los tres idiomas.

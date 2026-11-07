@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, UseGuards } from '@nestjs/common';
 import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { UserId } from './user-id.decorator';
 import { OrgIdOpcional } from './org-id.decorator';
+import { CABECERA_IDIOMA, idiomaDe } from '../idioma/idioma';
 
 class ResolverUsuarioDto {
   @IsString()
@@ -63,8 +64,11 @@ export class AuthController {
   /** 8.7.a: la política de datos vigente (Ley 1581), con su versión. */
   @Get('politica-datos')
   @UseGuards(AuthGuard)
-  politica(@OrgIdOpcional() orgId?: string) {
-    return this.auth.politica(orgId);
+  politica(
+    @OrgIdOpcional() orgId?: string,
+    @Headers(CABECERA_IDIOMA) idioma?: string, // 8.8: la app manda X-Idioma
+  ) {
+    return this.auth.politica(orgId, idiomaDe(idioma));
   }
 
   /** 8.7.a: registrar la autorización (cuándo + qué versión). */

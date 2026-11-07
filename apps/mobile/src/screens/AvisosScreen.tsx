@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -11,17 +11,21 @@ import { Cabecera, Cargando, Etiqueta, Tarjeta, Vacio } from '../components/ui';
 import { useMarca } from '../context/MarcaContext';
 import { F, useTema } from '../tema/tema';
 
+import i18n, { locale } from '../i18n';
+import { useTranslation } from 'react-i18next';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<CongresosStackParamList, 'Avisos'>;
 
 /** "hace 5 min", "hace 2 h", "ayer", "12 nov". */
 export function haceCuanto(iso: string): string {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 1) return 'ahora';
-  if (min < 60) return `hace ${min} min`;
+  // 8.8: función suelta (no es un componente) -> i18n.t en vez de useTranslation
+  if (min < 1) return i18n.t('tiempo.ahora');
+  if (min < 60) return i18n.t('tiempo.haceMin', { n: min });
   const h = Math.round(min / 60);
-  if (h < 24) return `hace ${h} h`;
-  if (h < 48) return 'ayer';
-  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace(/\./g, '');
+  if (h < 24) return i18n.t('tiempo.haceH', { n: h });
+  if (h < 48) return i18n.t('tiempo.ayer');
+  return new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }).replace(/\./g, '');
 }
 
 /**
@@ -38,6 +42,7 @@ export function haceCuanto(iso: string): string {
 export default function AvisosScreen({ route, navigation }: Props) {
   const { congresoId, nombre } = route.params;
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [vistoAntes, setVistoAntes] = useState<string | null>(null);
@@ -53,7 +58,7 @@ export default function AvisosScreen({ route, navigation }: Props) {
       setVistoAntes(visto); // lo de ANTES de abrir: para resaltar los nuevos
       if (lista[0]) await marcarAvisosVistos(congresoId, lista[0].enviado_en);
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudieron cargar los avisos');
+      avisoError(tr('comun.error'), e.message ?? tr('avisos.errorCarga'));
     } finally {
       setCargando(false);
     }
@@ -67,7 +72,7 @@ export default function AvisosScreen({ route, navigation }: Props) {
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
         compacta
-        titulo="Avisos"
+        titulo={tr('avisos.titulo')}
         subtitulo={nombre}
         onAtras={() => navigation.goBack()}
         colores={marca.degradado}
@@ -80,7 +85,7 @@ export default function AvisosScreen({ route, navigation }: Props) {
         refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={marca.primario} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
-          <Vacio texto="El organizador todavía no ha enviado avisos. Aquí aparecerán." icono="notifications-outline" />
+          <Vacio texto={tr('avisos.vacio')} icono="notifications-outline" />
         }
         renderItem={({ item }) => {
           const nuevo = !vistoAntes || item.enviado_en > vistoAntes;
@@ -93,7 +98,7 @@ export default function AvisosScreen({ route, navigation }: Props) {
                 <View style={{ flex: 1 }}>
                   <View style={est.arriba}>
                     <Text style={[est.titulo, { color: t.texto }]} numberOfLines={2}>{item.titulo}</Text>
-                    {nuevo && <Etiqueta texto="NUEVO" colores={[marca.acento, marca.textoAcento]} />}
+                    {nuevo && <Etiqueta texto={tr('avisos.nuevo')} colores={[marca.acento, marca.textoAcento]} />}
                   </View>
                   <Text style={[est.cuerpo, { color: t.textoSuave }]}>{item.cuerpo}</Text>
                   <View style={est.pie}>

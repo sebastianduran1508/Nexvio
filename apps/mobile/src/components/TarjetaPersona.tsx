@@ -6,7 +6,9 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import type { TarjetaPersona as Persona } from '../lib/tipos';
 import { bandera, iniciales } from './ui';
 import { F } from '../tema/tema';
+import { useTranslation } from 'react-i18next';
 
+import { locale } from '../i18n';
 /**
  * LA TARJETA DEL NETWORKING (8.7.d) — la foto es la protagonista.
  *
@@ -47,13 +49,14 @@ export function fondoDe(nombre: string): [string, string] {
 /** "sáb 14 · 10:00" en la zona del teléfono. */
 export function cuandoCharla(iso: string) {
   const d = new Date(iso);
-  const dia = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' }).replace(/\./g, '');
-  const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  const dia = d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric' }).replace(/\./g, '');
+  const hora = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
   return `${dia} · ${hora}`;
 }
 
 export function Insignia({ tipo, pequena }: { tipo: NonNullable<Persona['insignia']>; pequena?: boolean }) {
   const i = INSIGNIAS[tipo];
+  const { t: tr } = useTranslation(); // 8.8: el texto de la insignia sale del diccionario
   return (
     <LinearGradient
       colors={i.colores}
@@ -62,7 +65,7 @@ export function Insignia({ tipo, pequena }: { tipo: NonNullable<Persona['insigni
       style={[est.insignia, pequena && { paddingHorizontal: 7, paddingVertical: 3 }]}
     >
       <Ionicons name={i.icono} size={pequena ? 10 : 12} color={i.tinta} />
-      <Text style={[est.insigniaTexto, { color: i.tinta }, pequena && { fontSize: 9.5 }]}>{i.texto}</Text>
+      <Text style={[est.insigniaTexto, { color: i.tinta }, pequena && { fontSize: 9.5 }]}>{tr(`tarjeta.${tipo}`)}</Text>
     </LinearGradient>
   );
 }
@@ -104,6 +107,7 @@ export default function TarjetaPersona({
   compacta?: boolean;
 }) {
   const p = persona;
+  const { t: tr } = useTranslation(); // 8.8
   const [a, b] = fondoDe(p.nombre);
   const puesto = [p.cargo, p.empresa].filter(Boolean).join(' · ');
   const charla = p.charlas[0];
@@ -129,7 +133,7 @@ export default function TarjetaPersona({
         {p.insignia ? <Insignia tipo={p.insignia} pequena={compacta} /> : <View />}
         {p.estado === 'recibido' && !compacta ? (
           <View style={est.leInteresas}>
-            <Text style={est.leInteresasTexto}>💜 Le interesas</Text>
+            <Text style={est.leInteresasTexto}>{tr('tarjeta.leInteresas')}</Text>
           </View>
         ) : null}
       </View>
@@ -158,7 +162,7 @@ export default function TarjetaPersona({
           <View style={est.charla}>
             <Ionicons name="mic-outline" size={14} color="#FCD34D" />
             <Text style={est.charlaTexto} numberOfLines={1}>
-              Habla {cuandoCharla(charla.inicio)} · {charla.titulo}
+              {tr('tarjeta.habla', { cuando: cuandoCharla(charla.inicio), titulo: charla.titulo })}
             </Text>
           </View>
         ) : null}

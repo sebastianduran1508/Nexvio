@@ -1329,7 +1329,8 @@ portugués porque a Bogotá vienen muchos brasileños.
 3. **es / en / pt-BR.**
 - Se traducen: textos de la app, fechas y horas (hoy fijos en 'es-CO'),
   errores que ve el asistente y la **política de datos** (en/pt con nota de
-  que prevalece la versión en español — ley colombiana; sube la versión).
+  que prevalece la versión en español — ley colombiana; ~~sube la versión~~
+  → **corregido en la decisión 36: NO se sube**).
 - **No** se traduce lo que escribe el organizador (charlas, avisos…).
 - Técnica: `i18next` + `react-i18next` + `expo-localization` (nativa →
   instalar ANTES del development build).
@@ -1339,7 +1340,61 @@ Mismo método de siempre.
 
 ---
 
-## 📍 PUNTO DE RETOMA (6-nov-2026, tarde) — Bloque 8.7 cerrado (con el 8.7.j)
+### Decisión 36 — Cómo se tradujo el backend (7-nov-2026)
+
+1. **Cabecera propia `X-Idioma`**, no `Accept-Language`: los navegadores
+   mandan `Accept-Language` solos y el panel (que es solo en español) habría
+   empezado a recibir errores en inglés. Solo la app manda `X-Idioma`.
+2. **Errores:** los servicios siguen en español; un filtro global los
+   traduce con una lista de los mensajes que ve el ASISTENTE
+   (`src/idioma/mensajes.ts`). Lo que no está en la lista sale en español.
+3. **Política de datos:** en/pt + sección 8 "prevalece la versión en
+   español". **La versión NO se sube** (sigue `2026-11-v4`): traducir no es
+   un cambio sustancial (Decreto 1377, art. 13) y subirla obligaría a todos
+   a aceptar de nuevo. Corrige el punto de la decisión 35. Si el asesor legal
+   del cliente opina distinto, se sube en `politica-datos.ts`.
+4. **Pendiente antes de la reunión con el cliente:** que un hablante nativo
+   revise el inglés y el portugués (sobre todo la política).
+5. Pendiente menor: nombres de países en en/pt (Hermes no trae
+   `Intl.DisplayNames`).
+
+---
+
+## 📍 PUNTO DE RETOMA (7-nov-2026) — Bloque 8.8 (Idiomas) cerrado ✅
+
+**Hecho (8.8):** la app en español, inglés y portugués (Brasil) —
+decisiones 35 y 36. Detalle técnico en GUIA § 28.
+- 8.8.a: i18next + `expo-localization`, idioma del teléfono o el elegido en
+  Perfil → Idioma; fechas con `locale()`.
+- 8.8.b: todas las pantallas traducidas (~360 textos por idioma) y el
+  diálogo propio `Dialogo` en vez del `Alert.alert` gris de Android.
+- 8.8.c: errores del backend y política de datos en el idioma de la app
+  (`X-Idioma`). Prueba `e2e_fase8_8_idiomas.js`: **16/16**.
+
+**Commit pendiente (lo hace Sebastián):**
+```
+feat(8.8): la app en español, inglés y portugués — i18next, selector de idioma, diálogos con la marca, errores y política de datos traducidos (X-Idioma)
+```
+
+**SIGUIENTE (en este orden):**
+1. **Bloque 8.9 — Development build con EAS + FCM + prueba de push real**
+   (paquete `com.nexvio.app`, cuenta Expo `duran1508`, Firebase con
+   proyecto nuevo, aparte del de VitalSync). Ahí se verán el ícono y el
+   splash nativo por primera vez.
+2. **Fase 9** (pruebas, carga, seguridad, Ley 1581).
+3. **Fase 7** (WhatsApp + IA).
+4. **Reunión con el cliente** con todo terminado (antes: revisión nativa del
+   en/pt).
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan al tomarlas; verificar SIEMPRE los archivos tras
+copiarlos al PC; correr `npx tsc --noEmit` tras cada cambio grande de la app.
+Credenciales nunca en el repo. **Textos: cambiar los TRES diccionarios.**
+
+---
+
+## (Histórico) PUNTO DE RETOMA (6-nov-2026, tarde) — Bloque 8.7 cerrado (con el 8.7.j)
 
 **Hecho:** 8.7.a → 8.7.j. El 8.7.j rediseñó la app (decisiones 31–34) y
 agregó "Eliminar conexión". Detalle técnico en GUIA § 27.11–27.13.

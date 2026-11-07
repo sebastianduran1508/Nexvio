@@ -17,6 +17,7 @@ import { NexvioMark } from '../components/Logo';
 import { Boton, Brillo } from '../components/ui';
 import { DEGRADADO, F, useTema } from '../tema/tema';
 import { SECUNDARIO_NEXVIO } from '../lib/color';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Pantalla de inicio de sesion del asistente. Pide usuario (o correo, para el
@@ -31,6 +32,7 @@ import { SECUNDARIO_NEXVIO } from '../lib/color';
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8: textos según el idioma (`t` es el tema)
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +46,7 @@ export default function LoginScreen() {
     try {
       await signIn(email, password);
     } catch (e: any) {
-      setError(e.message ?? 'No se pudo iniciar sesion');
+      setError(e.message ?? tr('entrar.errorGenerico'));
     } finally {
       setCargando(false);
     }
@@ -76,24 +78,24 @@ export default function LoginScreen() {
           <Brillo color={SECUNDARIO_NEXVIO} />
           <NexvioMark size={84} blanca />
           <Text style={est.marcaTexto}>Nexvio</Text>
-          <Text style={est.heroTexto}>Tu congreso, conectado</Text>
+          <Text style={est.heroTexto}>{tr('entrar.lema')}</Text>
         </LinearGradient>
 
         {/* ---------- Hoja con el formulario ---------- */}
         <View style={[est.hoja, { backgroundColor: t.tarjeta, paddingBottom: insets.bottom + 24 }]}>
-          <Text style={[est.hojaTitulo, { color: t.texto }]}>¡Hola de nuevo!</Text>
+          <Text style={[est.hojaTitulo, { color: t.texto }]}>{tr('entrar.hola')}</Text>
           <Text style={[est.hojaSub, { color: t.textoSuave }]}>
-            Entra con el usuario y la contraseña que te dio la organización del evento.
+            {tr('entrar.instrucciones')}
           </Text>
 
-          <Text style={[est.label, { color: t.textoSuave }]}>Usuario</Text>
+          <Text style={[est.label, { color: t.textoSuave }]}>{tr('entrar.usuario')}</Text>
           <View>
           <View style={est.iconoCampo} pointerEvents="none">
             <Ionicons name="person-outline" size={18} color={t.primarioTexto} />
           </View>
           <TextInput
             style={[campo, { paddingLeft: 44 }]}
-            placeholder="Ej. JPGarcia"
+            placeholder={tr('entrar.ejemploUsuario')}
             placeholderTextColor={t.textoTenue}
             autoCapitalize="none"
             autoCorrect={false}
@@ -104,7 +106,7 @@ export default function LoginScreen() {
           />
           </View>
 
-          <Text style={[est.label, { color: t.textoSuave }]}>Contraseña</Text>
+          <Text style={[est.label, { color: t.textoSuave }]}>{tr('entrar.contrasena')}</Text>
           <View>
             <View style={est.iconoCampo} pointerEvents="none">
               <Ionicons name="lock-closed-outline" size={18} color={t.textoSuave} />
@@ -122,7 +124,7 @@ export default function LoginScreen() {
               style={est.ojo}
               onPress={() => setVerClave((v) => !v)}
               hitSlop={10}
-              accessibilityLabel={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              accessibilityLabel={verClave ? tr('entrar.ocultarClave') : tr('entrar.mostrarClave')}
             >
               <Ionicons name={verClave ? 'eye-off-outline' : 'eye-outline'} size={20} color={t.textoTenue} />
             </TouchableOpacity>
@@ -135,12 +137,12 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Boton texto="Entrar" onPress={onSubmit} cargando={cargando} style={{ marginTop: 22 }} />
+          <Boton texto={tr('entrar.boton')} onPress={onSubmit} cargando={cargando} style={{ marginTop: 22 }} />
 
           <View style={[est.ayuda, { backgroundColor: t.primarioSuave }]}>
             <Ionicons name="information-circle-outline" size={18} color={t.primarioTexto} />
             <Text style={[est.ayudaTexto, { color: t.texto }]}>
-              ¿Olvidaste tu contraseña? Pídele a la organización del evento que la restablezca.
+              {tr('entrar.olvido')}
             </Text>
           </View>
         </View>

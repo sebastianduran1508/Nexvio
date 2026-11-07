@@ -17,6 +17,7 @@ import { api } from '../lib/api';
 import type { PoliticaDatos } from '../lib/tipos';
 import { Boton, Brillo } from '../components/ui';
 import { PRIMARIO_NEXVIO, SECUNDARIO_NEXVIO, conAlfa } from '../lib/color';
+import { useTranslation } from 'react-i18next';
 import { DEGRADADO, F, sombra, useTema, type Paleta } from '../tema/tema';
 
 /**
@@ -33,6 +34,7 @@ import { DEGRADADO, F, sombra, useTema, type Paleta } from '../tema/tema';
 export default function PrimerIngresoScreen() {
   const { yo, recargarYo, signOut } = useAuth();
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
   const insets = useSafeAreaInsets();
 
   const pideClave = !!yo?.debe_cambiar_password;
@@ -43,9 +45,9 @@ export default function PrimerIngresoScreen() {
   const [clave2, setClave2] = useState('');
   const [verClave, setVerClave] = useState(false);
   const requisitos = [
-    { texto: 'Al menos 8 caracteres', ok: clave.length >= 8 },
-    { texto: 'Una letra y un número', ok: /[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(clave) && /\d/.test(clave) },
-    { texto: 'Las dos coinciden', ok: clave.length > 0 && clave === clave2 },
+    { texto: tr('primerIngreso.req8'), ok: clave.length >= 8 },
+    { texto: tr('primerIngreso.reqLetraNumero'), ok: /[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(clave) && /\d/.test(clave) },
+    { texto: tr('primerIngreso.reqCoinciden'), ok: clave.length > 0 && clave === clave2 },
   ];
   const claveValida = requisitos.every((r) => r.ok);
 
@@ -75,11 +77,11 @@ export default function PrimerIngresoScreen() {
   async function continuar() {
     setError(null);
     if (pideClave && !claveValida) {
-      setError('Revisa los requisitos de la contraseña.');
+      setError(tr('primerIngreso.revisaRequisitos'));
       return;
     }
     if (pideDatos && !acepto) {
-      setError('Para usar la app necesitamos tu autorización de datos.');
+      setError(tr('primerIngreso.necesitamosAutorizacion'));
       return;
     }
     setEnviando(true);
@@ -97,7 +99,7 @@ export default function PrimerIngresoScreen() {
         }
       }
     } catch (e: any) {
-      setError(e?.message ?? 'No se pudo guardar. Intenta de nuevo.');
+      setError(e?.message ?? tr('primerIngreso.noSeGuardo'));
     } finally {
       setEnviando(false);
       // Siempre volvemos a preguntar: si la clave sí se cambió pero lo de los
@@ -120,13 +122,13 @@ export default function PrimerIngresoScreen() {
         >
           {/* 8.7.j: brillo coral (colores de Nexvio: aún no hay congreso abierto) */}
           <Brillo color={SECUNDARIO_NEXVIO} />
-          <Text style={est.heroHola}>¡Hola, {yo?.nombre?.split(' ')[0] ?? ''}! 👋</Text>
+          <Text style={est.heroHola}>{tr('primerIngreso.hola', { nombre: yo?.nombre?.split(' ')[0] ?? '' })}</Text>
           <Text style={est.heroTexto}>
             {pideClave && pideDatos
-              ? 'Antes de empezar, dos cosas rápidas.'
+              ? tr('primerIngreso.dosCosas')
               : pideClave
-                ? 'Antes de empezar, crea tu propia contraseña.'
-                : 'Actualizamos la política de datos. Revísala para continuar.'}
+                ? tr('primerIngreso.soloClave')
+                : tr('primerIngreso.soloDatos')}
           </Text>
         </LinearGradient>
 
@@ -134,12 +136,12 @@ export default function PrimerIngresoScreen() {
           {/* ---------- 1. Contraseña ---------- */}
           {pideClave && (
             <View style={[est.tarjeta, { backgroundColor: t.tarjeta, borderColor: conAlfa(PRIMARIO_NEXVIO, t.oscuro ? 0.6 : 0.45) }, sombra(t)]}>
-              <Paso t={t} numero={pideDatos ? 1 : undefined} icono="key-outline" titulo="Crea tu contraseña" />
+              <Paso t={t} numero={pideDatos ? 1 : undefined} icono="key-outline" titulo={tr('primerIngreso.creaClave')} />
               <Text style={[est.texto, { color: t.textoSuave }]}>
-                La que te enviaron es temporal. Elige una que solo tú conozcas.
+                {tr('primerIngreso.claveTemporal')}
               </Text>
 
-              <Text style={[est.label, { color: t.textoSuave }]}>Nueva contraseña</Text>
+              <Text style={[est.label, { color: t.textoSuave }]}>{tr('primerIngreso.nuevaClave')}</Text>
               <View>
                 <TextInput
                   style={[campo, { paddingRight: 48 }]}
@@ -156,13 +158,13 @@ export default function PrimerIngresoScreen() {
                   style={est.ojo}
                   onPress={() => setVerClave((v) => !v)}
                   hitSlop={10}
-                  accessibilityLabel={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  accessibilityLabel={verClave ? tr('entrar.ocultarClave') : tr('entrar.mostrarClave')}
                 >
                   <Ionicons name={verClave ? 'eye-off-outline' : 'eye-outline'} size={20} color={t.textoTenue} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={[est.label, { color: t.textoSuave }]}>Repítela</Text>
+              <Text style={[est.label, { color: t.textoSuave }]}>{tr('primerIngreso.repitela')}</Text>
               <TextInput
                 style={campo}
                 secureTextEntry={!verClave}
@@ -192,15 +194,15 @@ export default function PrimerIngresoScreen() {
           {/* ---------- 2. Tratamiento de datos ---------- */}
           {pideDatos && (
             <View style={[est.tarjeta, { backgroundColor: t.tarjeta, borderColor: conAlfa(PRIMARIO_NEXVIO, t.oscuro ? 0.6 : 0.45) }, sombra(t)]}>
-              <Paso t={t} numero={pideClave ? 2 : undefined} icono="shield-checkmark-outline" titulo="Tus datos personales" />
+              <Paso t={t} numero={pideClave ? 2 : undefined} icono="shield-checkmark-outline" titulo={tr('primerIngreso.tusDatos')} />
 
               {!politica && !errorPolitica && (
-                <Text style={[est.texto, { color: t.textoSuave }]}>Cargando la política…</Text>
+                <Text style={[est.texto, { color: t.textoSuave }]}>{tr('primerIngreso.cargandoPolitica')}</Text>
               )}
               {errorPolitica && (
                 <TouchableOpacity onPress={cargarPolitica}>
                   <Text style={[est.texto, { color: t.rojo }]}>
-                    No se pudo cargar la política. Toca para reintentar.
+                    {tr('primerIngreso.errorPolitica')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -218,7 +220,7 @@ export default function PrimerIngresoScreen() {
 
                   <TouchableOpacity style={est.enlace} onPress={() => setVerPolitica(true)}>
                     <Ionicons name="document-text-outline" size={16} color={t.primarioTexto} />
-                    <Text style={[est.enlaceTexto, { color: t.primarioTexto }]}>Leer la política completa</Text>
+                    <Text style={[est.enlaceTexto, { color: t.primarioTexto }]}>{tr('primerIngreso.leerPolitica')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -234,8 +236,7 @@ export default function PrimerIngresoScreen() {
                       color={acepto ? t.primario : t.textoTenue}
                     />
                     <Text style={[est.casillaTexto, { color: t.texto }]}>
-                      Autorizo a {politica.responsable} y a Nexvio, como encargado, el tratamiento
-                      de mis datos personales según esta política.
+                      {tr('primerIngreso.autorizo', { responsable: politica.responsable })}
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -251,7 +252,7 @@ export default function PrimerIngresoScreen() {
           )}
 
           <Boton
-            texto="Continuar"
+            texto={tr('primerIngreso.continuar')}
             icono="arrow-forward"
             onPress={continuar}
             cargando={enviando}
@@ -260,7 +261,7 @@ export default function PrimerIngresoScreen() {
 
           <TouchableOpacity onPress={() => void signOut()} style={{ alignSelf: 'center', padding: 8 }}>
             <Text style={[est.salir, { color: t.textoTenue }]}>
-              {pideDatos ? 'No acepto, salir' : 'Salir'}
+              {pideDatos ? tr('primerIngreso.noAceptoSalir') : tr('primerIngreso.salir')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -270,8 +271,8 @@ export default function PrimerIngresoScreen() {
       <Modal visible={verPolitica} animationType="slide" onRequestClose={() => setVerPolitica(false)}>
         <View style={{ flex: 1, backgroundColor: t.tarjeta, paddingTop: insets.top }}>
           <View style={[est.modalCabecera, { borderColor: t.borde }]}>
-            <Text style={[est.modalTitulo, { color: t.texto }]}>Política de datos</Text>
-            <TouchableOpacity onPress={() => setVerPolitica(false)} hitSlop={10} accessibilityLabel="Cerrar">
+            <Text style={[est.modalTitulo, { color: t.texto }]}>{tr('primerIngreso.politicaTitulo')}</Text>
+            <TouchableOpacity onPress={() => setVerPolitica(false)} hitSlop={10} accessibilityLabel={tr('comun.cerrar')}>
               <Ionicons name="close" size={26} color={t.texto} />
             </TouchableOpacity>
           </View>
@@ -284,9 +285,9 @@ export default function PrimerIngresoScreen() {
                 ))}
               </View>
             ))}
-            <Text style={[est.version, { color: t.textoTenue }]}>Versión {politica?.version}</Text>
+            <Text style={[est.version, { color: t.textoTenue }]}>{tr('primerIngreso.version', { version: politica?.version ?? '' })}</Text>
             <Boton
-              texto="Entendido"
+              texto={tr('primerIngreso.entendido')}
               onPress={() => setVerPolitica(false)}
               variante="suave"
               style={{ marginTop: 16 }}

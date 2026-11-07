@@ -5,6 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { Brillo } from './ui';
 import { DEGRADADO, F } from '../tema/tema';
 import { SECUNDARIO_NEXVIO } from '../lib/color';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SPLASH ANIMADO (8.7.j, decisión 32).
@@ -39,6 +40,7 @@ const NODOS: [number, number, number][] = [
 const LARGO_LINEA = 110; // largo aproximado del trazo M16 48 L16 16 L48 48 L48 16
 
 export function SplashAnimado({ alTerminar }: { alTerminar: () => void }) {
+  const { t: tr } = useTranslation(); // 8.8: el lema en el idioma del teléfono
   const nodos = useRef(NODOS.map(() => new Animated.Value(0))).current;
   const linea = useRef(new Animated.Value(0)).current;
   const pulso = useRef(new Animated.Value(0)).current;
@@ -134,7 +136,7 @@ export function SplashAnimado({ alTerminar }: { alTerminar: () => void }) {
           }}
         >
           <Text style={est.nombre}>Nexvio</Text>
-          <Text style={est.lema}>Tu congreso, conectado</Text>
+          <Text style={est.lema}>{tr('entrar.lema')}</Text>
         </Animated.View>
       </View>
 

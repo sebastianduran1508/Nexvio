@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,10 @@ import { useMarca } from '../context/MarcaContext';
 import { legibleSobre, textoSobre } from '../lib/color';
 import type { PerfilStackParamList } from '../navigation/PerfilStack';
 
+import { locale } from '../i18n';
+import { useTranslation } from 'react-i18next';
+import { useIdioma, type PreferenciaIdioma } from '../i18n/IdiomaProvider';
+import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
 type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
 
 /**
@@ -43,6 +47,9 @@ export default function PerfilScreen({ navigation }: Props) {
   const nombre = [yo?.nombre, yo?.apellidos].filter(Boolean).join(' ');
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const { preferencia, cambiarPreferencia } = useApariencia();
+  // 8.8: idioma (el traductor se llama `tr` porque `t` ya es el tema)
+  const { t: tr } = useTranslation();
+  const idioma = useIdioma();
 
   // 8.7.c: el perfil (para la foto y el resumen de "Mis datos"). Se recarga al
   // volver a la pantalla, por si se editó en "Mis datos".
@@ -63,7 +70,7 @@ export default function PerfilScreen({ navigation }: Props) {
       setSubiendo(true);
       setPerfil(await apiSubirImagen<Perfil>('/perfil/foto', uri));
     } catch (e: any) {
-      Alert.alert('No se pudo cambiar la foto', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('miPerfil.noCambiarFoto'), e?.message ?? tr('comun.intentaDeNuevo'));
     } finally {
       setSubiendo(false);
     }
@@ -75,7 +82,7 @@ export default function PerfilScreen({ navigation }: Props) {
       setSubiendo(true);
       setPerfil(await api<Perfil>('DELETE', '/perfil/foto'));
     } catch (e: any) {
-      Alert.alert('No se pudo quitar la foto', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('miPerfil.noQuitarFoto'), e?.message ?? tr('comun.intentaDeNuevo'));
     } finally {
       setSubiendo(false);
     }
@@ -90,12 +97,12 @@ export default function PerfilScreen({ navigation }: Props) {
       setPerfil(await api<Perfil>('PATCH', '/perfil', { visible_networking: visible }));
     } catch (e: any) {
       setPerfil(antes);
-      Alert.alert('No se pudo cambiar', e?.message ?? 'Intenta de nuevo');
+      avisoError(tr('miPerfil.noCambiar'), e?.message ?? tr('comun.intentaDeNuevo'));
     }
   }
 
   const resumenDatos =
-    [perfil?.cargo, perfil?.empresa].filter(Boolean).join(' · ') || 'Cargo, empresa, teléfono y país';
+    [perfil?.cargo, perfil?.empresa].filter(Boolean).join(' · ') || tr('miPerfil.resumenDatos');
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -112,7 +119,7 @@ export default function PerfilScreen({ navigation }: Props) {
             style={est.avatarAro}
             onPress={() => setMenuFoto(true)}
             activeOpacity={0.85}
-            accessibilityLabel="Cambiar foto de perfil"
+            accessibilityLabel={tr('miPerfil.cambiarFoto')}
           >
             <Avatar nombre={nombre || '?'} tamano={84} foto={perfil?.foto_url} />
             {subiendo && (
@@ -142,24 +149,24 @@ export default function PerfilScreen({ navigation }: Props) {
           </View>
         </View>
         {!perfil?.foto_url && !subiendo && (
-          <Text style={est.pista}>Toca tu foto para agregar una</Text>
+          <Text style={est.pista}>{tr('miPerfil.agregaFoto')}</Text>
         )}
       </LinearGradient>
 
       <View style={{ paddingHorizontal: 20 }}>
         {/* ---------- Cuenta ---------- */}
-        <TituloSeccion texto="Tu cuenta" />
+        <TituloSeccion texto={tr('miPerfil.tuCuenta')} />
         <Tarjeta style={est.grupo}>
           <Fila
             icono="person"
-            titulo="Mis datos"
+            titulo={tr('miPerfil.misDatos')}
             subtitulo={resumenDatos}
             onPress={() => navigation.navigate('EditarPerfil')}
           />
         </Tarjeta>
 
         {/* ---------- Congreso ---------- */}
-        <TituloSeccion texto="Tu congreso" />
+        <TituloSeccion texto={tr('miPerfil.tuCongreso')} />
         <Tarjeta style={est.grupo}>
           <Fila
             icono="calendar"
@@ -171,8 +178,8 @@ export default function PerfilScreen({ navigation }: Props) {
               <Separador />
               <Fila
                 icono="swap-horizontal"
-                titulo="Cambiar de congreso"
-                subtitulo={`Estás inscrito en ${congresos.length}`}
+                titulo={tr('miPerfil.cambiarCongreso')}
+                subtitulo={tr('miPerfil.inscritoEn', { n: congresos.length })}
                 onPress={() => {
                   cambiar();
                   // El selector vive en la pestaña Congreso: vamos hacia allá.
@@ -185,14 +192,14 @@ export default function PerfilScreen({ navigation }: Props) {
 
         {/* ---------- Privacidad ---------- */}
         {/* ---------- Networking (8.7.d) ---------- */}
-        <TituloSeccion texto="Networking" />
+        <TituloSeccion texto={tr('miPerfil.networking')} />
         <Tarjeta style={est.grupo}>
           {actual && (
             <>
               <Fila
                 icono="eye"
-                titulo="¿Cómo me ven?"
-                subtitulo="Tu tarjeta tal como la ven en Descubrir"
+                titulo={tr('miPerfil.comoMeVen')}
+                subtitulo={tr('miPerfil.comoMeVenSub')}
                 destacada
                 onPress={() => navigation.navigate('ComoMeVen')}
               />
@@ -204,11 +211,11 @@ export default function PerfilScreen({ navigation }: Props) {
               <Ionicons name="people" size={18} color={marca.primarioTexto} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[est.filaTitulo, { color: t.texto }]}>Aparecer en networking</Text>
+              <Text style={[est.filaTitulo, { color: t.texto }]}>{tr('miPerfil.aparecer')}</Text>
               <Text style={[est.filaSub, { color: t.textoTenue }]} numberOfLines={2}>
                 {perfil?.visible_networking === false
-                  ? 'Nadie te ve. Conservas tus chats.'
-                  : 'Los asistentes pueden ver tu tarjeta'}
+                  ? tr('miPerfil.nadieTeVe')
+                  : tr('miPerfil.teVen')}
               </Text>
             </View>
             <Switch
@@ -221,31 +228,31 @@ export default function PerfilScreen({ navigation }: Props) {
           </View>
         </Tarjeta>
 
-        <TituloSeccion texto="Privacidad" />
+        <TituloSeccion texto={tr('miPerfil.privacidad')} />
         <Tarjeta style={est.grupo}>
           <Fila
             icono="shield-checkmark"
-            titulo="Tratamiento de datos"
+            titulo={tr('miPerfil.tratamiento')}
             subtitulo={
               yo?.acepto_datos_en
-                ? `Autorizado el ${fechaLocal(yo.acepto_datos_en)}`
-                : 'Política de datos personales'
+                ? tr('miPerfil.autorizadoEl', { fecha: fechaLocal(yo.acepto_datos_en) })
+                : tr('miPerfil.politicaDatos')
             }
             onPress={() => navigation.navigate('PoliticaDatos')}
           />
         </Tarjeta>
 
         {/* ---------- Ajustes (8.7.g) ---------- */}
-        <TituloSeccion texto="Ajustes" />
+        <TituloSeccion texto={tr('miPerfil.ajustes')} />
         {/* 8.7.j: el selector va aquí mismo (antes había que entrar a otra pantalla) */}
         <Tarjeta style={{ padding: 14, gap: 10 }}>
-          <Text style={[est.ajusteTitulo, { color: t.textoSuave }]}>APARIENCIA</Text>
+          <Text style={[est.ajusteTitulo, { color: t.textoSuave }]}>{tr('perfil.apariencia').toUpperCase()}</Text>
           <View style={[est.segmentos, { backgroundColor: t.barraFondo }]} accessibilityRole="radiogroup">
             {(
               [
-                ['congreso', 'Por defecto'],
-                ['claro', 'Claro'],
-                ['oscuro', 'Oscuro'],
+                ['congreso', tr('apariencia.porDefecto')],
+                ['claro', tr('apariencia.claro')],
+                ['oscuro', tr('apariencia.oscuro')],
               ] as [PreferenciaTema, string][]
             ).map(([valor, texto]) => {
               const activa = preferencia === valor || (valor === 'congreso' && preferencia === 'sistema');
@@ -265,20 +272,52 @@ export default function PerfilScreen({ navigation }: Props) {
           </View>
         </Tarjeta>
 
+        {/* ---------- Idioma (8.8, decisión 35) ---------- */}
+        <Tarjeta style={{ padding: 14, gap: 10, marginTop: 10 }}>
+          <Text style={[est.ajusteTitulo, { color: t.textoSuave }]}>{tr('perfil.idioma').toUpperCase()}</Text>
+          <View style={[est.segmentos, { backgroundColor: t.barraFondo, flexWrap: 'wrap' }]} accessibilityRole="radiogroup">
+            {(
+              [
+                ['telefono', tr('idioma.porDefecto')],
+                ['es', tr('idioma.es')],
+                ['en', tr('idioma.en')],
+                ['pt', tr('idioma.pt')],
+              ] as [PreferenciaIdioma, string][]
+            ).map(([valor, texto]) => {
+              const activa = idioma.preferencia === valor;
+              return (
+                <TouchableOpacity
+                  key={valor}
+                  onPress={() => idioma.cambiarPreferencia(valor)}
+                  activeOpacity={0.8}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: activa }}
+                  style={[est.segmento, { minWidth: '22%' }, activa && { backgroundColor: marca.primario }]}
+                >
+                  <Text style={[est.segmentoTexto, { fontSize: 12, color: activa ? textoSobre(marca.primario) : t.textoSuave }]} numberOfLines={1}>
+                    {texto}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={[est.filaSub, { color: t.textoTenue, marginTop: 0 }]}>{tr('idioma.ayuda')}</Text>
+        </Tarjeta>
+
         {/* ---------- Ayuda ---------- */}
-        <TituloSeccion texto="Ayuda" />
+        <TituloSeccion texto={tr('miPerfil.ayuda')} />
         <Tarjeta style={est.grupo}>
           <Fila
             icono="help-buoy"
-            titulo="¿Necesitas ayuda?"
-            subtitulo="Escríbele al organizador de tu congreso"
+            titulo={tr('miPerfil.necesitasAyuda')}
+            subtitulo={tr('miPerfil.escribeOrganizador')}
           />
           <Separador />
-          <Fila icono="information-circle" titulo="Acerca de Nexvio" subtitulo={`Versión ${version}`} />
+          <Fila icono="information-circle" titulo={tr('miPerfil.acerca')} subtitulo={tr('miPerfil.version', { version })} />
         </Tarjeta>
 
         <Boton
-          texto="Cerrar sesión"
+          texto={tr('miPerfil.cerrarSesion')}
           icono="log-out-outline"
           variante="peligro"
           onPress={() => void signOut()}
@@ -291,13 +330,13 @@ export default function PerfilScreen({ navigation }: Props) {
         <Pressable style={est.fondoHoja} onPress={() => setMenuFoto(false)}>
           <Pressable style={[est.hoja, { backgroundColor: t.tarjeta, paddingBottom: insets.bottom + 16 }]}>
             <View style={[est.agarre, { backgroundColor: t.borde }]} />
-            <Text style={[est.hojaTitulo, { color: t.texto }]}>Foto de perfil</Text>
-            <OpcionHoja icono="camera-outline" texto="Tomar foto" onPress={() => cambiarFoto('camara')} />
-            <OpcionHoja icono="images-outline" texto="Elegir de la galería" onPress={() => cambiarFoto('galeria')} />
+            <Text style={[est.hojaTitulo, { color: t.texto }]}>{tr('miPerfil.fotoPerfil')}</Text>
+            <OpcionHoja icono="camera-outline" texto={tr('miPerfil.tomarFoto')} onPress={() => cambiarFoto('camara')} />
+            <OpcionHoja icono="images-outline" texto={tr('miPerfil.elegirGaleria')} onPress={() => cambiarFoto('galeria')} />
             {perfil?.foto_url ? (
-              <OpcionHoja icono="trash-outline" texto="Quitar foto" peligro onPress={quitarFoto} />
+              <OpcionHoja icono="trash-outline" texto={tr('miPerfil.quitarFoto')} peligro onPress={quitarFoto} />
             ) : null}
-            <OpcionHoja icono="close" texto="Cancelar" onPress={() => setMenuFoto(false)} />
+            <OpcionHoja icono="close" texto={tr('comun.cancelar')} onPress={() => setMenuFoto(false)} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -329,7 +368,7 @@ function OpcionHoja({
 /** Fecha y día en la zona del teléfono: "30 oct 2026". */
 function fechaLocal(iso: string) {
   return new Date(iso)
-    .toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    .toLocaleDateString(locale(), { day: '2-digit', month: 'short', year: 'numeric' })
     .replace(/\./g, '');
 }
 

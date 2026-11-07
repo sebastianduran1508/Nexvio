@@ -16,6 +16,7 @@ import { useMiCongreso } from '../context/MiCongresoContext';
 import { Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
 import { F, sombra, useTema } from '../tema/tema';
 
+import { useTranslation } from 'react-i18next';
 /**
  * ELEGIR CONGRESO (8.7.b) — solo aparece en el caso raro de que la persona
  * esté inscrita en DOS o más congresos (y no haya elegido uno todavía, o haya
@@ -33,6 +34,7 @@ export default function ElegirCongresoScreen() {
   const { yo } = useAuth();
   const { congresos, elegir, recargar } = useMiCongreso();
   const t = useTema();
+  const { t: tr } = useTranslation(); // 8.8
 
   const destacado = congresos.find((c) => enCurso(c.fecha_inicio, c.fecha_fin)) ?? congresos[0];
   const resto = congresos.filter((c) => c.id !== destacado?.id);
@@ -40,9 +42,9 @@ export default function ElegirCongresoScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
-        antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
-        titulo="Elige tu congreso"
-        subtitulo="Estás inscrito en más de uno"
+        antetitulo={tr('miCongreso.hola', { nombre: yo?.nombre?.split(' ')[0] ?? '' })}
+        titulo={tr('miCongreso.eligeTitulo')}
+        subtitulo={tr('miCongreso.eligeSub')}
       />
       <FlatList
         contentContainerStyle={est.lista}
@@ -53,7 +55,7 @@ export default function ElegirCongresoScreen() {
           destacado ? (
             <>
               <Destacado congreso={destacado} onPress={() => elegir(destacado.id)} />
-              {resto.length > 0 && <TituloSeccion texto="También estás en" />}
+              {resto.length > 0 && <TituloSeccion texto={tr('miCongreso.tambienEstas')} />}
             </>
           ) : null
         }
@@ -72,11 +74,12 @@ export function SinCongresoScreen() {
   const { yo } = useAuth();
   const { recargar } = useMiCongreso();
   const t = useTema();
+  const { t: tr } = useTranslation();
   return (
     <View style={{ flex: 1, backgroundColor: t.fondo }}>
       <Cabecera
-        antetitulo={`Hola, ${yo?.nombre?.split(' ')[0] ?? ''}`}
-        titulo="Tu congreso"
+        antetitulo={tr('miCongreso.hola', { nombre: yo?.nombre?.split(' ')[0] ?? '' })}
+        titulo={tr('miCongreso.tuCongreso')}
       />
       <FlatList
         data={[]}
@@ -86,7 +89,7 @@ export function SinCongresoScreen() {
         ListEmptyComponent={
           <Vacio
             icono="calendar-outline"
-            texto={'Aún no tienes un congreso asignado.\nSi ya te inscribiste, escríbele al organizador del evento.\n\nDesliza hacia abajo para actualizar.'}
+            texto={tr('miCongreso.sinCongreso')}
           />
         }
       />
@@ -97,6 +100,7 @@ export function SinCongresoScreen() {
 /** Tarjeta grande con banner degradado (el congreso más relevante). */
 function Destacado({ congreso, onPress }: { congreso: Congreso; onPress: () => void }) {
   const t = useTema();
+  const { t: tr } = useTranslation();
   const vivo = enCurso(congreso.fecha_inicio, congreso.fecha_fin);
   return (
     <TouchableOpacity
@@ -106,7 +110,7 @@ function Destacado({ congreso, onPress }: { congreso: Congreso; onPress: () => v
     >
       <LinearGradient colors={['#4A38D6', '#7C3AED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={est.banner}>
         <View style={est.bannerCirculo} />
-        <Etiqueta texto={vivo ? 'EN CURSO' : 'PRÓXIMO'} tono="coralSolido" />
+        <Etiqueta texto={vivo ? tr('miCongreso.enCurso') : tr('miCongreso.proximo')} tono="coralSolido" />
       </LinearGradient>
       <View style={{ padding: 18 }}>
         <Text style={[est.destNombre, { color: t.texto }]}>{congreso.nombre}</Text>
@@ -118,9 +122,9 @@ function Destacado({ congreso, onPress }: { congreso: Congreso; onPress: () => v
           </Text>
         </View>
         <View style={est.destPie}>
-          <Text style={[est.destHint, { color: t.textoTenue }]}>Agenda, ponentes y networking</Text>
+          <Text style={[est.destHint, { color: t.textoTenue }]}>{tr('miCongreso.destHint')}</Text>
           <View style={[est.entrar, { backgroundColor: t.primario }]}>
-            <Text style={est.entrarTexto}>Entrar</Text>
+            <Text style={est.entrarTexto}>{tr('miCongreso.entrar')}</Text>
           </View>
         </View>
       </View>

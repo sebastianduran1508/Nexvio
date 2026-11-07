@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { TenantContextMiddleware } from './auth/tenant-context.middleware';
+import { TraducirErroresFilter } from './idioma/traducir-errores.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,10 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001',
   });
+
+  // 8.8: los errores salen en el idioma de la app (cabecera X-Idioma); el
+  // panel, que no la manda, los sigue recibiendo en español.
+  app.useGlobalFilters(new TraducirErroresFilter());
 
   // Validación global de TODOS los cuerpos de petición contra sus DTOs.
   //  - whitelist: elimina campos que el DTO no declara (limpia datos basura).
