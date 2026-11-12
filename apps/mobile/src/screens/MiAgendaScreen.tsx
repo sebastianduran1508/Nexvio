@@ -17,6 +17,7 @@ import { F, sombra, useTema } from '../tema/tema';
 import type { MiAgendaStackParamList } from '../navigation/MiAgendaStack';
 
 import { useTranslation } from 'react-i18next';
+import { useMiCongreso } from '../context/MiCongresoContext'; // 8.10
 type Props = NativeStackScreenProps<MiAgendaStackParamList, 'MiAgenda'>;
 
 /** ¿Se cruzan dos charlas? (una empieza antes de que la otra termine) */
@@ -48,7 +49,12 @@ function cuandoEmpieza(iso: string) {
  *  - Quitar la ⭐ aquí la quita en todas partes (MiAgendaContext).
  */
 export default function MiAgendaScreen({ route, navigation }: Props) {
-  const { congresoId } = route.params;
+  // 8.10 (fix, 12-nov): el congreso sale del CONTEXTO, no de route.params.
+  // React Navigation guarda el estado de las pestañas y, al volver a montar el
+  // stack, podía devolver los params del congreso ANTERIOR (cambiar A→B
+  // funcionaba, B→A no). El param queda solo como respaldo.
+  const { actual } = useMiCongreso();
+  const congresoId = actual?.id ?? route.params.congresoId;
   const t = useTema();
   const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();

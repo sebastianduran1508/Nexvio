@@ -29,6 +29,7 @@ import type { NetworkingStackParamList } from '../navigation/NetworkingStack';
 
 import { useTranslation } from 'react-i18next';
 import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
+import { useMiCongreso } from '../context/MiCongresoContext'; // 8.10
 type Props = NativeStackScreenProps<NetworkingStackParamList, 'Networking'>;
 type Vista = 'descubrir' | 'explorar' | 'conexiones';
 
@@ -68,7 +69,12 @@ export function ponenteComoPersona(p: PonenteRed): Persona {
  * decisión; si no, vuelve a su lugar con un "resorte".
  */
 export default function NetworkingScreen({ route, navigation }: Props) {
-  const { congresoId } = route.params;
+  // 8.10 (fix, 12-nov): el congreso sale del CONTEXTO, no de route.params.
+  // React Navigation guarda el estado de las pestañas y, al volver a montar el
+  // stack, podía devolver los params del congreso ANTERIOR (cambiar A→B
+  // funcionaba, B→A no). El param queda solo como respaldo.
+  const { actual } = useMiCongreso();
+  const congresoId = actual?.id ?? route.params.congresoId;
   const t = useTema();
   const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();

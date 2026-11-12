@@ -45,6 +45,7 @@ import Patrocinio from '../components/Patrocinio';
 
 import { useTranslation } from 'react-i18next';
 import { avisoError } from '../components/Dialogo'; // 8.8: diálogos con el estilo de Nexvio
+import { useMiCongreso } from '../context/MiCongresoContext'; // 8.10
 type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
 
 /**
@@ -72,7 +73,12 @@ type Props = NativeStackScreenProps<CongresosStackParamList, 'CongresoDetalle'>;
  *  - Franja "Con el apoyo de" con los logos de los sponsors (Oro primero).
  */
 export default function CongresoDetalleScreen({ route, navigation }: Props) {
-  const { id } = route.params;
+  // 8.10 (fix, 12-nov): el congreso sale del CONTEXTO, no de route.params.
+  // React Navigation guarda el estado de las pestañas y, al volver a montar el
+  // stack, podía devolver los params del congreso ANTERIOR (cambiar A→B
+  // funcionaba, B→A no). El param queda solo como respaldo.
+  const { actual } = useMiCongreso();
+  const id = actual?.id ?? route.params.id;
   const t = useTema();
   const { t: tr } = useTranslation(); // 8.8
   const marca = useMarca();

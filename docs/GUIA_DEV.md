@@ -3271,6 +3271,23 @@ sale** de ella (las otras pestañas se reinician con el congreso nuevo gracias a
 su `key`). Al abrir la app, todo sigue igual: lista la primera vez y luego
 recuerda el último.
 
+**Fix (12-nov):** al probarlo, el cambio no se veía hasta reabrir la app. Causa:
+las pestañas recibían el congreso dentro de una función de `<Tab.Screen>`, y
+React Navigation no vuelve a dibujar una pestaña solo porque cambió un dato de
+afuera. Ahora cada pestaña es un componente (`PestanaCongreso`,
+`PestanaMiAgenda`, `PestanaNetworking`) que lee `useMiCongreso()` por su cuenta:
+un componente que usa un contexto se redibuja siempre que el contexto cambia.
+**Regla:** si el contenido de una pestaña depende de un estado global, que lo
+lea con su hook dentro de un componente, no por una función de `Tab.Screen`.
+
+**Segunda causa (mismo día):** con eso, cambiar A→B funcionaba pero B→A no.
+React Navigation **guarda el estado de cada pestaña** (incluidos los *params*) y,
+al volver a montar el stack, podía devolver los `initialParams` del congreso
+anterior. Por eso las pantallas raíz (`CongresoDetalle`, `MiAgenda`,
+`Networking`) ahora toman el congreso de `useMiCongreso()`; el param queda solo
+de respaldo. **Regla:** un dato que vive en un contexto no se pasa también por
+`initialParams`: hay dos copias y la de la navegación puede quedar vieja.
+
 ### 29.3. Nombres unificados (decisión 41) y título (decisión 38)
 
 El panel usa los mismos nombres que la app: **Ponentes**, **Patrocinadores**,

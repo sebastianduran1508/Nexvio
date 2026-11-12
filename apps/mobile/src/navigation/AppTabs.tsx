@@ -51,7 +51,7 @@ function Contenido() {
   const t = useTema();
   // 8.8: textos según el idioma. (Ojo: aquí `t` ya es el tema; el traductor se llama `tr`.)
   const { t: tr } = useTranslation();
-  const { cargando, error, congresos, actual, recargar } = useMiCongreso();
+  const { cargando, error, actual, recargar } = useMiCongreso();
 
   if (cargando) return <Cargando />;
   if (error) return <ErrorCarga mensaje={error} onReintentar={recargar} />;
@@ -70,16 +70,7 @@ function Contenido() {
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} color={color} size={size} />,
         }}
       >
-        {/* key: si cambia de congreso, el stack arranca de cero en el nuevo. */}
-        {() =>
-          actual ? (
-            <CongresosStack key={actual.id} congreso={actual} />
-          ) : congresos.length === 0 ? (
-            <SinCongresoScreen />
-          ) : (
-            <ElegirCongresoScreen />
-          )
-        }
+        {() => <PestanaCongreso />}
       </Tab.Screen>
       <Tab.Screen
         name="MiAgendaTab"
@@ -88,15 +79,7 @@ function Contenido() {
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'star' : 'star-outline'} color={color} size={size} />,
         }}
       >
-        {() =>
-          actual ? (
-            <MiAgendaStack key={actual.id} congresoId={actual.id} />
-          ) : (
-            <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
-              <Vacio icono="star-outline" texto={tr('miCongreso.vacioAgenda')} />
-            </View>
-          )
-        }
+        {() => <PestanaMiAgenda />}
       </Tab.Screen>
       <Tab.Screen
         name="NetworkingTab"
@@ -105,15 +88,7 @@ function Contenido() {
           tabBarIcon: ({ color, size, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={size} />,
         }}
       >
-        {() =>
-          actual ? (
-            <NetworkingStack key={actual.id} congresoId={actual.id} />
-          ) : (
-            <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
-              <Vacio icono="people-outline" texto={tr('miCongreso.vacioNetworking')} />
-            </View>
-          )
-        }
+        {() => <PestanaNetworking />}
       </Tab.Screen>
       <Tab.Screen
         name="PerfilTab"
@@ -125,6 +100,45 @@ function Contenido() {
       />
     </Tab.Navigator>
     </MiAgendaProvider>
+  );
+}
+
+/*
+ * 8.10 (fix, 12-nov): el contenido de cada pestaña LEE el congreso actual por su
+ * cuenta (useMiCongreso) en vez de recibirlo "atrapado" en la función de
+ * <Tab.Screen>. React Navigation no vuelve a dibujar las pestañas solo porque
+ * cambió un dato de afuera, así que al elegir otro congreso desde el Perfil
+ * (decisión 40) las otras pestañas seguían mostrando el anterior hasta reabrir
+ * la app. Un componente que usa el contexto se redibuja siempre que el contexto
+ * cambia, y la `key` hace que el stack arranque de cero en el congreso nuevo.
+ */
+function PestanaCongreso() {
+  const { actual, congresos } = useMiCongreso();
+  if (actual) return <CongresosStack key={actual.id} congreso={actual} />;
+  return congresos.length === 0 ? <SinCongresoScreen /> : <ElegirCongresoScreen />;
+}
+
+function PestanaMiAgenda() {
+  const t = useTema();
+  const { t: tr } = useTranslation();
+  const { actual } = useMiCongreso();
+  if (actual) return <MiAgendaStack key={actual.id} congresoId={actual.id} />;
+  return (
+    <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
+      <Vacio icono="star-outline" texto={tr('miCongreso.vacioAgenda')} />
+    </View>
+  );
+}
+
+function PestanaNetworking() {
+  const t = useTema();
+  const { t: tr } = useTranslation();
+  const { actual } = useMiCongreso();
+  if (actual) return <NetworkingStack key={actual.id} congresoId={actual.id} />;
+  return (
+    <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center' }}>
+      <Vacio icono="people-outline" texto={tr('miCongreso.vacioNetworking')} />
+    </View>
   );
 }
 
