@@ -42,3 +42,13 @@ yarn-error.*
 
 # variables de entorno
 .env
+
+# Bloque 8.9 — Firebase (NUNCA a git)
+# google-services.json: la ficha de la app ante Firebase (va a EAS como
+# variable de entorno de tipo archivo, GOOGLE_SERVICES_JSON).
+google-services.json
+# La clave de la cuenta de servicio de Firebase (FCM V1) es SECRETA: se sube
+# solo a las credenciales de EAS y se borra del PC.
+*firebase-adminsdk*.json
+# Temporales
+.tmp_prev_borrar/
