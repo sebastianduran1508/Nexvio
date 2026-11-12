@@ -302,7 +302,7 @@ model Pregunta {
   sesion_id       String   @db.Uuid
   usuario_id      String   @db.Uuid
   texto           String
-  estado          String   @default("pendiente") // pendiente|aprobada|rechazada|respondida
+  estado          String   @default("pendiente") // pendiente|respondida|rechazada (aprobada: legado, se muestra como pendiente — decisión 39)
   creado_en       DateTime @default(now())
 
   organizacion Organizacion @relation(fields: [organizacion_id], references: [id])

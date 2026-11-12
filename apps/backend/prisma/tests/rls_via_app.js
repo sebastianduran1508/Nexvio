@@ -5,6 +5,14 @@
 //
 // Ejecutar desde apps/backend:  node prisma/tests/rls_via_app.js
 // Requiere los datos de siembra (Org A - Medicina, Org B - Derecho).
+//
+// Ajuste (nov-2026): antes exigía que cada org viera EXACTAMENTE 1 congreso
+// (como en la Fase 1). Con el tiempo otras pruebas crearon más congresos en
+// esas orgs, así que ahora se verifica lo que de verdad importa:
+//   - TODO lo que ve A es de A, y TODO lo que ve B es de B;
+//   - ninguna fila aparece en las dos;
+//   - cada una ve su congreso de siembra;
+//   - sin tenant, 0 filas (fail-closed).
 // ==========================================================================
 
 require('dotenv/config');
@@ -21,23 +29,35 @@ const prisma = new PrismaClient({ adapter });
 function verComoTenant(orgId) {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT set_config('app.org_id', ${orgId}, true)`;
-    return tx.congreso.findMany({ select: { nombre: true } });
+    return tx.congreso.findMany({ select: { id: true, nombre: true, organizacion_id: true } });
   });
 }
 
 (async () => {
-  const a = (await verComoTenant(A)).map((c) => c.nombre);
-  const b = (await verComoTenant(B)).map((c) => c.nombre);
+  const filasA = await verComoTenant(A);
+  const filasB = await verComoTenant(B);
+  const a = filasA.map((c) => c.nombre);
+  const b = filasB.map((c) => c.nombre);
   const sinTenant = await prisma.$transaction((tx) => tx.congreso.count());
 
   console.log('Org A (Medicina) ve:', a);
   console.log('Org B (Derecho)  ve:', b);
   console.log('Sin tenant (fail-closed) ve:', sinTenant, 'filas');
 
-  const ok =
-    a.length === 1 && a[0] === 'Congreso de Medicina' &&
-    b.length === 1 && b[0] === 'Congreso de Derecho' &&
-    sinTenant === 0;
+  const idsB = new Set(filasB.map((c) => c.id));
+  const soloSuyasA = filasA.every((c) => c.organizacion_id === A);
+  const soloSuyasB = filasB.every((c) => c.organizacion_id === B);
+  const ninguna = filasA.every((c) => !idsB.has(c.id));
+  const siembra = a.includes('Congreso de Medicina') && b.includes('Congreso de Derecho');
+
+  console.log('\nComprobaciones:');
+  console.log(`  ${soloSuyasA ? '✅' : '❌'} Todo lo que ve A es de A (${filasA.length} filas)`);
+  console.log(`  ${soloSuyasB ? '✅' : '❌'} Todo lo que ve B es de B (${filasB.length} filas)`);
+  console.log(`  ${ninguna ? '✅' : '❌'} Ninguna fila aparece en las dos organizaciones`);
+  console.log(`  ${siembra ? '✅' : '❌'} Cada una ve su congreso de siembra`);
+  console.log(`  ${sinTenant === 0 ? '✅' : '❌'} Sin tenant: 0 filas`);
+
+  const ok = soloSuyasA && soloSuyasB && ninguna && siembra && sinTenant === 0;
 
   console.log(
     ok

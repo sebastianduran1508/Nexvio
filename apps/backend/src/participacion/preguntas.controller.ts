@@ -22,7 +22,7 @@ import { AccesoCongresoGuard, SoloInscritos } from '../acceso/acceso-congreso.gu
 /**
  * Rutas de preguntas en vivo (Fase 5):
  *   POST  /sesiones/:sesionId/preguntas   -> formular (cualquier rol del tenant)
- *   GET   /sesiones/:sesionId/preguntas   -> listar (vista segun rol)
+ *   GET   /sesiones/:sesionId/preguntas   -> listar (staff: todas; asistente: SOLO las suyas, decisión 39)
  *   PATCH /preguntas/:id                  -> moderar (solo staff)
  */
 @Controller()
@@ -48,9 +48,10 @@ export class PreguntasController {
   listar(
     @OrgId() orgId: string,
     @RolActual() rol: string,
+    @UserId() usuarioId: string,
     @Param('sesionId', ParseUUIDPipe) sesionId: string,
   ) {
-    return this.preguntas.listar(orgId, rol, sesionId);
+    return this.preguntas.listar(orgId, rol, usuarioId, sesionId);
   }
 
   @Patch('preguntas/:id')

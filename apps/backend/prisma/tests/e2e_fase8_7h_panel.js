@@ -186,17 +186,18 @@ async function api(method, path, token, body) {
     }, { maxWait: 15000, timeout: 20000 });
     const preg = await api('POST', `/sesiones/${s1.id}/preguntas`, ana.token, { texto: '¿Habrá grabación de la apertura?' });
     check('Ana pregunta (queda pendiente)', okHttp(preg.status) && preg.body?.estado === 'pendiente', `HTTP ${preg.status}`);
-    const aprueba = await api('PATCH', `/preguntas/${preg.body?.id}`, tOrg, { estado: 'aprobada' });
-    check('el organizador la aprueba', okHttp(aprueba.status));
+    // Decisión 39 (8.10): ya no se aprueba; se marca respondida directamente.
+    const responde = await api('PATCH', `/preguntas/${preg.body?.id}`, tOrg, { estado: 'respondida' });
+    check('el organizador la marca respondida', okHttp(responde.status));
 
     const vistaStaff = (await api('GET', `/sesiones/${s1.id}/preguntas`, tOrg)).body ?? [];
     const uStaff = vistaStaff.find((q) => q.id === preg.body?.id)?.usuario ?? {};
     check('el STAFF ve nombre, apellidos y foto', uStaff.nombre === 'Ana' && uStaff.apellidos === `Panel ${sufijo}` && uStaff.foto_url === FOTO,
       JSON.stringify(uStaff));
     const vistaBeto = (await api('GET', `/sesiones/${s1.id}/preguntas`, beto.token)).body ?? [];
-    const uBeto = vistaBeto.find((q) => q.id === preg.body?.id)?.usuario ?? null;
-    check('otro ASISTENTE (Beto) la ve, pero SOLO con el nombre de pila',
-      !!uBeto && JSON.stringify(Object.keys(uBeto)) === JSON.stringify(['nombre']), JSON.stringify(uBeto));
+    // Decisión 39: las preguntas son PRIVADAS -> Beto ni siquiera la recibe.
+    check('otro ASISTENTE (Beto) NO la ve (preguntas privadas)',
+      !vistaBeto.some((q) => q.id === preg.body?.id), `recibió ${vistaBeto.length}`);
     check('...y en lo que recibe Beto no aparecen ni el apellido ni la foto de Ana',
       !JSON.stringify(vistaBeto).includes(`Panel ${sufijo}`) && !JSON.stringify(vistaBeto).includes(FOTO));
 

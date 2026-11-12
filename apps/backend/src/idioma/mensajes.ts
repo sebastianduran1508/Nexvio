@@ -17,6 +17,7 @@ import type { Idioma } from './idioma';
 export const MENSAJES: Record<string, { en: string; pt: string }> = {
   // --- No encontrado / acceso ---
   'Congreso no encontrado': { en: 'Congress not found', pt: 'Congresso não encontrado' },
+  'Charla no encontrada': { en: 'Talk not found', pt: 'Palestra não encontrada' }, // 8.10: antes "Sesión"
   'Sesión no encontrada': { en: 'Session not found', pt: 'Sessão não encontrada' },
   'Sesion no encontrada': { en: 'Session not found', pt: 'Sessão não encontrada' },
   'Perfil no encontrado': { en: 'Profile not found', pt: 'Perfil não encontrado' },

@@ -40,7 +40,7 @@ export class SesionesService {
    */
   private validarHorario(congreso: CongresoAgenda, inicio: Date, fin: Date) {
     if (fin.getTime() <= inicio.getTime()) {
-      throw new BadRequestException('La sesión debe terminar después de empezar');
+      throw new BadRequestException('La charla debe terminar después de empezar');
     }
     // Las fechas del congreso son fechas "puras": se leen en UTC ("2026-10-24").
     const desde = congreso.fecha_inicio.toISOString().slice(0, 10);
@@ -49,7 +49,7 @@ export class SesionesService {
     const diaFin = diaEnZona(fin, congreso.zona_horaria);
     if (diaIni < desde || diaFin > hasta) {
       throw new BadRequestException(
-        `La sesión debe estar dentro de las fechas del congreso (${desde} a ${hasta})`,
+        `La charla debe estar dentro de las fechas del congreso (${desde} a ${hasta})`,
       );
     }
   }
@@ -91,7 +91,7 @@ export class SesionesService {
   private async validarSponsors(tx: any, congresoId: string, ids: string[]) {
     const unicos = [...new Set(ids)];
     const n = await tx.sponsor.count({ where: { id: { in: unicos }, congreso_id: congresoId } });
-    if (n !== unicos.length) throw new BadRequestException('Algún sponsor no es de este congreso');
+    if (n !== unicos.length) throw new BadRequestException('Algún patrocinador no es de este congreso');
   }
 
   /** Reemplaza los sponsors de una charla por `ids`, en ese orden. */
@@ -149,7 +149,7 @@ export class SesionesService {
         },
       }),
     );
-    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    if (!sesion) throw new NotFoundException('Charla no encontrada');
     return sesion;
   }
 
@@ -166,7 +166,7 @@ export class SesionesService {
         where: { id },
         include: { congreso: true, _count: { select: { ponentes: true } } },
       });
-      if (!existe) throw new NotFoundException('Sesión no encontrada');
+      if (!existe) throw new NotFoundException('Charla no encontrada');
       if (dto.sponsor_ids?.length) await this.validarSponsors(tx, existe.congreso_id, dto.sponsor_ids); // 8.7.f
 
       const zona = existe.congreso.zona_horaria;
@@ -179,7 +179,7 @@ export class SesionesService {
       // Regla 4: convertir en break una sesión que tiene ponentes.
       if (dto.tipo === 'break' && existe._count.ponentes > 0) {
         throw new ConflictException(
-          'Esta sesión tiene ponentes asignados: quítalos antes de convertirla en break',
+          'Esta charla tiene ponentes asignados: quítalos antes de convertirla en break',
         );
       }
 
@@ -254,7 +254,7 @@ export class SesionesService {
   async borrar(orgId: string, id: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sesion.findFirst({ where: { id } });
-      if (!existe) throw new NotFoundException('Sesión no encontrada');
+      if (!existe) throw new NotFoundException('Charla no encontrada');
 
       await tx.sesionPonente.deleteMany({ where: { sesion_id: id } });
       await tx.sesionFavorita.deleteMany({ where: { sesion_id: id } }); // 8.7.e
@@ -286,7 +286,7 @@ export class SesionesService {
   async asignarPonente(orgId: string, sesionId: string, ponenteId: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId } });
-      if (!sesion) throw new NotFoundException('Sesión no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
 
       const ponente = await tx.ponente.findFirst({ where: { id: ponenteId } });
       if (!ponente) throw new NotFoundException('Ponente no encontrado');
@@ -306,7 +306,7 @@ export class SesionesService {
       const ya = await tx.sesionPonente.findFirst({
         where: { sesion_id: sesionId, ponente_id: ponenteId },
       });
-      if (ya) throw new ConflictException('El ponente ya está asignado a esta sesión');
+      if (ya) throw new ConflictException('El ponente ya está asignado a esta charla');
 
       return tx.sesionPonente.create({
         data: {
@@ -324,7 +324,7 @@ export class SesionesService {
       const vinculo = await tx.sesionPonente.findFirst({
         where: { sesion_id: sesionId, ponente_id: ponenteId },
       });
-      if (!vinculo) throw new NotFoundException('El ponente no está asignado a esa sesión');
+      if (!vinculo) throw new NotFoundException('El ponente no está asignado a esa charla');
 
       await tx.sesionPonente.delete({ where: { id: vinculo.id } });
       return { borrado: true };

@@ -158,7 +158,7 @@ export function EditarCongreso({
               {delta > 0 ? 'después' : 'antes'}
             </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Las {totalSesiones} sesiones se mueven con el congreso a la misma hora (lo del {corto(inicial.fecha_inicio)} pasa al{' '}
+              Las {totalSesiones} charlas y breaks se mueven con el congreso a la misma hora (lo del {corto(inicial.fecha_inicio)} pasa al{' '}
               {corto(form.fecha_inicio)}). Si no lo marcas, se quedan en su día y no podrás guardar si alguna queda por fuera.
             </span>
           </span>

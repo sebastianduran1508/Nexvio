@@ -40,7 +40,7 @@ type Props = NativeStackScreenProps<PerfilStackParamList, 'Perfil'>;
  */
 export default function PerfilScreen({ navigation }: Props) {
   const { yo, signOut } = useAuth();
-  const { actual, congresos, cambiar } = useMiCongreso();
+  const { actual, congresos, elegir } = useMiCongreso();
   const t = useTema();
   const marca = useMarca();
   const insets = useSafeAreaInsets();
@@ -165,30 +165,44 @@ export default function PerfilScreen({ navigation }: Props) {
           />
         </Tarjeta>
 
-        {/* ---------- Congreso ---------- */}
-        <TituloSeccion texto={tr('miPerfil.tuCongreso')} />
-        <Tarjeta style={est.grupo}>
-          <Fila
-            icono="calendar"
-            titulo={actual?.nombre ?? '—'}
-            subtitulo={actual ? rangoFechas(actual.fecha_inicio, actual.fecha_fin) : undefined}
-          />
-          {congresos.length > 1 && (
-            <>
-              <Separador />
+        {/* ---------- Congreso ----------
+            Decisión 40 (8.10): con 2 o más, aparecen TODOS aquí mismo; tocar uno
+            lo elige y te quedas en el Perfil (antes: "Cambiar de congreso" te
+            mandaba a la lista en la primera pestaña). */}
+        {congresos.length > 1 ? (
+          <>
+            <TituloSeccion texto={tr('miPerfil.misCongresos')} />
+            <Tarjeta style={est.grupo}>
+              {congresos.map((c, i) => {
+                const esActual = c.id === actual?.id;
+                return (
+                  <React.Fragment key={c.id}>
+                    {i > 0 && <Separador />}
+                    <Fila
+                      icono="calendar"
+                      titulo={c.nombre}
+                      subtitulo={esActual ? tr('miPerfil.estasViendo') : rangoFechas(c.fecha_inicio, c.fecha_fin)}
+                      destacada={esActual}
+                      seleccion={esActual ? 'si' : 'no'}
+                      onPress={esActual ? undefined : () => elegir(c.id)}
+                    />
+                  </React.Fragment>
+                );
+              })}
+            </Tarjeta>
+          </>
+        ) : (
+          <>
+            <TituloSeccion texto={tr('miPerfil.tuCongreso')} />
+            <Tarjeta style={est.grupo}>
               <Fila
-                icono="swap-horizontal"
-                titulo={tr('miPerfil.cambiarCongreso')}
-                subtitulo={tr('miPerfil.inscritoEn', { n: congresos.length })}
-                onPress={() => {
-                  cambiar();
-                  // El selector vive en la pestaña Congreso: vamos hacia allá.
-                  navigation.getParent()?.navigate('CongresosTab');
-                }}
+                icono="calendar"
+                titulo={actual?.nombre ?? '—'}
+                subtitulo={actual ? rangoFechas(actual.fecha_inicio, actual.fecha_fin) : undefined}
               />
-            </>
-          )}
-        </Tarjeta>
+            </Tarjeta>
+          </>
+        )}
 
         {/* ---------- Privacidad ---------- */}
         {/* ---------- Networking (8.7.d) ---------- */}
@@ -379,6 +393,7 @@ function Fila({
   subtitulo,
   onPress,
   destacada,
+  seleccion,
 }: {
   icono: React.ComponentProps<typeof Ionicons>['name'];
   titulo: string;
@@ -386,6 +401,8 @@ function Fila({
   onPress?: () => void;
   /** 8.7.j: ícono con el degradado de marca (para lo que debe resaltar). */
   destacada?: boolean;
+  /** 8.10: fila de una lista "elige uno" (círculo marcado / vacío en vez de flecha). */
+  seleccion?: 'si' | 'no';
 }) {
   const t = useTema();
   const marca = useMarca();
@@ -410,7 +427,15 @@ function Fila({
           </Text>
         ) : null}
       </View>
-      {onPress && <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />}
+      {seleccion ? (
+        <Ionicons
+          name={seleccion === 'si' ? 'checkmark-circle' : 'ellipse-outline'}
+          size={22}
+          color={seleccion === 'si' ? marca.primario : t.textoTenue}
+        />
+      ) : (
+        onPress && <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+      )}
     </>
   );
   return onPress ? (

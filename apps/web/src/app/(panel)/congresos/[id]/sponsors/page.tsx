@@ -82,7 +82,7 @@ export default function SponsorsCongresoPage() {
       setSponsors(lista);
       setError(null);
     } catch (e: any) {
-      setError(e.message ?? 'No se pudieron cargar los sponsors');
+      setError(e.message ?? 'No se pudieron cargar los patrocinadores');
     } finally {
       setCargando(false);
     }
@@ -133,7 +133,7 @@ export default function SponsorsCongresoPage() {
         <div>
           <h1 className="titulo-pagina">
         <ChipTitulo Icono={Handshake} />
-            Sponsors
+            Patrocinadores
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {nombreCongreso && `${nombreCongreso} · `}
@@ -141,7 +141,7 @@ export default function SponsorsCongresoPage() {
           </p>
         </div>
         <Button size="sm" onClick={() => setEnFormulario('nuevo')}>
-          <Plus /> Nuevo sponsor
+          <Plus /> Nuevo patrocinador
         </Button>
       </header>
 
@@ -154,7 +154,7 @@ export default function SponsorsCongresoPage() {
       {!cargando && sponsors.length === 0 && (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Handshake className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-muted-foreground">Todavía no hay sponsors en este congreso.</p>
+          <p className="mt-2 text-muted-foreground">Todavía no hay patrocinadores en este congreso.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Aparecerán en la app, en la franja «Con el apoyo de» del congreso.
           </p>
@@ -232,7 +232,7 @@ export default function SponsorsCongresoPage() {
 
       <PanelLateral
         abierto={enFormulario !== null}
-        titulo={enFormulario === 'nuevo' ? 'Nuevo sponsor' : 'Editar sponsor'}
+        titulo={enFormulario === 'nuevo' ? 'Nuevo patrocinador' : 'Editar patrocinador'}
         subtitulo={nombreCongreso}
         alCerrar={() => setEnFormulario(null)}
       >
@@ -453,7 +453,7 @@ function FormularioSponsor({
           maxLength={300}
           placeholder="www.empresa.com"
         />
-        <p className="text-xs text-muted-foreground">En la app, el asistente podrá abrirlo desde la ficha del sponsor.</p>
+        <p className="text-xs text-muted-foreground">En la app, el asistente podrá abrirlo desde la ficha del patrocinador.</p>
       </div>
 
       {error && (
@@ -462,7 +462,7 @@ function FormularioSponsor({
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={guardando}>
-          {guardando ? 'Guardando…' : sponsor ? 'Guardar cambios' : 'Crear sponsor'}
+          {guardando ? 'Guardando…' : sponsor ? 'Guardar cambios' : 'Crear patrocinador'}
         </Button>
         <Button type="button" variant="outline" onClick={alCancelar}>
           Cancelar

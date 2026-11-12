@@ -16,8 +16,9 @@ import i18n from '../i18n';
  *                    si no hay ninguno elegido, el selector.
  *
  * Ejemplo: Laura está en "Medicina 2026" y "Simposio de Cardiología". Elige
- * Medicina; mañana abre la app y entra directo a Medicina. Desde Perfil puede
- * "Cambiar de congreso".
+ * Medicina; mañana abre la app y entra directo a Medicina. En el Perfil ve
+ * sus dos congresos y toca el otro para cambiar, sin salir del Perfil
+ * (decisión 40, 8.10).
  */
 type Estado = {
   cargando: boolean;

@@ -6,6 +6,15 @@ import { CrearPreguntaDto } from './dto/crear-pregunta.dto';
 const ROLES_STAFF = ['admin', 'organizador', 'coordinador'];
 
 /**
+ * Decisión 39 (8.10): ya no hay paso de "aprobar". Las preguntas que quedaron
+ * 'aprobada' de antes se muestran como 'pendiente' (para el staff y para su
+ * autor), así nadie ve un estado que ya no existe.
+ */
+function normalizar<T extends { estado: string }>(p: T): T {
+  return p.estado === 'aprobada' ? { ...p, estado: 'pendiente' } : p;
+}
+
+/**
  * Preguntas en vivo (Fase 5). El asistente formula preguntas en una sesion y el
  * coordinador las modera. Todo bajo runInTenant -> el RLS filtra por organizacion.
  *
@@ -23,7 +32,7 @@ export class PreguntasService {
   async crear(orgId: string, usuarioId: string, sesionId: string, dto: CrearPreguntaDto) {
     const pregunta = await this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId } });
-      if (!sesion) throw new NotFoundException('Sesion no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
 
       return tx.pregunta.create({
         data: {
@@ -43,19 +52,25 @@ export class PreguntasService {
 
   /**
    * Lista las preguntas de una sesion. La vista depende del rol:
-   *  - staff (admin/organizador/coordinador): TODAS (para poder moderar).
-   *  - asistente (participante): solo las 'aprobada' y 'respondida' (el muro publico).
+   *  - staff (admin/organizador/coordinador): TODAS (para poder responderlas).
+   *  - asistente (participante): SOLO LAS SUYAS, en cualquier estado
+   *    (decisión 39, 8.10: las preguntas son privadas; antes era un "muro
+   *    público" con las aprobadas de todos).
+   *
+   * Ejemplo: Ana y Beto preguntan en la misma charla. Ana ve solo la suya
+   * ("Pendiente" y luego "Respondida"); Beto solo la de él; el coordinador,
+   * las dos.
    */
-  async listar(orgId: string, rol: string, sesionId: string) {
+  async listar(orgId: string, rol: string, usuarioId: string, sesionId: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId } });
-      if (!sesion) throw new NotFoundException('Sesion no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
 
       const esStaff = ROLES_STAFF.includes(rol);
-      return tx.pregunta.findMany({
+      const lista = await tx.pregunta.findMany({
         where: {
           sesion_id: sesionId,
-          ...(esStaff ? {} : { estado: { in: ['aprobada', 'respondida'] } }),
+          ...(esStaff ? {} : { usuario_id: usuarioId }),
         },
         orderBy: { creado_en: 'asc' },
         // 8.7.h: el staff ve nombre completo y foto (para moderar con contexto);
@@ -68,10 +83,14 @@ export class PreguntasService {
           },
         },
       });
+      return lista.map(normalizar);
     });
   }
 
-  /** El staff cambia el estado de una pregunta (aprobar/rechazar/marcar respondida). */
+  /**
+   * El staff cambia el estado de una pregunta: marcarla respondida,
+   * descartarla ('rechazada': spam o repetida) o devolverla a pendiente.
+   */
   async moderar(orgId: string, id: string, estado: string) {
     const pregunta = await this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.pregunta.findFirst({ where: { id } });
@@ -85,6 +104,6 @@ export class PreguntasService {
     });
 
     this.realtime.preguntasCambiaron(pregunta.sesion_id);
-    return pregunta;
+    return normalizar(pregunta);
   }
 }

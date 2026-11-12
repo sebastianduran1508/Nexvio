@@ -6,40 +6,68 @@
 
 Plataforma SaaS multi-tenant para gestión centralizada de congresos y eventos de Grupo Studio Sebia. Proyecto de grado (Universidad El Bosque) de Sebastián Durán Forero y María José Galindo Piñeros. Se compone de: app móvil (asistentes), panel web (staff) y backend/API.
 
+> **Estado (7-nov-2026):** Fases 0–6 y Fase 8 (8.0–8.8 y 8.10) terminadas.
+> Faltan 8.9 (build + push real), Fase 9 (carga y seguridad) y Fase 7
+> (WhatsApp + IA). Para retomar el desarrollo: ir al **📍 PUNTO DE RETOMA**
+> más reciente (casi al final). Para escribir la documentación de la tesis:
+> empezar por `RESUMEN_PARA_DOCUMENTACION.md`.
+
 Documentos de referencia en esta misma carpeta `docs/`:
+- `RESUMEN_PARA_DOCUMENTACION.md` — **el punto de partida para la tesis:**
+  arquitectura, decisiones con su porqué, qué se construyó en cada fase,
+  pruebas y diferencias con el diseño original, con enlaces a este archivo y a
+  la GUIA.
+- `GUIA_DEV.md` — cómo funciona el código, sección por sección.
 - `NEXVIO_Vfinal.md` — la tesis aprobada.
-- `diagramas.html` — diagramas C4, ERD y secuencia RLS (hechos por el autor).
-- `PLAN_DE_RUTA_NEXVIO.md` — el plan de ruta completo (fases, decisiones, MVP vs mercado).
+- `diagramas.html` — diagramas C4, ERD y secuencia RLS (hechos por el autor;
+  ⚠️ el ERD y el C4 están desactualizados: ver pendientes).
+- `PLAN_DE_RUTA_NEXVIO.md` — el plan de ruta original (fases, decisiones, MVP
+  vs mercado).
+- `IDENTIDAD_VISUAL.md` — la marca (colores, tipografía, logo).
 
-## Decisiones de arquitectura ya cerradas
+**Cómo leer este archivo:** es una **bitácora** en orden cronológico. Cada fase
+o bloque tiene su "Estado actual" con lo construido, sus decisiones y sus
+*gotchas*. Desde el 8.7 las decisiones están **numeradas** (1 a 41). Los
+"PUNTO DE RETOMA" marcados como *(Histórico)* son traspasos viejos entre
+chats; se conservan como registro.
 
-- **Auth:** Supabase Auth (NO AWS Cognito).
-- **Multi-tenancy:** RLS con esquema compartido y `organizacion_id` (NO separación por esquemas).
-- **Base de datos:** PostgreSQL en Supabase + pgvector.
-- **Caché/realtime:** Redis en Upstash.
-- **IA/RAG:** OpenAI API + pgvector.
-- **Mensajería MVP:** solo WhatsApp (Meta Cloud API); Instagram/Facebook para producto a mercado.
-- **Infra:** servicios gestionados (nada de AWS EC2/RDS autogestionado).
-- **Estructura:** monorepo con pnpm workspaces.
+## Decisiones de arquitectura (con su porqué y cómo quedaron)
+
+| Tema | Decisión | Por qué | Cómo quedó (nov-2026) |
+|---|---|---|---|
+| Autenticación | **Supabase Auth** (no AWS Cognito, como decía la tesis) | Gratis, emite JWT con *claims* propios (rol y organización) vía un hook, integrado con la base. Cognito eran días de configuración sin valor para la tesis. | ✅ Usado. Login por correo (staff) y por **usuario** (asistentes, con correo sintético, 8.3). |
+| Multi-tenancy | **RLS con esquema compartido** y `organizacion_id` (no un esquema por cliente) | Aislamiento en el motor de la base: aunque el código olvide un filtro, la base no devuelve filas de otro cliente. Para 2 desarrolladores es mucho más simple que mantener N esquemas y N migraciones. | ✅ En todas las tablas de negocio, probado con pruebas de aislamiento. Superadmin por **suplantación** (8.2), sin apagar el RLS. |
+| Base de datos | **PostgreSQL en Supabase** (+ pgvector para la IA) | Gestionada, con RLS, Auth y Storage en el mismo servicio. | ✅ 23 tablas. pgvector: con la Fase 7. |
+| Caché / realtime | **Redis en Upstash** + **Socket.io** | Redis para sesiones, límites y *pub/sub* de Socket.io entre instancias. | ⚠️ Socket.io ✅; **Redis no se usó**: con una sola instancia del backend no hace falta. Se necesitará al escalar (adaptador Redis). |
+| Archivos | **Supabase Storage** (no AWS S3) | Ya incluido en Supabase; en la base solo va la URL. | ✅ Fotos de ponentes y perfiles, logos, portadas (8.4–8.7). |
+| Notificaciones | **Expo Push** | Un solo servicio para Android e iOS. | ✅ Envío y bandeja "Avisos"; la prueba en teléfono real es el 8.9. |
+| IA / RAG | **OpenAI API + pgvector** | Embeddings dentro de la misma base. | ⏳ Fase 7. |
+| Mensajería (MVP) | **Solo WhatsApp** (Meta Cloud API) | Instagram y Facebook tienen aprobación lenta: quedan para "producto a mercado". | ⏳ Fase 7. |
+| Infraestructura | **Servicios gestionados** (Supabase + Railway/Render), no AWS EC2/RDS/ElastiCache | Más barato y sin trabajo de servidores que no aporta a la tesis. | ✅ Desarrollo en planes gratuitos; despliegue: Fase 9. |
+| Código | **Monorepo** con pnpm workspaces, TypeScript en todo | Un solo repositorio e historial para las tres apps. | ✅ (`packages/shared` no se llegó a usar: cada app tiene sus tipos). |
+| Idiomas | App en **es / en / pt-BR**; panel solo en español | Congresos internacionales (decisión 35). | ✅ 8.8. |
 
 ## Stack
 
-TypeScript en todo. Backend: NestJS + Prisma. Web: Next.js 14 + React + TailwindCSS. Móvil: Expo (React Native). Realtime: Socket.io.
+TypeScript en todo. **Backend:** NestJS 11 + Prisma 7 (adapter-pg) + Socket.io 4
++ exceljs. **Web:** Next.js 16 + React 19 + Tailwind 4 (componentes estilo
+shadcn). **Móvil:** Expo SDK 54 (React Native 0.81) + NativeWind 4 + i18next.
+**Servicios:** Supabase (PostgreSQL, Auth, Storage) y Expo Push. Detalle y
+porqué de cada pieza: GUIA § 2.
 
 ## Estructura del repositorio
 
 ```
 nexvio/
 ├── apps/
-│   ├── backend/   NestJS  ✅ creado y corriendo (Hello World en http://localhost:3000)
-│   ├── web/       Next.js ⚠️ creado, pendiente terminar instalación y primer arranque
-│   └── mobile/    Expo    ⛔ pendiente de crear
-├── packages/
-│   └── shared/    (aún vacío) tipos TS compartidos
-├── docs/          documentos de tesis + este handoff
+│   ├── backend/   NestJS — API, RLS, Socket.io (puerto 3000)
+│   ├── web/       Next.js — panel del staff (puerto 3001)
+│   └── mobile/    Expo — app del asistente (Expo Go; build en el 8.9)
+├── docs/          tesis, este HANDOFF, GUIA_DEV, resumen para la documentación
 ├── package.json
-└── pnpm-workspace.yaml   (incluye onlyBuiltDependencies con los builds nativos autorizados)
+└── pnpm-workspace.yaml   (incluye la autorización de builds nativos)
 ```
+Detalle de carpetas: GUIA § 3.
 
 ## GitHub
 
@@ -949,6 +977,14 @@ técnico en GUIA § 26.
   el cambio de contraseña al primer ingreso (8.7.a).
 - [ ] **Socket.io no respeta la suplantación del superadmin** (GUIA § 21.7 y
   § 23.7). Se notó en la feria.
+- [ ] 🐞 **El panel ya no se actualiza solo en la moderación en vivo** (reportado
+  por Sebastián el 12-nov-2026): las preguntas nuevas y los resultados de las
+  encuestas solo aparecen con F5. Antes funcionaba. **Sospecha:** si se entra
+  como **superadmin** (suplantando a la organización), el socket del panel no
+  logra unirse a la sala de la charla: desde el 8.7.b `join_sesion` aplica la
+  regla de acceso, y el socket no conoce la suplantación (el pendiente de
+  arriba). Primero comprobar si pasa también entrando como **organizador**; si
+  no pasa, es este pendiente. Revisar en la Fase 9.
 - [x] Validaciones de negocio de la agenda (**8.4**).
 - [x] Fotos huérfanas en Storage al borrar un congreso entero (8.5).
 - [ ] Campo **modalidad** del congreso (presencial / virtual / híbrido) para
@@ -1015,6 +1051,16 @@ base se hizo en la feria (§ 23). Lo que reúne este bloque (de los pendientes):
   (NativeWind `darkMode: 'class'`) y fuentes con `expo-font`.
 - Idea: "Patrocinado por…" en una charla.
 - **Después del 8.7:** development build + prueba de push real.
+
+---
+
+## Estado actual (Fase 8 · Bloque 8.7 — App móvil completa) ✅ COMPLETO (6-nov-2026)
+
+Sub-bloques 8.7.a → 8.7.j: entrada con usuario y primer ingreso (Ley 1581),
+"solo su congreso" en el backend, perfil y derechos de datos, networking tipo
+Tinder, Mi agenda, "Patrocinada por", tema claro/oscuro, pulido visual del
+panel ("Violeta vivo"), pruebas del panel y rediseño de la app. Decisiones
+**1 a 34** (abajo). Detalle técnico: GUIA § 27.
 
 ### Decisiones del 8.7 (tomadas con Sebastián, 30-oct-2026)
 
@@ -1316,6 +1362,16 @@ cambios:**
   persona, con confirmación.
 - De paso: "Son conexión" → "¡Ya están conectados!".
 
+---
+
+## Estado actual (Fase 8 · Bloque 8.8 — Idiomas) ✅ COMPLETO (7-nov-2026)
+
+La app en español, inglés y portugués (Brasil): idioma del teléfono o el que
+elija la persona, ~360 textos por idioma, fechas según el idioma, diálogos
+propios con la marca, errores del backend y política de datos traducidos
+(cabecera `X-Idioma`). Decisiones **35 y 36**. Prueba
+`e2e_fase8_8_idiomas.js` 16/16. Detalle técnico: GUIA § 28.
+
 ### Decisión 35 — La app en ESPAÑOL, INGLÉS y PORTUGUÉS (6-nov-2026)
 
 Sebastián: los congresos son internacionales; "como MÍNIMO inglés", y
@@ -1360,7 +1416,97 @@ Mismo método de siempre.
 
 ---
 
-## 📍 PUNTO DE RETOMA (7-nov-2026) — Bloque 8.8 (Idiomas) cerrado ✅
+### Decisión 37 — La reunión con el cliente va ANTES del build (7-nov-2026)
+
+Cambia el orden de la decisión 30. Sebastián tiene la reunión hoy (7-nov,
+tarde), con el 8.8 ya en el commit. Lo que pida el cliente se hace como
+**Bloque 8.10 — Ajustes del cliente** y **después** viene el build (8.9):
+así se compila e instala una sola vez con todo pulido.
+- En la reunión, la app se muestra en **Expo Go** (todo funciona menos la
+  notificación push en el teléfono: esa llega con el build).
+- La revisión nativa del en/pt (decisión 36) queda para antes de producción.
+
+---
+
+## Bloque 8.10 — Ajustes del cliente (reunión del 7-nov-2026)
+
+La reunión salió bien. Pedidos del cliente, en el orden en que se hacen:
+
+### Decisión 38 — Título de la pestaña del panel: solo "Nexvio" (7-nov)
+Antes: "Nexvio — Panel".
+
+### Decisión 39 — Preguntas PRIVADAS y sin "aprobar" (7-nov)
+Cambia el "muro público" de la Fase 5.
+- Cada asistente ve **solo sus propias preguntas**, con su estado, desde el
+  momento en que la envía. Nadie más las ve (el staff sí, todas).
+- **Se quita el paso de "Aprobar"** (el cliente: "es redundante, igual nadie
+  más las va a ver"). El staff solo las **marca respondidas**.
+- Flujo: **pendiente → respondida**. Se conserva "descartar" (`rechazada`)
+  para spam o repetidas. Las que quedaron `aprobada` de antes se tratan como
+  pendientes.
+
+### Decisión 40 — Cambiar de congreso desde el Perfil, sin salir (7-nov)
+- Al abrir la app con 2+ congresos: **igual que hoy** (la lista la primera vez;
+  luego recuerda el último).
+- En el **Perfil**: en vez de "congreso actual + Cambiar de congreso", aparecen
+  **directamente todos sus congresos**; toca uno y queda elegido **sin salir
+  del Perfil** (no vuelve a la primera pestaña).
+
+### Decisión 41 — Nombres unificados entre panel y app (7-nov)
+| Concepto | Antes en el panel | Queda |
+|---|---|---|
+| Quien da la charla | Speakers | **Ponentes** |
+| Empresa que apoya | Sponsors | **Patrocinadores** |
+| Persona inscrita | Usuarios | **Asistentes** |
+| Actividad de la agenda | Sesiones | **Charlas** |
+| Mensaje del organizador | Notificaciones | **Notificaciones** (se queda: es más claro para un organizador que no conoce el sistema; la app sigue diciendo "Avisos") |
+
+Solo cambian los textos visibles; las rutas (`/speakers`) y el código no.
+
+### Pedido 5 — Textos que edita Sebastián a mano
+Después de la decisión 41 (para no pisarse). Mapa de archivos en GUIA § 28.
+
+---
+
+## 📍 PUNTO DE RETOMA (12-nov-2026) — Bloque 8.10 (ajustes del cliente) cerrado ✅
+
+**Hecho (8.10):** decisiones 38–41 — título "Nexvio", preguntas privadas y
+sin aprobar, cambiar de congreso desde el Perfil, nombres unificados (panel =
+app). Script `26_ajustes_cliente.sql` aplicado. Pruebas en verde:
+`e2e_fase8_10_preguntas.js` (nueva), `e2e_fase8_7h_panel.js` y
+`e2e_fase5_preguntas.js` (actualizadas). Detalle: GUIA § 29.
+
+**Además, en el mismo commit:** documentación para la tesis
+(`RESUMEN_PARA_DOCUMENTACION.md`, inicio de la GUIA y del HANDOFF al día,
+`metodologia-anexo-resultados.md` actualizado al 90 % y
+`medicion-avance-nexvio.md`), `rls_via_app.js` corregido y un error anotado
+(el panel no se actualiza solo en la moderación; ver pendientes).
+
+**Commit pendiente (lo hace Sebastián):**
+```
+feat(8.10): ajustes del cliente — preguntas privadas sin aprobar, nombres unificados con la app, cambio de congreso desde el Perfil; docs para la tesis y fix de rls_via_app
+```
+
+**Pendiente menor del 8.10:** los textos que Sebastián cambia a mano (pedido 5),
+cuando él quiera (mapa de archivos en GUIA § 28).
+
+**SIGUIENTE (en este orden):**
+1. **Bloque 8.9 — Development build con EAS + FCM + prueba de push real**
+   (paquete `com.nexvio.app`, cuenta Expo `duran1508`, Firebase con
+   proyecto nuevo, aparte del de VitalSync).
+2. **Fase 9** (carga, OWASP, límite de intentos en el login, el panel que no
+   se actualiza solo, despliegue).
+3. **Fase 7** (WhatsApp + IA).
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan al tomarlas; verificar SIEMPRE los archivos tras
+copiarlos al PC; correr `npx tsc --noEmit` tras cada cambio grande de la app.
+Credenciales nunca en el repo. Textos de la app: cambiar los TRES diccionarios.
+
+---
+
+## (Histórico) PUNTO DE RETOMA (7-nov-2026) — Bloque 8.8 (Idiomas) cerrado ✅
 
 **Hecho (8.8):** la app en español, inglés y portugués (Brasil) —
 decisiones 35 y 36. Detalle técnico en GUIA § 28.
@@ -1376,7 +1522,9 @@ decisiones 35 y 36. Detalle técnico en GUIA § 28.
 feat(8.8): la app en español, inglés y portugués — i18next, selector de idioma, diálogos con la marca, errores y política de datos traducidos (X-Idioma)
 ```
 
-**SIGUIENTE (en este orden):**
+**SIGUIENTE (en este orden; decisión 37 cambió el orden):**
+0. **Reunión con el cliente (7-nov, tarde)** → sus cambios = **Bloque 8.10
+   — Ajustes del cliente**, que se hace ANTES del build.
 1. **Bloque 8.9 — Development build con EAS + FCM + prueba de push real**
    (paquete `com.nexvio.app`, cuenta Expo `duran1508`, Firebase con
    proyecto nuevo, aparte del de VitalSync). Ahí se verán el ícono y el

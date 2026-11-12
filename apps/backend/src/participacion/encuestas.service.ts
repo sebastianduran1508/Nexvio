@@ -70,7 +70,7 @@ export class EncuestasService {
   async crear(orgId: string, sesionId: string, dto: CrearEncuestaDto) {
     const res = await this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId } });
-      if (!sesion) throw new NotFoundException('Sesion no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
 
       const encuesta = await tx.encuesta.create({
         data: { organizacion_id: orgId, sesion_id: sesionId, pregunta: dto.pregunta },
@@ -93,7 +93,7 @@ export class EncuestasService {
   async listar(orgId: string, rol: string, sesionId: string, usuarioId: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId } });
-      if (!sesion) throw new NotFoundException('Sesion no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
 
       const esStaff = ROLES_STAFF.includes(rol);
       const encuestas = await tx.encuesta.findMany({

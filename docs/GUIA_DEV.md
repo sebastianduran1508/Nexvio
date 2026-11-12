@@ -1,38 +1,27 @@
 # Guía de desarrollo — Nexvio
 
-> **Nota (nov-2026):** **Bloque 8.7 cerrado** (§ 27): la app móvil está
-> completa (entrada con usuario, solo su congreso, perfil y Ley 1581,
-> networking tipo Tinder, Mi agenda, patrocinios, tema claro/oscuro) y app y
-> panel comparten el diseño "Violeta vivo" (§ 27.11, 8.7.j: barra flotante,
-> cabecera plegable, splash animado e ícono). Lo siguiente: **8.8 Idiomas
-> (es/en/pt-BR)**, 8.9 development build + push real, Fase 9, Fase 7 y la
-> reunión con el cliente.
-
-> **Nota (oct-2026):** Fase 8 en curso. Bloques 8.0–8.6 cerrados, más el sprint
-> de la **feria** (§ 23). El 8.4 (§ 24) dejó la agenda, los speakers y Supabase
-> Storage; el 8.5 (§ 25), los sponsors y la marca de cada congreso; el 8.6
-> (§ 26), los avisos push y la Ayuda. **El panel está completo.** Lo siguiente es
-> el **Bloque 8.7 — la app móvil completa**.
-
-> **Nota (sep-2026):** tras la reunión con el cliente, la siguiente fase es la
-> **Fase 8** (identidad visual + panel del administrador + producto completo).
-> Las decisiones y el nuevo plan están en `HANDOFF.md`. Esta guía documenta el
-> **código ya construido**; se ampliará al cerrar cada bloque nuevo.
-
-> Guía viva. Se amplía al cerrar cada bloque de desarrollo. Su objetivo es que
-> cualquiera (en especial Sebastián) entienda **cómo funciona la aplicación y el
-> código**, sin dar nada por supuesto. Escrita en lenguaje accesible.
+> **Estado (7-nov-2026):** desarrollo del producto **casi completo**.
+> Fases 0–6 y Fase 8 (bloques 8.0 a 8.8 y 8.10) terminadas, cada una con su
+> prueba automatizada de cierre. **Faltan:** 8.9 (development build + push
+> real en el teléfono), **Fase 9** (pruebas de carga y seguridad) y **Fase 7**
+> (WhatsApp + agente IA). El resumen para la documentación de la tesis está en
+> `RESUMEN_PARA_DOCUMENTACION.md`; las decisiones y su historia, en
+> `HANDOFF.md`.
 >
-> **Estado:** Fases 0–2 completas (base de datos + RLS + capa de datos +
-> **autenticación con Supabase Auth y autorización por rol**), **Fase 3 — Módulo
-> Congresos** completa (CRUD de congresos, agenda/sesiones y ponentes, con
-> validación de entrada) y **Bloque Puente** completo (**alta de organizaciones +
-> primer organizador**, con aislamiento entre tenants probado con usuarios reales).
-> También está el **Módulo Inscripciones (Fase 4 — backend)**: el asistente se
-> inscribe a un congreso, consulta sus inscripciones y las cancela; el staff ve la
-> lista de inscritos. Y está lista una **rebanada vertical del panel web** (login + lista de
-> congresos conectada a la API real). Los módulos restantes se documentarán aquí a
-> medida que se construyan. La **app móvil del asistente (Fase 4)** ya está lista (login, lista de congresos, detalle con agenda e inscripción). Y está la **participación en vivo (Fase 5)**: networking (interés mutuo, match y **chat** con límite) — Fase 6 — y la participación en vivo (preguntas moderadas y encuestas en tiempo real con Socket.io), entre el móvil y el panel del coordinador.
+> Guía viva: se amplía al cerrar cada bloque. Su objetivo es que cualquiera
+> entienda **cómo funciona la aplicación y el código**, sin dar nada por
+> supuesto, en lenguaje accesible. Las secciones siguen el orden en que se
+> construyó el sistema (por eso § 13 aparece después de § 18).
+>
+> **Mapa rápido:** base de datos y RLS (§ 4–6) · autenticación (§ 7) ·
+> congresos (§ 8) · alta de organizaciones (§ 9) · flujo de una petición (§ 10)
+> · cómo correr y probar (§ 11) · panel web (§ 12) · inscripciones y usuarios
+> (§ 14–15) · app móvil base (§ 16) · participación en vivo (§ 17) ·
+> networking (§ 18) · identidad visual (§ 19) · modelo del panel (§ 20) ·
+> superadmin (§ 21) · Excel y login por usuario (§ 22) · feria (§ 23) · agenda
+> (§ 24) · patrocinadores y personalización (§ 25) · notificaciones y Ayuda
+> (§ 26) · app completa y Ley 1581 (§ 27) · idiomas (§ 28) · ajustes del
+> cliente (§ 29).
 
 ---
 
@@ -44,28 +33,53 @@ clientes** a la vez (cada cliente es un *tenant*), y los datos de cada una deben
 quedar **completamente aislados** de los demás. Ese aislamiento es el corazón
 técnico del proyecto.
 
-Se compone de tres piezas (aún en construcción):
+Se compone de tres piezas, las tres construidas:
 
-- **App móvil** (Expo / React Native) — para los asistentes.
-- **Panel web** (Next.js) — para el staff (admin, organizadores, coordinadores).
-- **Backend / API** (NestJS) — la lógica de negocio y el guardián de los datos.
-
-Esta guía se centra, por ahora, en el **backend y la base de datos**, que es lo
-que hemos construido.
+- **App móvil** (Expo / React Native) — para los **asistentes**: su congreso, la
+  agenda, Mi agenda (⭐), preguntas y encuestas en vivo, networking con match y
+  chat, notificaciones, perfil y sus derechos de datos (Ley 1581). En español,
+  inglés y portugués.
+- **Panel web** (Next.js) — para el **staff** (superadmin, organizadores y
+  coordinadores): organizaciones, congresos, asistentes (importación de Excel),
+  agenda, ponentes, patrocinadores, apariencia del congreso, notificaciones,
+  moderación en vivo, solicitudes de datos y Ayuda.
+- **Backend / API** (NestJS) — la lógica de negocio y el **guardián de los
+  datos**: autenticación, autorización por rol, aislamiento por organización
+  (RLS) y tiempo real (Socket.io).
 
 ---
 
 ## 2. Stack tecnológico (y por qué)
 
-| Pieza | Tecnología | Por qué |
+| Pieza | Tecnología (versión) | Por qué |
 |-------|-----------|---------|
-| Lenguaje | **TypeScript** | Tipado seguro en todo el stack. |
-| Backend | **NestJS** | Framework estructurado (módulos, controllers, services). |
-| Base de datos | **PostgreSQL** (en Supabase) | Soporta Row Level Security, el mecanismo de aislamiento. |
-| ORM | **Prisma 7** | Traductor entre el código y la base; maneja migraciones. |
-| Cliente Postgres | **pg** + `@prisma/adapter-pg` | Prisma 7 requiere un "driver adapter" para conectarse. |
-| Hosting BD/Auth | **Supabase** | PostgreSQL gestionado + autenticación (se usará en Fase 1b). |
-| Monorepo | **pnpm workspaces** | App móvil, web y backend en un solo repositorio. |
+| Lenguaje | **TypeScript** en las tres apps | Un solo lenguaje y tipado en todo el stack; dos desarrolladores no necesitan cambiar de contexto. |
+| Backend | **NestJS 11** | Estructura clara (módulos, controllers, services, guards, pipes): cada responsabilidad tiene su lugar y la seguridad se aplica con decoradores. |
+| Base de datos | **PostgreSQL** gestionado en **Supabase** | Trae **Row Level Security (RLS)**, el mecanismo de aislamiento entre organizaciones en el motor de la base. |
+| ORM | **Prisma 7** + `@prisma/adapter-pg` | Modelos tipados, migraciones versionadas; el *driver adapter* permite fijar el tenant en cada transacción (§ 6.2). |
+| Autenticación | **Supabase Auth** (JWT) | Emite tokens firmados con *claims* propios (rol y organización) mediante un hook; gratis e integrado con la base. Reemplaza a AWS Cognito (§ 7). |
+| Archivos | **Supabase Storage** | Fotos de ponentes y perfiles, logos y portadas; en la base solo se guarda la URL (§ 24, § 25). Reemplaza a AWS S3. |
+| Tiempo real | **Socket.io 4** | Preguntas, encuestas y chat en vivo con el patrón "avisar y refrescar" (§ 17.3). |
+| Panel web | **Next.js 16** + React 19 + **Tailwind 4** + componentes estilo **shadcn/ui** | Productividad, tema claro/oscuro con *tokens* de marca (§ 19.2). |
+| App móvil | **Expo SDK 54** (React Native 0.81) + **NativeWind 4** | Una base de código para Android e iOS; Expo Go para desarrollar sin compilar (§ 16). |
+| Notificaciones | **Expo Push** (`expo-notifications`) | Envío a Android/iOS con un solo servicio (§ 26). Prueba en teléfono real: 8.9. |
+| Excel | **exceljs** | Importar asistentes y descargar plantillas/credenciales (§ 22). |
+| Idiomas | **i18next** + `expo-localization` | App en es / en / pt-BR con claves tipadas (§ 28). |
+| Monorepo | **pnpm workspaces** | Backend, web y móvil en un solo repositorio y un solo historial. |
+
+**Lo que el plan previó y NO se usó (todavía), y por qué:**
+
+- **Redis (Upstash):** estaba previsto para caché y para el *pub/sub* de
+  Socket.io. Con **una sola instancia** del backend no hace falta: Socket.io
+  reparte los avisos en memoria. Se vuelve necesario al correr **varias
+  instancias** (adaptador Redis de Socket.io) — punto de la Fase 9 / despliegue.
+- **OpenAI + pgvector:** son de la **Fase 7** (agente IA por WhatsApp), aún
+  pendiente.
+- **AWS (Cognito, S3, EC2, RDS, ElastiCache):** reemplazados por servicios
+  gestionados (Supabase y, para producción, un host de Node como Railway o
+  Render): menos costo y nada de administración de servidores.
+- **`packages/shared`:** se pensó para compartir tipos entre las apps; en la
+  práctica cada app define los suyos (`lib/tipos.ts`) y la carpeta no se creó.
 
 ---
 
@@ -74,11 +88,10 @@ que hemos construido.
 ```
 Nexvio/
 ├── apps/
-│   ├── backend/    ← la API (NestJS) — lo que estamos construyendo
-│   ├── web/        ← panel web (Next.js)
-│   └── mobile/     ← app móvil (Expo)
-├── packages/       ← código compartido (aún vacío)
-└── docs/           ← documentos de tesis, HANDOFF y esta guía
+│   ├── backend/    ← la API (NestJS)
+│   ├── web/        ← panel web del staff (Next.js)
+│   └── mobile/     ← app del asistente (Expo)
+└── docs/           ← tesis, HANDOFF, esta guía, plan de ruta, diagramas
 ```
 
 ### Dentro de `apps/backend/`
@@ -86,50 +99,94 @@ Nexvio/
 ```
 apps/backend/
 ├── prisma/
-│   ├── schema.prisma          ← el "plano" de la base de datos (los modelos)
-│   ├── migrations/            ← historial de cambios a la BD (SQL versionado)
-│   ├── setup/
-│   │   ├── 01_app_role.sql        ← crea el rol de aplicación "nexvio_app"
-│   │   └── 02_rls_ponentes.sql    ← RLS de ponente y sesion_ponente (Fase 3)
-│   └── tests/
-│       ├── rls_isolation_test.sql  ← prueba de aislamiento (SQL Editor)
-│       ├── rls_via_app.js          ← prueba de aislamiento (backend real)
-│       ├── e2e_congresos.js        ← e2e auth + aislamiento (Fase 2)
-│       └── e2e_fase3_crud.js       ← e2e del CRUD del Módulo Congresos (Fase 3)
-├── prisma.config.ts           ← config de Prisma 7 (conexión de migraciones)
-├── .env                       ← credenciales (NO se sube a git)
+│   ├── schema.prisma      ← el "plano" de la base: 23 modelos
+│   ├── migrations/        ← historial de cambios a la BD (SQL versionado)
+│   ├── setup/             ← scripts SQL/JS que se corren una vez (rol de la app,
+│   │                        RLS, funciones del superadmin, Storage, seeds, Ayuda…)
+│   └── tests/             ← pruebas de extremo a extremo (e2e_*.js) y de RLS
+├── prisma.config.ts       ← config de Prisma 7 (conexión de migraciones)
+├── .env                   ← credenciales (NO se sube a git)
 └── src/
-    ├── main.ts                ← arranque de la app + ValidationPipe global
-    ├── app.module.ts          ← módulo raíz (conecta todo)
-    ├── prisma/
-    │   ├── prisma.service.ts  ← cliente de BD + inyección del tenant
-    │   └── prisma.module.ts   ← hace PrismaService disponible globalmente
-    ├── auth/
-    │   ├── tenant-context.middleware.ts  ← valida el JWT y fija el tenant
-    │   ├── auth.guard.ts                 ← exige autenticación (401)
-    │   ├── roles.guard.ts + roles.decorator.ts  ← autoriza por rol (403)
-    │   ├── org-id.decorator.ts           ← @OrgId(): saca el org del token (Fase 3)
-    │   └── supabase-admin.service.ts     ← Admin API de Supabase (crear cuentas)
-    ├── congresos/             ← Módulo Congresos (Fase 3)
-    │   ├── congresos.controller.ts + congresos.service.ts
-    │   ├── sesiones.controller.ts  + sesiones.service.ts
-    │   ├── ponentes.controller.ts  + ponentes.service.ts
-    │   └── dto/               ← "moldes" de datos con reglas de validación
-    ├── onboarding/            ← Alta de organizaciones (bloque puente)
-    │   ├── onboarding.controller.ts + onboarding.service.ts
-    │   └── dto/crear-organizacion.dto.ts
-    └── tenant/
-        └── tenant-context.ts  ← "memoria" por petición del organizacion_id
+    ├── main.ts            ← arranque: CORS, ValidationPipe y filtro de idioma globales
+    ├── app.module.ts      ← módulo raíz (conecta todo)
+    ├── prisma/            ← cliente de BD + inyección del tenant en cada transacción
+    ├── tenant/            ← "memoria" por petición del organizacion_id
+    ├── auth/              ← JWT, guards de autenticación y rol, decoradores
+    │                        (@OrgId, @UserId, @RolActual), login por usuario,
+    │                        política de datos, Admin API de Supabase
+    ├── acceso/            ← AccesoCongresoGuard: el asistente solo entra a SU congreso
+    ├── onboarding/        ← alta de organizaciones + primer organizador
+    ├── superadmin/        ← panorama de todas las organizaciones (funciones SECURITY DEFINER)
+    ├── congresos/         ← congresos, sesiones (charlas y breaks), ponentes
+    ├── agenda/            ← Mi agenda (charlas marcadas con ⭐)
+    ├── inscripciones/     ← quién está inscrito en qué congreso
+    ├── usuarios/          ← asistentes: CRUD, importación de Excel, credenciales
+    ├── perfil/            ← perfil del asistente y su foto
+    ├── participacion/     ← preguntas y encuestas en vivo
+    ├── networking/        ← intereses, match, conexiones y chat
+    ├── sponsors/          ← patrocinadores con logo y nivel
+    ├── notificaciones/    ← avisos push (al momento o programados)
+    ├── ayuda/             ← artículos de Ayuda del panel
+    ├── legal/             ← Ley 1581: política, consentimientos, solicitudes de datos
+    ├── storage/           ← subida de imágenes a Supabase Storage
+    ├── realtime/          ← gateway de Socket.io (salas por sesión y por conexión)
+    └── idioma/            ← traducción de errores para la app (X-Idioma)
+```
+
+### Dentro de `apps/web/src/` y `apps/mobile/src/`
+
+```
+web/src/
+├── app/login/                 ← entrada del staff
+├── app/(panel)/…              ← una carpeta por pantalla (congresos, agenda,
+│                                speakers, sponsors, usuarios, notificaciones,
+│                                sesiones/[id] = moderación, superadmin, ayuda…)
+├── components/panel/          ← barra lateral, cabecera, tarjetas, diálogos
+├── components/ui/             ← botones, tarjetas, inputs (estilo shadcn)
+└── lib/                       ← api, sesión, socket, colores, zona horaria
+
+mobile/src/
+├── screens/                   ← 16 pantallas (Login, Congreso, Sesión, Mi agenda,
+│                                Networking, Chat, Perfil, Política de datos…)
+├── navigation/                ← pestañas de abajo + stacks
+├── context/                   ← sesión, congreso actual, marca, Mi agenda
+├── components/                ← ui, Diálogo, barra de pestañas, splash, tarjetas
+├── tema/                      ← colores claro/oscuro y fuentes
+├── i18n/                      ← es.ts, en.ts, pt.ts (todos los textos de la app)
+└── lib/                       ← api, socket, formato de fechas, fotos, países
 ```
 
 ---
 
+
 ## 4. La base de datos
+
+### 4.0. Mapa completo (nov-2026): 23 tablas
+
+Las 23 tienen RLS activado. Todas llevan `organizacion_id` salvo
+`organizacion` (la raíz: cada fila ES un cliente) y `articulo_ayuda`
+(contenido de la plataforma, igual para todos, con RLS por rol; § 26).
+
+| Grupo | Tablas | Dónde se explica |
+|---|---|---|
+| Núcleo multi-tenant | `organizacion`, `usuario` | § 4.1, § 5, § 9 |
+| Congresos y agenda | `congreso`, `sesion` (charla o break), `ponente`, `sesion_ponente` | § 8, § 24 |
+| Inscripción | `inscripcion` (con el tipo de suscripción) | § 14, § 22 |
+| Participación en vivo | `pregunta`, `encuesta`, `opcion_encuesta`, `respuesta_encuesta` | § 17, § 29 |
+| Networking | `interes_networking`, `conexion`, `mensaje_chat` | § 18, § 27.4 |
+| Patrocinio y marca | `sponsor`, `sesion_sponsor`, `personalizacion_congreso` | § 25, § 27.5 |
+| Notificaciones | `notificacion`, `dispositivo_push` | § 26 |
+| Mi agenda | `sesion_favorita` | § 27.5 |
+| Ley 1581 | `consentimiento_datos`, `solicitud_datos` | § 27.3 |
+| Plataforma | `articulo_ayuda` | § 26 |
+
+La sección 4.1 cuenta cómo empezó (Fase 1); las tablas siguientes se fueron
+sumando en cada fase, explicadas en su sección.
 
 ### 4.1. Los modelos (`schema.prisma`)
 
 El `schema.prisma` es la **única fuente de verdad** de la estructura de la BD.
-Ahí describimos las tablas como *modelos*. Por ahora tenemos el **núcleo de 4**:
+Ahí describimos las tablas como *modelos*. La Fase 1 empezó con un **núcleo de 4**:
 
 - `Organizacion` — la raíz del tenant. Cada fila es un cliente de Nexvio.
 - `Usuario` — pertenece a una organización (salvo el admin global, que es NULL).
@@ -594,6 +651,7 @@ node prisma/tests/e2e_fase8_7g_tema.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7h_panel.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_7j_conexion.js <orgEmail> <orgPass>
 node prisma/tests/e2e_fase8_8_idiomas.js <orgEmail> <orgPass>
+node prisma/tests/e2e_fase8_10_preguntas.js <orgEmail> <orgPass>
 
 # Feria (oct-2026): datos de demostración, 3 organizaciones con agenda de 2 días
 # (requiere el backend corriendo; idempotente)
@@ -3169,3 +3227,73 @@ llegando como lista, idioma desconocido → español, y la política en los 3
 idiomas con la misma versión, 8 secciones, fecha y cláusula de prevalencia.
 Resultado (7-nov-2026): **16/16 en verde**, más la revisión manual de la app
 en los tres idiomas.
+
+---
+
+## 29. Ajustes del cliente (Bloque 8.10)
+
+Tras la reunión con el cliente del 7-nov-2026 (decisiones 38–41 del HANDOFF).
+Son ajustes pequeños de producto; el único que cambia una regla de negocio es
+el de las preguntas.
+
+### 29.1. Preguntas privadas y sin "aprobar" (decisión 39)
+
+**Antes (Fase 5):** "muro público". La pregunta quedaba *pendiente*; el staff
+la *aprobaba* y ahí la veían **todos** los asistentes de la charla; luego la
+marcaba *respondida*.
+
+**Ahora:** cada asistente ve **solo sus propias preguntas**, desde que las
+envía, con su estado. El cliente pidió quitar "aprobar": si nadie más las va a
+ver, aprobar sobra.
+
+```
+pendiente ──(Marcar respondida)──▶ respondida
+    │
+    └──(Descartar: spam/repetida)──▶ rechazada
+  (y "Volver a pendiente" deshace cualquiera de los dos)
+```
+
+- Backend: `GET /sesiones/:id/preguntas` → staff: todas; asistente:
+  `WHERE usuario_id = yo`. `PATCH /preguntas/:id` acepta
+  `pendiente | respondida | rechazada`; `aprobada` → 400.
+- Las preguntas viejas en `aprobada` se muestran como `pendiente`
+  (función `normalizar()`), sin migrar datos.
+- App: "Mis preguntas · 🔒 Solo tú las ves", con etiqueta PENDIENTE /
+  RESPONDIDA / NO SE RESPONDERÁ.
+- Panel: filtros *Por responder · Respondidas · Descartadas · Todas*.
+
+### 29.2. Cambiar de congreso desde el Perfil (decisión 40)
+
+Con 2 o más congresos, el Perfil muestra **"Mis congresos"** como lista de
+selección (círculo marcado = el actual). Tocar otro llama a `elegir(id)` del
+`MiCongresoContext`; como la pestaña Perfil no depende del congreso, **no se
+sale** de ella (las otras pestañas se reinician con el congreso nuevo gracias a
+su `key`). Al abrir la app, todo sigue igual: lista la primera vez y luego
+recuerda el último.
+
+### 29.3. Nombres unificados (decisión 41) y título (decisión 38)
+
+El panel usa los mismos nombres que la app: **Ponentes**, **Patrocinadores**,
+**Asistentes** y **charla** (en vez de Speakers, Sponsors, Usuarios y sesión).
+"Notificaciones" se quedó así en el panel (más claro para un organizador).
+Solo cambian textos visibles: rutas (`/speakers`) y código no. Los conteos
+"N charlas" ya no cuentan los breaks. Los artículos de Ayuda (en la base) se
+actualizaron con `prisma/setup/26_ajustes_cliente.sql`, que también ajusta el
+conteo del Panorama del superadmin. La pestaña del navegador dice solo
+**Nexvio**.
+
+### 29.4. Prueba de cierre
+
+`e2e_fase8_10_preguntas.js` (**19 verificaciones**): Ana y Beto preguntan en la
+misma charla; cada uno ve solo la suya; el staff ve las dos; "aprobar" da 400;
+la de Ana se marca respondida y Beto sigue sin verla (el caso de la reunión);
+descartar, deshacer, un asistente no puede moderar (403) y el legado
+`aprobada` se ve como pendiente. Se actualizaron `e2e_fase5_preguntas.js` y
+`e2e_fase8_7h_panel.js`, que daban por hecho el muro público.
+Resultado (12-nov-2026): **las tres en verde**, y el script
+`26_ajustes_cliente.sql` aplicado en Supabase.
+
+De paso se corrigió `rls_via_app.js`: exigía que cada organización de prueba
+viera **exactamente 1** congreso (como en la Fase 1), y con el tiempo otras
+pruebas crearon más. Ahora verifica lo que importa: todo lo que ve cada
+organización es suyo, nada aparece en las dos y sin tenant se ven 0 filas.

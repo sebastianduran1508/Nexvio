@@ -7,7 +7,7 @@ import { ElegirCongreso } from '@/components/panel/elegir-congreso';
 export default function SpeakersPage() {
   return (
     <ElegirCongreso
-      titulo="Speakers"
+      titulo="Ponentes"
       descripcion="Elige el congreso cuyos ponentes quieres gestionar."
       seccion="speakers"
       Icono={Mic2}

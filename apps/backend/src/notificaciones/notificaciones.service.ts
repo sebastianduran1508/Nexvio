@@ -39,9 +39,9 @@ export class NotificacionesService {
       const destino = dto.destino ?? 'todos';
       const conSesion = destino === 'sesion' || destino === 'favoritos';
       if (conSesion) {
-        if (!dto.sesion_id) throw new BadRequestException('Elige la sesión del aviso');
+        if (!dto.sesion_id) throw new BadRequestException('Elige la charla del aviso');
         const sesion = await tx.sesion.findFirst({ where: { id: dto.sesion_id, congreso_id: congresoId } });
-        if (!sesion) throw new BadRequestException('La sesión no es de este congreso');
+        if (!sesion) throw new BadRequestException('La charla no es de este congreso');
       }
 
       // ¿Programado? Mismo acuerdo que la agenda: la hora es la del evento.

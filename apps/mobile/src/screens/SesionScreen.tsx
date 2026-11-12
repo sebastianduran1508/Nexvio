@@ -19,7 +19,8 @@ import type { EncuestaResultado, Pregunta } from '../lib/tipos';
 import BotonFavorito from '../components/BotonFavorito';
 import Patrocinio from '../components/Patrocinio';
 import type { SponsorCharla } from '../lib/tipos';
-import { Avatar, Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
+import { Cabecera, Etiqueta, Tarjeta, TituloSeccion, Vacio } from '../components/ui';
+import { hora } from '../lib/formato';
 import { F, useTema } from '../tema/tema';
 import { useMarca } from '../context/MarcaContext';
 
@@ -152,7 +153,11 @@ export default function SesionScreen({ route, navigation }: Props) {
         )}
 
         {/* ---------- PREGUNTAS ---------- */}
-        <TituloSeccion texto={tr('sesion.preguntas')} />
+        {/* Decisión 39 (8.10): son PRIVADAS — el backend solo devuelve las mías. */}
+        <TituloSeccion
+          texto={tr('sesion.preguntas')}
+          derecha={<Text style={[est.autor, { color: t.textoTenue }]}>🔒 {tr('sesion.soloTu')}</Text>}
+        />
         {preguntas.length === 0 ? (
           <Vacio texto={tr('sesion.sinPreguntas')} icono="help-circle-outline" />
         ) : (
@@ -161,13 +166,14 @@ export default function SesionScreen({ route, navigation }: Props) {
               <Tarjeta key={p.id} style={{ padding: 14 }}>
                 <Text style={[est.preguntaTexto, { color: t.texto }]}>{p.texto}</Text>
                 <View style={est.preguntaPie}>
-                  <View style={est.autorFila}>
-                    <Avatar nombre={p.usuario?.nombre ?? tr('sesion.asistente')} tamano={22} />
-                    <Text style={[est.autor, { color: t.textoTenue }]}>
-                      {p.usuario?.nombre ?? tr('sesion.asistente')}
-                    </Text>
-                  </View>
-                  {p.estado === 'respondida' && <Etiqueta texto={tr('sesion.respondida')} tono="verde" />}
+                  <Text style={[est.autor, { color: t.textoTenue }]}>{hora(p.creado_en)}</Text>
+                  {p.estado === 'respondida' ? (
+                    <Etiqueta texto={tr('sesion.respondida')} tono="verde" />
+                  ) : p.estado === 'rechazada' ? (
+                    <Etiqueta texto={tr('sesion.descartada')} tono="gris" />
+                  ) : (
+                    <Etiqueta texto={tr('sesion.pendiente')} tono="coral" />
+                  )}
                 </View>
               </Tarjeta>
             ))}

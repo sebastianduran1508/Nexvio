@@ -156,7 +156,7 @@ export default function AgendaCongresoPage() {
       await apiFetch('DELETE', `/sesiones/${victima.id}`);
       await cargar();
     } catch (e: any) {
-      setError(e.message ?? 'No se pudo borrar la sesión');
+      setError(e.message ?? 'No se pudo borrar la charla');
     }
   }
 
@@ -191,7 +191,7 @@ export default function AgendaCongresoPage() {
         }
         acciones={
           <Button className="h-10 rounded-xl px-4 font-bold shadow-[0_8px_20px_rgba(90,70,240,0.3)]" onClick={() => setEnFormulario({ dia: diaActivo })}>
-            <Plus /> Nueva sesión
+            <Plus /> Nueva charla
           </Button>
         }
       />
@@ -240,7 +240,7 @@ export default function AgendaCongresoPage() {
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Clock className="h-7 w-7" />
           </span>
-          <p className="mt-3 font-semibold text-foreground">Este día todavía no tiene sesiones.</p>
+          <p className="mt-3 font-semibold text-foreground">Este día todavía no tiene charlas.</p>
           <p className="mt-1 text-sm text-muted-foreground">Agrega charlas, talleres o pausas para armar la agenda.</p>
           <Button size="sm" variant="outline" className="mt-4" onClick={() => setEnFormulario({ dia: diaActivo })}>
             <Plus /> Agregar la primera
@@ -278,7 +278,7 @@ export default function AgendaCongresoPage() {
 
       <PanelLateral
         abierto={enFormulario !== null}
-        titulo={enFormulario && 'id' in enFormulario ? 'Editar sesión' : 'Nueva sesión'}
+        titulo={enFormulario && 'id' in enFormulario ? 'Editar charla' : 'Nueva charla'}
         subtitulo={congreso.nombre}
         alCerrar={() => setEnFormulario(null)}
       >
@@ -675,7 +675,7 @@ function FormularioSesion({
               className="mt-0.5 h-4 w-4 accent-[#5A46F0]"
             />
             <span className="text-sm text-foreground">
-              Correr también {siguientes.length === 1 ? 'la sesión siguiente' : `las ${siguientes.length} sesiones siguientes`} de
+              Correr también {siguientes.length === 1 ? 'la charla siguiente' : `las ${siguientes.length} charlas siguientes`} de
               este día <strong>{textoDelta(delta)}</strong>
             </span>
           </label>
@@ -726,7 +726,7 @@ function FormularioSesion({
         <Label htmlFor="sesion-sponsor">{esBreak ? 'Patrocinado por (opcional)' : 'Patrocinada por (opcional)'}</Label>
         {congreso.sponsors.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            Este congreso aún no tiene sponsors. Agrégalos en <b>Sponsors</b> y luego podrás asignarlos aquí.
+            Este congreso aún no tiene patrocinadores. Agrégalos en <b>Patrocinadores</b> y luego podrás asignarlos aquí.
           </p>
         ) : (
           <>
@@ -794,7 +794,7 @@ function FormularioSesion({
           <Label>Ponentes</Label>
           {congreso.ponentes.length === 0 ? (
             <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-              Este congreso todavía no tiene speakers.{' '}
+              Este congreso todavía no tiene ponentes.{' '}
               <Link href={`/congresos/${congreso.id}/speakers`} className="font-medium text-primary">
                 Créalos primero
               </Link>
@@ -844,7 +844,7 @@ function FormularioSesion({
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={guardando}>
-          {guardando ? 'Guardando…' : sesion ? 'Guardar cambios' : 'Crear sesión'}
+          {guardando ? 'Guardando…' : sesion ? 'Guardar cambios' : 'Crear charla'}
         </Button>
         <Button type="button" variant="outline" onClick={alCancelar}>
           Cancelar
@@ -944,7 +944,7 @@ function ResumenDia({
         </p>
         <div className="grid grid-cols-3 gap-2">
           {[
-            [charlas.length, charlas.length === 1 ? 'sesión' : 'sesiones'],
+            [charlas.length, charlas.length === 1 ? 'charla' : 'charlas'],
             [pausas, pausas === 1 ? 'pausa' : 'pausas'],
             [salas, salas === 1 ? 'sala' : 'salas'],
           ].map(([n, t]) => (
@@ -988,7 +988,7 @@ function ResumenDia({
             <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-coral/15 text-orange-700 dark:text-[#ff9c80]">
               <Handshake className="h-3.5 w-3.5" />
             </span>
-            Sponsors en la agenda
+            Patrocinadores en la agenda
           </h2>
           <div className="flex flex-wrap gap-2">
             {[...sponsors.values()].map((sp) => (

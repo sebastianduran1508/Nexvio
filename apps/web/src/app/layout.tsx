@@ -21,7 +21,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Nexvio — Panel",
+  title: "Nexvio", // decisión 38: solo el nombre de la app
   description: "Panel de staff de Nexvio",
 };
 

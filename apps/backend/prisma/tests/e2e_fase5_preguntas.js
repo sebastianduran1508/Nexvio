@@ -3,12 +3,14 @@
 //
 //   1. El organizador crea un congreso + sesion temporales.
 //   2. El asistente formula una pregunta -> 201, estado 'pendiente'.
-//   3. El asistente GET preguntas -> NO la ve (aun pendiente).
-//   4. El staff GET preguntas -> SI la ve (ve todas, para moderar).
+//   3. El asistente GET preguntas -> SI ve la suya, pendiente (decisión 39,
+//      8.10: las preguntas son privadas y su autor las ve desde que las envía).
+//   4. El staff GET preguntas -> SI la ve (ve todas, para responderlas).
 //   5. El asistente intenta moderar -> 403.
-//   6. El staff la aprueba (PATCH) -> 200, estado 'aprobada'.
-//   7. El asistente GET preguntas -> ahora SI la ve.
-//   8. Limpieza: el organizador borra el congreso (arrastra la pregunta).
+//   6. "Aprobar" ya no existe -> 400.
+//   7. El staff la marca respondida -> 200; el asistente la ve respondida.
+//   8. El staff la devuelve a pendiente (deshacer) -> 200.
+//   9. Limpieza: el organizador borra el congreso (arrastra la pregunta).
 //
 // Requiere backend corriendo y en .env: SUPABASE_URL, SUPABASE_ANON_KEY.
 //
@@ -76,32 +78,38 @@ async function api(method, path, token, body) {
   check('Formular pregunta -> 201 y pendiente', preg.status === 201 && preg.body?.estado === 'pendiente');
   const pregId = preg.body?.id;
 
-  // 3) El asistente NO ve su pregunta pendiente
+  // 3) El asistente SI ve su pregunta, pendiente (decisión 39)
   const verAsis1 = await api('GET', `/sesiones/${sesionId}/preguntas`, tAsis);
-  check('Asistente NO ve la pendiente', verAsis1.status === 200 && !verAsis1.body.some((p) => p.id === pregId));
+  check('Asistente SI ve la suya, pendiente', verAsis1.status === 200 && verAsis1.body.some((p) => p.id === pregId && p.estado === 'pendiente'));
 
   // 4) El staff SI ve todas
   const verStaff = await api('GET', `/sesiones/${sesionId}/preguntas`, tOrg);
   check('Staff SI ve la pendiente', verStaff.status === 200 && verStaff.body.some((p) => p.id === pregId));
 
   // 5) El asistente no puede moderar
-  const modAsis = await api('PATCH', `/preguntas/${pregId}`, tAsis, { estado: 'aprobada' });
+  const modAsis = await api('PATCH', `/preguntas/${pregId}`, tAsis, { estado: 'respondida' });
   check('Asistente NO puede moderar -> 403', modAsis.status === 403);
 
-  // 6) El staff aprueba
+  // 6) "Aprobar" ya no existe (decisión 39)
   const aprobar = await api('PATCH', `/preguntas/${pregId}`, tOrg, { estado: 'aprobada' });
-  check('Staff aprueba -> 200 y aprobada', aprobar.status === 200 && aprobar.body?.estado === 'aprobada');
+  check('"Aprobar" ya no existe -> 400', aprobar.status === 400);
 
-  // 7) Ahora el asistente SI la ve
+  // 7) El staff la marca respondida y el asistente la ve así
+  const responder = await api('PATCH', `/preguntas/${pregId}`, tOrg, { estado: 'respondida' });
+  check('Staff la marca respondida -> 200', responder.status === 200 && responder.body?.estado === 'respondida');
   const verAsis2 = await api('GET', `/sesiones/${sesionId}/preguntas`, tAsis);
-  check('Asistente ahora SI ve la aprobada', verAsis2.status === 200 && verAsis2.body.some((p) => p.id === pregId));
+  check('Asistente la ve respondida', verAsis2.status === 200 && verAsis2.body.some((p) => p.id === pregId && p.estado === 'respondida'));
 
-  // 8) Limpieza
+  // 8) Deshacer
+  const deshacer = await api('PATCH', `/preguntas/${pregId}`, tOrg, { estado: 'pendiente' });
+  check('Staff la devuelve a pendiente -> 200', deshacer.status === 200 && deshacer.body?.estado === 'pendiente');
+
+  // 9) Limpieza
   const borrar = await api('DELETE', `/congresos/${congresoId}`, tOrg);
   check('Borrar congreso (arrastra preguntas) -> 200', borrar.status === 200);
 
   console.log(fallos === 0
-    ? '\n✅ E2E FASE 5 (preguntas) OK — enviar, moderar y vistas por rol'
+    ? '\n✅ E2E FASE 5 (preguntas) OK — enviar, responder y vistas por rol (privadas)'
     : `\n❌ ${fallos} verificacion(es) fallaron`);
   process.exit(fallos === 0 ? 0 : 1);
 })().catch((e) => { console.error('Error:', e.message); process.exit(1); });

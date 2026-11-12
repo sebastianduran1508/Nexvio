@@ -128,9 +128,9 @@ export default function CongresoDetallePage() {
 
   const base = `/congresos/${detalle.id}`;
   const accesos = [
-    { href: `${base}/agenda`, texto: 'Agenda', dato: `${charlas.length} sesiones`, Icono: CalendarDays, tono: 'from-[#5a46f0] to-[#7c3aed]' },
-    { href: `${base}/speakers`, texto: 'Speakers', dato: `${detalle.ponentes.length} ponentes`, Icono: Mic2, tono: 'from-[#ff7a59] to-[#e8473a]' },
-    { href: `${base}/sponsors`, texto: 'Sponsors', dato: `${detalle.sponsors.length} patrocinadores`, Icono: Handshake, tono: 'from-[#f59e0b] to-[#d97706]' },
+    { href: `${base}/agenda`, texto: 'Agenda', dato: `${charlas.length} charla${charlas.length === 1 ? '' : 's'}`, Icono: CalendarDays, tono: 'from-[#5a46f0] to-[#7c3aed]' },
+    { href: `${base}/speakers`, texto: 'Ponentes', dato: `${detalle.ponentes.length} ponente${detalle.ponentes.length === 1 ? '' : 's'}`, Icono: Mic2, tono: 'from-[#ff7a59] to-[#e8473a]' },
+    { href: `${base}/sponsors`, texto: 'Patrocinadores', dato: `${detalle.sponsors.length} patrocinador${detalle.sponsors.length === 1 ? '' : 'es'}`, Icono: Handshake, tono: 'from-[#f59e0b] to-[#d97706]' },
     { href: `${base}/asistentes`, texto: 'Asistentes', dato: `${detalle._count?.inscripciones ?? '—'} inscritos`, Icono: Users, tono: 'from-[#22c55e] to-[#15803d]' },
     { href: `${base}/notificaciones`, texto: 'Notificaciones', dato: 'Avisos a la app', Icono: Bell, tono: 'from-[#06b6d4] to-[#0e7490]' },
     { href: `${base}/apariencia`, texto: 'Apariencia', dato: 'Logo, portada y colores', Icono: Palette, tono: 'from-[#ec4899] to-[#be185d]' },
@@ -206,7 +206,7 @@ export default function CongresoDetallePage() {
           </button>
           <div className="flex flex-wrap gap-2">
             <Dato valor={dias} texto={dias === 1 ? 'día' : 'días'} />
-            <Dato valor={charlas.length} texto="sesiones" />
+            <Dato valor={charlas.length} texto={charlas.length === 1 ? 'charla' : 'charlas'} />
             <Dato valor={detalle._count?.inscripciones ?? 0} texto="inscritos" />
             <Dato valor={estrellas} texto="⭐ marcadas" />
           </div>
@@ -244,7 +244,7 @@ export default function CongresoDetallePage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary/10 text-primary dark:text-[#a99dff]">
                 <CalendarDays className="h-4 w-4" />
               </span>
-              {yaPaso ? 'Así fue la agenda' : 'Próximas sesiones'}
+              {yaPaso ? 'Así fue la agenda' : 'Próximas charlas'}
             </h2>
             <Link href={`${base}/agenda`} className="flex items-center gap-1 text-sm font-bold text-primary dark:text-[#a99dff]">
               Ver la agenda completa <ArrowRight className="h-4 w-4" />
@@ -254,7 +254,7 @@ export default function CongresoDetallePage() {
           {adelanto.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-primary/15 p-10 text-center">
               <CalendarDays className="mx-auto h-8 w-8 text-primary/50" />
-              <p className="mt-2 font-semibold text-foreground">Este congreso aún no tiene sesiones.</p>
+              <p className="mt-2 font-semibold text-foreground">Este congreso aún no tiene charlas.</p>
               <Link href={`${base}/agenda`} className="mt-3 inline-block text-sm font-bold text-primary">
                 Armar la agenda →
               </Link>

@@ -4,7 +4,7 @@ import { Users } from 'lucide-react';
 import { ElegirCongreso } from '@/components/panel/elegir-congreso';
 
 /**
- * "Usuarios" del menú lateral.
+ * "Asistentes" del menú lateral (antes "Usuarios"; decisión 41).
  *
  * Los asistentes se gestionan POR CONGRESO (la inscripción y el tipo de
  * suscripción son de cada evento), así que esta pantalla solo pregunta en cuál
@@ -15,7 +15,7 @@ import { ElegirCongreso } from '@/components/panel/elegir-congreso';
 export default function UsuariosPage() {
   return (
     <ElegirCongreso
-      titulo="Usuarios"
+      titulo="Asistentes"
       descripcion="Elige el congreso cuyos asistentes quieres gestionar."
       seccion="asistentes"
       Icono={Users}

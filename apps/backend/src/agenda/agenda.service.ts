@@ -27,7 +27,7 @@ export class AgendaService {
   async marcar(orgId: string, usuarioId: string, sesionId: string) {
     return this.prisma.runInTenant(orgId, async (tx) => {
       const sesion = await tx.sesion.findFirst({ where: { id: sesionId }, select: { tipo: true } });
-      if (!sesion) throw new NotFoundException('Sesión no encontrada');
+      if (!sesion) throw new NotFoundException('Charla no encontrada');
       // Un break (café, almuerzo) no es una charla: no se "agenda".
       if (sesion.tipo === 'break') throw new BadRequestException('Los breaks no se pueden marcar');
       await tx.sesionFavorita.upsert({

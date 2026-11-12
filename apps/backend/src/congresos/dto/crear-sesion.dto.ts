@@ -60,7 +60,7 @@ export class CrearSesionDto {
    */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(12, { message: 'Máximo 12 sponsors por charla' })
-  @IsUUID('4', { each: true, message: 'Sponsor inválido' })
+  @ArrayMaxSize(12, { message: 'Máximo 12 patrocinadores por charla' })
+  @IsUUID('4', { each: true, message: 'Patrocinador inválido' })
   sponsor_ids?: string[];
 }

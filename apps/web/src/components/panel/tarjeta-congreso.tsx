@@ -130,7 +130,7 @@ export function TarjetaCongreso({
         {(sesiones !== undefined || inscritos !== undefined) && (
           <div className="mt-2 flex flex-wrap gap-2">
             {sesiones !== undefined && (
-              <span className="rounded-[10px] bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground">{sesiones} sesiones</span>
+              <span className="rounded-[10px] bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground">{sesiones} charla{sesiones === 1 ? '' : 's'}</span>
             )}
             {inscritos !== undefined && (
               <span className="rounded-[10px] bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground">{inscritos} inscritos</span>

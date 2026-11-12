@@ -51,10 +51,10 @@ const MENU_SUPERADMIN: Entrada[] = [
  *  cuando está trabajando dentro de una organización. */
 const MENU_CONGRESO: Entrada[] = [
   { href: '/congresos', texto: 'Congresos', Icono: CalendarDays },
-  { href: '/usuarios', texto: 'Usuarios', Icono: Users },
+  { href: '/usuarios', texto: 'Asistentes', Icono: Users }, // 8.10 (decisión 41): los nombres de la app
   { href: '/agenda', texto: 'Agenda', Icono: LayoutDashboard },
-  { href: '/speakers', texto: 'Speakers', Icono: Mic2 },
-  { href: '/sponsors', texto: 'Sponsors', Icono: Handshake },
+  { href: '/speakers', texto: 'Ponentes', Icono: Mic2 },
+  { href: '/sponsors', texto: 'Patrocinadores', Icono: Handshake },
   { href: '/notificaciones', texto: 'Notificaciones', Icono: Bell },
   // 8.7.c2: Ley 1581 (solicitudes de los asistentes + datos del responsable).
   { href: '/privacidad', texto: 'Privacidad', Icono: ShieldCheck },

@@ -75,7 +75,7 @@ export default function SpeakersCongresoPage() {
       setInscritos(gente.filter((g) => g.estado === 'confirmada'));
       setError(null);
     } catch (e: any) {
-      setError(e.message ?? 'No se pudieron cargar los speakers');
+      setError(e.message ?? 'No se pudieron cargar los ponentes');
     } finally {
       setCargando(false);
     }
@@ -118,7 +118,7 @@ export default function SpeakersCongresoPage() {
         <div>
           <h1 className="titulo-pagina">
         <ChipTitulo Icono={Mic2} />
-            Speakers
+            Ponentes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {nombreCongreso && `${nombreCongreso} · `}
@@ -126,7 +126,7 @@ export default function SpeakersCongresoPage() {
           </p>
         </div>
         <Button size="sm" onClick={() => setEnFormulario('nuevo')}>
-          <Plus /> Nuevo speaker
+          <Plus /> Nuevo ponente
         </Button>
       </header>
 
@@ -151,7 +151,7 @@ export default function SpeakersCongresoPage() {
       {!cargando && ponentes.length === 0 && (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Mic2 className="mx-auto h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-muted-foreground">Todavía no hay speakers en este congreso.</p>
+          <p className="mt-2 text-muted-foreground">Todavía no hay ponentes en este congreso.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Créalos aquí y luego asígnalos a sus charlas desde la Agenda.
           </p>
@@ -217,7 +217,7 @@ export default function SpeakersCongresoPage() {
 
       <PanelLateral
         abierto={enFormulario !== null}
-        titulo={enFormulario === 'nuevo' ? 'Nuevo speaker' : 'Editar speaker'}
+        titulo={enFormulario === 'nuevo' ? 'Nuevo ponente' : 'Editar ponente'}
         subtitulo={nombreCongreso}
         alCerrar={() => setEnFormulario(null)}
       >
@@ -483,7 +483,7 @@ function FormularioPonente({
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Si el speaker también está inscrito como asistente, vincula su cuenta para que puedan conectar con él en el
+            Si el ponente también está inscrito como asistente, vincula su cuenta para que puedan conectar con él en el
             networking.
           </p>
         )}
@@ -495,7 +495,7 @@ function FormularioPonente({
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={guardando}>
-          {guardando ? 'Guardando…' : ponente ? 'Guardar cambios' : 'Crear speaker'}
+          {guardando ? 'Guardando…' : ponente ? 'Guardar cambios' : 'Crear ponente'}
         </Button>
         <Button type="button" variant="outline" onClick={alCancelar}>
           Cancelar

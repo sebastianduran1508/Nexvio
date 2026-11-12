@@ -81,7 +81,7 @@ export class PonentesService {
           where: { congreso_id: existe.congreso_id, usuario_id: dto.usuario_id, id: { not: id } },
           select: { nombre: true },
         });
-        if (otra) throw new ConflictException(`Esa cuenta ya está vinculada al speaker ${otra.nombre}`);
+        if (otra) throw new ConflictException(`Esa cuenta ya está vinculada al ponente ${otra.nombre}`);
       }
 
       return tx.ponente.update({

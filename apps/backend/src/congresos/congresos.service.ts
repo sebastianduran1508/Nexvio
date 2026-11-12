@@ -66,7 +66,8 @@ export class CongresosService {
         include: {
           personalizacion: { select: { logo_url: true, color_primario: true, color_secundario: true } },
           _count: {
-            select: { sesiones: true, inscripciones: { where: { estado: 'confirmada' } } },
+            // 8.10 (decisión 41): el conteo dice "N charlas" -> sin contar los breaks.
+            select: { sesiones: { where: { tipo: { not: 'break' } } }, inscripciones: { where: { estado: 'confirmada' } } },
           },
         },
       }),
@@ -167,7 +168,7 @@ export class CongresosService {
         if (fuera.length > 0) {
           const dias = [...new Set(fuera.map((s) => diaEnZona(s.inicio, zona)))].sort();
           throw new ConflictException(
-            `${fuera.length} ${fuera.length === 1 ? 'sesión quedaría' : 'sesiones quedarían'} fuera de las nuevas fechas (${dias.join(', ')}). ` +
+            `${fuera.length} ${fuera.length === 1 ? 'charla quedaría' : 'charlas quedarían'} fuera de las nuevas fechas (${dias.join(', ')}). ` +
               'Marca "Correr la agenda" para moverlas con el congreso, o muévelas o bórralas primero desde la Agenda.',
           );
         }

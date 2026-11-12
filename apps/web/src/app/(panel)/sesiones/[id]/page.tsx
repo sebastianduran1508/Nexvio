@@ -3,7 +3,7 @@
 import {
   BarChart3,
   CheckCheck,
-  CheckCircle2,
+  Undo2,
   Clock,
   Handshake,
   MapPin,
@@ -60,19 +60,21 @@ type SesionContexto = {
   _count?: { favoritas: number };
 };
 
-type Filtro = 'pendiente' | 'aprobada' | 'respondida' | 'rechazada' | 'todas';
+// Decisión 39 (8.10): las preguntas son privadas (solo las ve quien pregunta)
+// y ya no se "aprueban": pendiente -> respondida (o descartada).
+type Filtro = 'pendiente' | 'respondida' | 'rechazada' | 'todas';
 
 const FILTROS: { valor: Filtro; texto: string }[] = [
-  { valor: 'pendiente', texto: 'Pendientes' },
-  { valor: 'aprobada', texto: 'Aprobadas' },
+  { valor: 'pendiente', texto: 'Por responder' },
   { valor: 'respondida', texto: 'Respondidas' },
-  { valor: 'rechazada', texto: 'Rechazadas' },
+  { valor: 'rechazada', texto: 'Descartadas' },
   { valor: 'todas', texto: 'Todas' },
 ];
 
 /**
  * MODERACIÓN EN VIVO de una sesión (staff).
- *  - Preguntas: ver TODAS y moderarlas (aprobar / rechazar / respondida).
+ *  - Preguntas: ver TODAS y marcarlas respondidas o descartarlas (decisión 39:
+ *    sin "aprobar"; cada asistente ve solo las suyas en la app).
  *  - Encuestas: crear, abrir/cerrar y ver resultados.
  * Se une a la sala de la sesión por Socket.io y refresca al oír los avisos, así
  * lo que hace el asistente en el móvil aparece aquí al instante (y viceversa).
@@ -106,7 +108,7 @@ export default function SesionModeracionPage() {
   useEffect(() => {
     apiFetch<SesionContexto>('GET', `/sesiones/${sesionId}`)
       .then(setSesion)
-      .catch((e) => setError(e.message ?? 'No se pudo cargar la sesión'));
+      .catch((e) => setError(e.message ?? 'No se pudo cargar la charla'));
     cargarPreguntas();
     cargarEncuestas();
 
@@ -151,7 +153,7 @@ export default function SesionModeracionPage() {
     });
 
   const cuenta = useMemo(() => {
-    const c: Record<Filtro, number> = { pendiente: 0, aprobada: 0, respondida: 0, rechazada: 0, todas: preguntas.length };
+    const c: Record<Filtro, number> = { pendiente: 0, respondida: 0, rechazada: 0, todas: preguntas.length };
     for (const p of preguntas) if (p.estado in c) c[p.estado as Filtro]++;
     return c;
   }, [preguntas]);
@@ -259,9 +261,9 @@ export default function SesionModeracionPage() {
 
       {/* ---------- Indicadores ---------- */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Indicador Icono={Clock} tono="ambar" valor={cuenta.pendiente} texto="Por moderar" />
-        <Indicador Icono={CheckCircle2} tono="violeta" valor={cuenta.aprobada} texto="Aprobadas (visibles)" />
+        <Indicador Icono={Clock} tono="ambar" valor={cuenta.pendiente} texto="Por responder" />
         <Indicador Icono={CheckCheck} tono="verde" valor={cuenta.respondida} texto="Respondidas" />
+        <Indicador Icono={MessageSquare} tono="violeta" valor={cuenta.todas} texto="Preguntas en total" />
         <Indicador Icono={BarChart3} tono="coral" valor={abiertas} texto={`Encuesta${abiertas === 1 ? '' : 's'} abierta${abiertas === 1 ? '' : 's'}`} />
       </div>
 
@@ -273,7 +275,7 @@ export default function SesionModeracionPage() {
               <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary/10 text-primary dark:text-[#a99dff]">
                 <MessageSquare className="h-4 w-4" />
               </span>
-              Preguntas del público
+              Preguntas de los asistentes
             </h2>
             <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filtrar preguntas">
               {FILTROS.map((f) => (
@@ -301,7 +303,7 @@ export default function SesionModeracionPage() {
                 {preguntas.length === 0 ? 'Aún no hay preguntas.' : 'Nada en este filtro.'}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Las preguntas que envíen desde la app aparecen aquí al instante.
+                Las preguntas que envíen desde la app aparecen aquí al instante. Cada asistente ve solo las suyas.
               </p>
             </div>
           ) : (
@@ -329,9 +331,8 @@ export default function SesionModeracionPage() {
 
 const ESTADO: Record<string, { texto: string; chip: string; borde: string }> = {
   pendiente: { texto: 'Pendiente', chip: 'bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300', borde: 'bg-amber-400' },
-  aprobada: { texto: 'Aprobada', chip: 'bg-primary/10 text-primary dark:text-[#c4bbff]', borde: 'bg-primary' },
   respondida: { texto: 'Respondida', chip: 'bg-green-100 text-green-900 dark:bg-green-500/15 dark:text-green-300', borde: 'bg-green-500' },
-  rechazada: { texto: 'Rechazada', chip: 'bg-muted text-muted-foreground', borde: 'bg-border' },
+  rechazada: { texto: 'Descartada', chip: 'bg-muted text-muted-foreground', borde: 'bg-border' },
 };
 
 function haceCuanto(iso?: string) {
@@ -363,19 +364,20 @@ function TarjetaPregunta({ pregunta: p, alModerar }: { pregunta: Pregunta; alMod
         </div>
         <p className="mt-2.5 text-[15px] leading-relaxed text-card-foreground">{p.texto}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {p.estado !== 'aprobada' && p.estado !== 'respondida' && (
-            <Boton onClick={() => alModerar(p.id, 'aprobada')} tono="primario">
-              <CheckCircle2 className="h-4 w-4" /> Aprobar
-            </Boton>
+          {p.estado === 'pendiente' && (
+            <>
+              <Boton onClick={() => alModerar(p.id, 'respondida')} tono="exito">
+                <CheckCheck className="h-4 w-4" /> Marcar respondida
+              </Boton>
+              <Boton onClick={() => alModerar(p.id, 'rechazada')} tono="peligro">
+                <XCircle className="h-4 w-4" /> Descartar
+              </Boton>
+            </>
           )}
-          {p.estado === 'aprobada' && (
-            <Boton onClick={() => alModerar(p.id, 'respondida')} tono="exito">
-              <CheckCheck className="h-4 w-4" /> Marcar respondida
-            </Boton>
-          )}
-          {p.estado !== 'rechazada' && p.estado !== 'respondida' && (
-            <Boton onClick={() => alModerar(p.id, 'rechazada')} tono="peligro">
-              <XCircle className="h-4 w-4" /> Rechazar
+          {/* Deshacer un clic equivocado */}
+          {p.estado !== 'pendiente' && (
+            <Boton onClick={() => alModerar(p.id, 'pendiente')} tono="neutro">
+              <Undo2 className="h-4 w-4" /> Volver a pendiente
             </Boton>
           )}
         </div>

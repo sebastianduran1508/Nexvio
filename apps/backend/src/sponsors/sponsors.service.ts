@@ -93,7 +93,7 @@ export class SponsorsService {
     const sitio = normalizarSitio(dto.sitio_web);
     return this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sponsor.findFirst({ where: { id } });
-      if (!existe) throw new NotFoundException('Sponsor no encontrado');
+      if (!existe) throw new NotFoundException('Patrocinador no encontrado');
 
       // Al cambiar de nivel, va de último en el nivel nuevo (si no dicen orden).
       let orden = dto.orden;
@@ -123,7 +123,7 @@ export class SponsorsService {
         where: { congreso_id: congresoId, id: { in: ids } },
       });
       if (encontrados !== new Set(ids).size) {
-        throw new BadRequestException('Algún sponsor no pertenece a este congreso');
+        throw new BadRequestException('Algún patrocinador no pertenece a este congreso');
       }
       for (const [orden, id] of ids.entries()) {
         await tx.sponsor.update({ where: { id }, data: { orden } });
@@ -135,7 +135,7 @@ export class SponsorsService {
   async borrar(orgId: string, id: string) {
     const logo = await this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sponsor.findFirst({ where: { id } });
-      if (!existe) throw new NotFoundException('Sponsor no encontrado');
+      if (!existe) throw new NotFoundException('Patrocinador no encontrado');
       await tx.sesionSponsor.deleteMany({ where: { sponsor_id: id } }); // 8.7.f: deja de patrocinar sus charlas
       await tx.sponsor.delete({ where: { id } });
       return existe.logo_url;
@@ -153,7 +153,7 @@ export class SponsorsService {
     const sponsor = await this.prisma.runInTenant(orgId, (tx) =>
       tx.sponsor.findFirst({ where: { id } }),
     );
-    if (!sponsor) throw new NotFoundException('Sponsor no encontrado');
+    if (!sponsor) throw new NotFoundException('Patrocinador no encontrado');
 
     const url = await this.storage.subirImagen(
       archivo,
@@ -176,7 +176,7 @@ export class SponsorsService {
   async quitarLogo(orgId: string, id: string) {
     const sponsor = await this.prisma.runInTenant(orgId, async (tx) => {
       const existe = await tx.sponsor.findFirst({ where: { id } });
-      if (!existe) throw new NotFoundException('Sponsor no encontrado');
+      if (!existe) throw new NotFoundException('Patrocinador no encontrado');
       await tx.sponsor.update({ where: { id }, data: { logo_url: null } });
       return existe;
     });
