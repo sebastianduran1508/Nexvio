@@ -33,8 +33,7 @@ un backend:
 
 **Estado:** Fases 0–6 y Fase 8 terminadas (incluida la app compilada con
 notificaciones push reales). Pendiente: Fase 9 (carga, seguridad,
-despliegue) y Fase 7 (WhatsApp + agente IA). iOS: trabajo futuro (requiere
-cuenta de Apple de pago).
+despliegue) y Fase 7 (WhatsApp + agente IA). La app se probó en Android.
 
 ---
 
@@ -277,13 +276,14 @@ en la práctica antes de afirmarlo en el documento.
 | Pendiente | Tipo |
 |---|---|
 | Fase 9 · Pruebas de carga, seguridad, despliegue y monitoreo | Desarrollo |
-| Fase 7 · Bandeja de WhatsApp + agente IA (OpenAI + pgvector) | Desarrollo |
+| Fase 7 · Bandeja de WhatsApp + agente IA (OpenAI + pgvector) | Desarrollo (próximo semestre) |
 | Revisión del inglés y portugués por un hablante nativo | Calidad |
 | Revisión legal de la política de datos por el asesor del cliente | Legal |
 | Aceptación de la política para el staff en el panel | Legal |
 | Socket.io no respeta la suplantación del superadmin | Técnico menor |
 | Nombres de países en inglés/portugués | Técnico menor |
 | **Actualizar ERD y C4** (`diagramas.html` y la tesis) con las 23 tablas, Storage y Expo Push | **Documentación** |
+| **Landing page comercial** (próximo semestre): página pública para vender Nexvio, con sus características, animaciones e imágenes, y un botón "Ingresar al panel" que lleva al login del staff. Pedida por el cliente en la reunión de validación (7-nov-2026); decisión 47 del HANDOFF | Desarrollo (próximo semestre) |
 | Producto a mercado: auto-registro con código de evento, Instagram/Facebook, panel en otros idiomas | Futuro |
 
 ---

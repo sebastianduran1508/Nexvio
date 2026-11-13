@@ -3385,7 +3385,10 @@ teléfono; con la app en segundo plano, un aviso enviado desde el panel
 **llegó a la barra de notificaciones** con el ícono de Nexvio, y al tocarlo
 abrió la pantalla de Avisos. ✅
 
-**iOS:** el development build en un iPhone real y las push en iOS requieren la
-cuenta de desarrollador de Apple (99 USD/año); el simulador requiere un Mac
-con Xcode. Queda como trabajo futuro (el resto de la app ya se probó en iOS
-con Expo Go).
+**iOS (trabajo futuro):** el development build en un iPhone real y las push en
+iOS requieren la cuenta de desarrollador de Apple (99 USD/año); el simulador
+requiere un Mac con Xcode. **Ojo con Expo Go en iPhone:** la App Store solo
+ofrece Expo Go para la SDK más reciente (58 en nov-2026) y en iOS no se puede
+instalar una versión vieja (en Android sí, con una APK). Como Nexvio está en
+la SDK 54, **un iPhone no puede abrirla con Expo Go**. Para probar en iOS:
+actualizar la SDK o usar la cuenta de Apple. La app se probó solo en Android.

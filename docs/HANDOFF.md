@@ -1483,7 +1483,10 @@ comandos y gotchas: GUIA § 30.
 44. **Node 22.13 en los builds de EAS** (perfil `base`), porque pnpm 11 lo exige.
 45. **Reanimated 4.1.7 + Worklets 0.5.1 declarados** en la app (los del SDK 54),
     para que NativeWind no arrastre una versión incompatible.
-46. **iOS queda como trabajo futuro** (cuenta de Apple de pago o Mac).
+46. **iOS queda como trabajo futuro** (cuenta de Apple de pago o Mac). Además,
+    Expo Go en iPhone solo abre la SDK más reciente (58) y Nexvio está en la
+    54: probar en iOS exige actualizar la SDK o la cuenta de Apple. Actualizar
+    la SDK (54 → 58) se deja para antes de publicar en tiendas.
 
 **Pendiente para la Fase 9:** la app compilada todavía depende de la PC (Metro
 + backend local). Para un build que funcione solo: backend desplegado y
@@ -1504,9 +1507,33 @@ docs(8.9): development build y push real — GUIA § 30, decisiones 42–46 y ci
 **SIGUIENTE (en este orden):**
 1. **Fase 9** — pruebas de carga, revisión OWASP, límite de intentos en el
    login por usuario, el panel que no se actualiza solo en la moderación,
-   despliegue (backend + panel) y `EXPO_PUBLIC_API_URL` para builds que
-   funcionen sin la PC.
-2. **Fase 7** — WhatsApp + agente IA.
+   aceptación de la política por el staff, despliegue (backend + panel) y
+   `EXPO_PUBLIC_API_URL` para builds que funcionen sin la PC.
+2. **Próximo semestre:** **Fase 7** (WhatsApp + agente IA) y **Fase 10**
+   (landing page comercial, decisión 47). Este semestre cierra con la Fase 9.
+
+### Decisión 47 — Landing page comercial de Nexvio (12-nov-2026, para el próximo semestre)
+
+Salió de la reunión con el cliente del 7-nov. Hace falta una **página pública**
+que cumpla dos funciones:
+1. **Vender el producto (lo central):** qué es Nexvio, sus características
+   (panel, app, en vivo, networking, multi-organización, Ley 1581, idiomas),
+   beneficios para el organizador y llamado a la acción ("Solicitar demo" /
+   contacto). Debe ser **muy llamativa**: animaciones, imágenes flotantes
+   (capturas del panel y de la app), transiciones al hacer scroll.
+2. **Puerta de entrada del staff:** un botón **"Ingresar al panel"** que lleve
+   al login del panel web.
+
+Notas técnicas para cuando se haga:
+- Puede vivir en el mismo Next.js del panel (la raíz `/` como landing y
+  `/login` como hoy) o en un sitio aparte; decidirlo al arrancar.
+- Depende del **despliegue** (9.7): necesita el panel publicado y, idealmente,
+  un dominio propio.
+- Idea ya guardada: la variante **B "Noche Nexvio"** del mockup del 8.7.h
+  (decisión 22) se reservó justamente "para una landing o algo que deba ser
+  muy llamativo".
+- **Mockup primero** (como en el 8.7.h y el 8.7.j) y aprobación antes de
+  programar.
 
 **Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
 cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
