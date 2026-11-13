@@ -31,9 +31,10 @@ un backend:
 | **App móvil** (Expo) | Asistentes | Entrar con usuario y contraseña temporal; aceptar la política de datos; ver **solo su congreso**; agenda y "Mi agenda" (⭐); preguntas privadas y encuestas en vivo; networking tipo Tinder con match y chat; notificaciones; perfil con foto; derechos de datos (consultar, revocar, pedir supresión); tema claro/oscuro; **español, inglés y portugués**. |
 | **Backend** (NestJS) | — | API REST (104 rutas), tiempo real (Socket.io), autenticación, autorización y aislamiento por organización. |
 
-**Estado:** Fases 0–6 y Fase 8 terminadas. Pendiente: development build y
-push en teléfono real (8.9), Fase 9 (carga, seguridad, despliegue) y Fase 7
-(WhatsApp + agente IA).
+**Estado:** Fases 0–6 y Fase 8 terminadas (incluida la app compilada con
+notificaciones push reales). Pendiente: Fase 9 (carga, seguridad,
+despliegue) y Fase 7 (WhatsApp + agente IA). iOS: trabajo futuro (requiere
+cuenta de Apple de pago).
 
 ---
 
@@ -161,7 +162,8 @@ Fechas tomadas de los commits del repositorio.
 | 8.6 · Notificaciones y Ayuda | 29–30 oct | Avisos al momento y programados, bandeja en la app, Ayuda editable | § 26 | `e2e_fase8_6_*.js` (2) |
 | 8.7 · App móvil completa | 3–6 nov | Entrada y Ley 1581, solo su congreso, perfil, networking tipo Tinder, Mi agenda, patrocinio por charla, tema, rediseño del panel y de la app | § 27 | `e2e_fase8_7*.js` (9) |
 | 8.8 · Idiomas | 7 nov | es / en / pt-BR, errores y política traducidos | § 28 | `e2e_fase8_8_idiomas.js` |
-| 8.10 · Ajustes del cliente | 7 nov | Preguntas privadas, nombres unificados, cambio de congreso desde el Perfil | § 29 | `e2e_fase8_10_preguntas.js` |
+| 8.10 · Ajustes del cliente | 7–12 nov | Preguntas privadas, nombres unificados, cambio de congreso desde el Perfil | § 29 | `e2e_fase8_10_preguntas.js` |
+| 8.9 · Build y push real | 12 nov | App compilada con EAS + Firebase (FCM); notificación real en Android | § 30 | Prueba manual en teléfono ✅ |
 
 ---
 
@@ -274,7 +276,6 @@ en la práctica antes de afirmarlo en el documento.
 
 | Pendiente | Tipo |
 |---|---|
-| 8.9 · Development build (EAS) + Firebase + push en teléfono real | Desarrollo |
 | Fase 9 · Pruebas de carga, seguridad, despliegue y monitoreo | Desarrollo |
 | Fase 7 · Bandeja de WhatsApp + agente IA (OpenAI + pgvector) | Desarrollo |
 | Revisión del inglés y portugués por un hablante nativo | Calidad |

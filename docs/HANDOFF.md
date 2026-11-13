@@ -6,9 +6,8 @@
 
 Plataforma SaaS multi-tenant para gestión centralizada de congresos y eventos de Grupo Studio Sebia. Proyecto de grado (Universidad El Bosque) de Sebastián Durán Forero y María José Galindo Piñeros. Se compone de: app móvil (asistentes), panel web (staff) y backend/API.
 
-> **Estado (7-nov-2026):** Fases 0–6 y Fase 8 (8.0–8.8 y 8.10) terminadas.
-> Faltan 8.9 (build + push real), Fase 9 (carga y seguridad) y Fase 7
-> (WhatsApp + IA). Para retomar el desarrollo: ir al **📍 PUNTO DE RETOMA**
+> **Estado (12-nov-2026):** Fases 0–6 y **Fase 8 completa** (8.0–8.10).
+> Faltan Fase 9 (carga, seguridad y despliegue) y Fase 7 (WhatsApp + IA). Para retomar el desarrollo: ir al **📍 PUNTO DE RETOMA**
 > más reciente (casi al final). Para escribir la documentación de la tesis:
 > empezar por `RESUMEN_PARA_DOCUMENTACION.md`.
 
@@ -1468,7 +1467,56 @@ Después de la decisión 41 (para no pisarse). Mapa de archivos en GUIA § 28.
 
 ---
 
-## 📍 PUNTO DE RETOMA (12-nov-2026) — Bloque 8.10 (ajustes del cliente) cerrado ✅
+## Estado actual (Fase 8 · Bloque 8.9 — Development build + push real) ✅ COMPLETO (12-nov-2026)
+
+La app se compila con EAS como app propia (`com.nexvio.app`, perfil
+`development`, APK) y recibe notificaciones push reales por Firebase (FCM V1,
+proyecto `nexvio-97c5f`). Prueba de cierre manual en Android: ✅. Detalle,
+comandos y gotchas: GUIA § 30.
+
+### Decisiones del 8.9 (12-nov-2026)
+42. **Firebase aparte del de VitalSync** (proyecto nuevo `nexvio-97c5f`).
+43. **Ningún archivo de Firebase en git:** `google-services.json` va a EAS como
+    variable de entorno tipo archivo (`GOOGLE_SERVICES_JSON`, secreta) y
+    `app.config.js` lee su ruta; la clave de la cuenta de servicio vive solo en
+    las credenciales de EAS.
+44. **Node 22.13 en los builds de EAS** (perfil `base`), porque pnpm 11 lo exige.
+45. **Reanimated 4.1.7 + Worklets 0.5.1 declarados** en la app (los del SDK 54),
+    para que NativeWind no arrastre una versión incompatible.
+46. **iOS queda como trabajo futuro** (cuenta de Apple de pago o Mac).
+
+**Pendiente para la Fase 9:** la app compilada todavía depende de la PC (Metro
++ backend local). Para un build que funcione solo: backend desplegado y
+`EXPO_PUBLIC_API_URL` en `lib/config.ts`.
+
+---
+
+## 📍 PUNTO DE RETOMA (12-nov-2026, noche) — Bloque 8.9 cerrado ✅
+
+**Hecho:** 8.10 (ajustes del cliente, con el fix de cambio de congreso) y 8.9
+(development build + push real). **Fase 8 completa.**
+
+**Commit pendiente (lo hace Sebastián):**
+```
+docs(8.9): development build y push real — GUIA § 30, decisiones 42–46 y cierre de la Fase 8
+```
+
+**SIGUIENTE (en este orden):**
+1. **Fase 9** — pruebas de carga, revisión OWASP, límite de intentos en el
+   login por usuario, el panel que no se actualiza solo en la moderación,
+   despliegue (backend + panel) y `EXPO_PUBLIC_API_URL` para builds que
+   funcionen sin la PC.
+2. **Fase 7** — WhatsApp + agente IA.
+
+**Método (no cambia):** paso a paso y explicado; Sebastián hace los commits;
+cada bloque cierra con prueba; GUIA_DEV y HANDOFF se actualizan al cerrar y
+las decisiones se anotan al tomarlas; verificar SIEMPRE los archivos tras
+copiarlos al PC; correr `npx tsc --noEmit` tras cada cambio grande de la app.
+Credenciales nunca en el repo. Textos de la app: cambiar los TRES diccionarios.
+
+---
+
+## (Histórico) PUNTO DE RETOMA (12-nov-2026) — Bloque 8.10 (ajustes del cliente) cerrado ✅
 
 **Hecho (8.10):** decisiones 38–41 — título "Nexvio", preguntas privadas y
 sin aprobar, cambiar de congreso desde el Perfil, nombres unificados (panel =

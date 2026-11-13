@@ -1,10 +1,9 @@
 # Guía de desarrollo — Nexvio
 
-> **Estado (7-nov-2026):** desarrollo del producto **casi completo**.
-> Fases 0–6 y Fase 8 (bloques 8.0 a 8.8 y 8.10) terminadas, cada una con su
-> prueba automatizada de cierre. **Faltan:** 8.9 (development build + push
-> real en el teléfono), **Fase 9** (pruebas de carga y seguridad) y **Fase 7**
-> (WhatsApp + agente IA). El resumen para la documentación de la tesis está en
+> **Estado (12-nov-2026):** desarrollo del producto **casi completo**.
+> Fases 0–6 y **Fase 8 completa** (8.0 a 8.10, incluido el development build
+> con push real), cada bloque con su prueba de cierre. **Faltan:** **Fase 9**
+> (carga, seguridad y despliegue) y **Fase 7** (WhatsApp + agente IA). El resumen para la documentación de la tesis está en
 > `RESUMEN_PARA_DOCUMENTACION.md`; las decisiones y su historia, en
 > `HANDOFF.md`.
 >
@@ -3314,3 +3313,79 @@ De paso se corrigió `rls_via_app.js`: exigía que cada organización de prueba
 viera **exactamente 1** congreso (como en la Fase 1), y con el tiempo otras
 pruebas crearon más. Ahora verifica lo que importa: todo lo que ve cada
 organización es suyo, nada aparece en las dos y sin tenant se ven 0 filas.
+
+---
+
+## 30. Development build y notificaciones push reales (Bloque 8.9)
+
+Hasta el 8.8 la app corría dentro de **Expo Go**. Expo Go es como un
+reproductor: toca nuestra app, pero no puede tener funciones nativas propias,
+y en Android **no recibe notificaciones push**. El 8.9 compila Nexvio como
+**su propia app** (development build): se instala con su ícono y su splash, y
+recibe notificaciones.
+
+### 30.1. Las piezas
+
+| Pieza | Para qué | Dónde |
+|---|---|---|
+| **EAS** (Expo Application Services) | Compila la app en la nube de Expo | `eas.json` (perfiles), cuenta `duran1508` |
+| **projectId** | La identidad de la app ante Expo (la usan las push) | `app.json → extra.eas.projectId` |
+| **expo-dev-client** | Convierte la app en "su propio reproductor": se sigue programando con recarga en vivo | dependencia de `apps/mobile` |
+| **Firebase (FCM)** | El "cartero" de Google que entrega las push en Android | proyecto `nexvio-97c5f` |
+| **google-services.json** | La ficha de la app ante Firebase | `apps/mobile/` (**ignorado por git**); en EAS, variable de entorno tipo archivo `GOOGLE_SERVICES_JSON` (secreta); `app.config.js` lee su ruta |
+| **Clave de cuenta de servicio (FCM V1)** | Permiso para que Expo le pida a Firebase entregar las push | **solo** en las credenciales de EAS (`eas credentials`); se borró del PC |
+| **Keystore** | La firma digital de la app | la guarda EAS. ⚠️ Google Play exige la MISMA en todas las actualizaciones: no borrarla (respaldo con `eas credentials`) |
+| **Ícono de notificación** | El logo de nodos en blanco (así lo pide Android) | `assets/notification-icon.png` + plugin `expo-notifications` en `app.json` |
+
+**Flujo de una push:** panel → backend (`notificaciones`) → servidor de Expo
+Push (con el token de cada teléfono) → Firebase → teléfono.
+
+### 30.2. Comandos
+
+```bash
+# Compilar (en la nube; 10–20 min). Perfil development = APK con dev client.
+cd apps/mobile
+eas build --profile development --platform android
+# Al terminar: QR/enlace → instalar la APK en el Android.
+
+# Desarrollar con la app instalada (en vez de Expo Go):
+npx expo start --dev-client
+```
+
+Hay que **volver a compilar** solo cuando cambia algo NATIVO (una librería
+nativa nueva, permisos, ícono, `app.json`). Los cambios de código JS/TS se
+ven al instante con `expo start --dev-client`, como antes.
+
+### 30.3. Gotchas del 8.9 (¡para no repetirlos!)
+
+- **pnpm 11 exige Node ≥ 22.13** y EAS usaba Node 20 → el perfil `base` de
+  `eas.json` fija `"node": "22.13.0"` (lo heredan todos los perfiles).
+- **Reanimated 4.6 no es compatible con React Native 0.81.** No lo usamos
+  directamente: lo pide NativeWind (`react-native-css-interop`, "≥ 3.6.2") y
+  pnpm instaló la más nueva. En Expo Go no se notaba porque Expo Go trae la
+  suya. Arreglo: declararlo nosotros con `npx expo install
+  react-native-reanimated react-native-worklets` (4.1.7 y 0.5.1, las del SDK
+  54). **Regla:** al actualizar el SDK, correr `npx expo install --fix`.
+- **El campo de la ruta en `eas credentials`** trae un texto de ejemplo: si se
+  arrastra el archivo encima, la ruta queda pegada a él ("File does not
+  exist"). Borrar el campo y pegar solo la ruta.
+- El aviso amarillo "googleServicesFile is not checked in" al compilar es
+  esperado: en EAS el archivo llega por la variable `GOOGLE_SERVICES_JSON`.
+- **La app compilada sigue necesitando la PC** (`expo start --dev-client`
+  para el código y el backend en `localhost:3000`): `lib/config.ts` saca la
+  IP del backend de la dirección de Metro. Para una app que funcione sola
+  (perfil `preview`/`production`) hace falta el backend desplegado y
+  `EXPO_PUBLIC_API_URL` → **Fase 9**.
+
+### 30.4. Prueba de cierre
+
+Manual, en un Android real (12-nov-2026): la app compilada se instaló con su
+ícono y splash; al entrar pidió permiso de notificaciones y registró el
+teléfono; con la app en segundo plano, un aviso enviado desde el panel
+**llegó a la barra de notificaciones** con el ícono de Nexvio, y al tocarlo
+abrió la pantalla de Avisos. ✅
+
+**iOS:** el development build en un iPhone real y las push en iOS requieren la
+cuenta de desarrollador de Apple (99 USD/año); el simulador requiere un Mac
+con Xcode. Queda como trabajo futuro (el resto de la app ya se probó en iOS
+con Expo Go).
