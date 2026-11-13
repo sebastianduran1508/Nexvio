@@ -27,7 +27,8 @@ const JWKS = createRemoteJWKSet(
  * la lista por REST.
  */
 @WebSocketGateway({
-  cors: { origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001' },
+  // 9.7: misma lista de orígenes que el CORS de main.ts (separados por coma).
+  cors: { origin: (process.env.WEB_ORIGIN ?? 'http://localhost:3001').split(',').map((o) => o.trim()) },
 })
 export class RealtimeGateway implements OnGatewayInit {
   @WebSocketServer() server: Server;

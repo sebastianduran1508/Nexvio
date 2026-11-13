@@ -5,15 +5,23 @@ import { AppModule } from './app.module';
 import { TenantContextMiddleware } from './auth/tenant-context.middleware';
 import { TraducirErroresFilter } from './idioma/traducir-errores.filter';
 
+/** Orígenes del panel autorizados por CORS (9.7: lista separada por comas). */
+export function origenesPermitidos(): string[] {
+  return (process.env.WEB_ORIGIN ?? 'http://localhost:3001')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // CORS: por seguridad, el navegador bloquea que una página (localhost:3001)
   // llame a otra dirección (localhost:3000) salvo que el servidor lo autorice.
   // Aquí autorizamos explícitamente el origen del panel web.
-  app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3001',
-  });
+  // 9.7: WEB_ORIGIN admite VARIOS orígenes separados por coma (el panel en
+  // Vercel y, si se quiere, el local): "https://nexvio.vercel.app,http://localhost:3001".
+  app.enableCors({ origin: origenesPermitidos() });
 
   // 8.8: los errores salen en el idioma de la app (cabecera X-Idioma); el
   // panel, que no la manda, los sigue recibiendo en español.

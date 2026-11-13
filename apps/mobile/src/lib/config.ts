@@ -19,4 +19,7 @@ const hostUri =
 
 const host = hostUri.split(':')[0];
 
-export const API_URL = `http://${host}:3000`;
+// 9.7/9.8: en un build que funciona sin la PC (perfil `preview`/`production`)
+// la URL del backend desplegado llega por EXPO_PUBLIC_API_URL (variable de EAS).
+// En desarrollo no se define y se usa la IP de tu PC, como siempre.
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || `http://${host}:3000`;

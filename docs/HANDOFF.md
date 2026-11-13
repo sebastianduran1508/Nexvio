@@ -1512,6 +1512,66 @@ docs(8.9): development build y push real — GUIA § 30, decisiones 42–46 y ci
 2. **Próximo semestre:** **Fase 7** (WhatsApp + agente IA) y **Fase 10**
    (landing page comercial, decisión 47). Este semestre cierra con la Fase 9.
 
+### Decisión 48 — Pruebas de carga con 700–900 asistentes (12-nov-2026)
+
+Sebastián: los congresos objetivo son grandes; el plan original decía 120+
+usuarios, pero hay que asegurar que el sistema no se cuelgue en un evento
+importante. **Meta: 900 asistentes simultáneos** (con un pico de prueba de
+~1.000 para tener margen). Criterios y escenarios: ver el plan del 9.1 en
+la GUIA cuando se construya.
+
+### Hallazgo 9.1-1 — La importación de Excel es lenta con volumen (12-nov-2026)
+
+Al preparar la prueba de carga se importaron **900 asistentes en 6 lotes de
+150: 900/900 sin errores, pero 845,7 s en total (~940 ms por persona)**. Causa:
+`importacion.service.ts` crea las cuentas **en serie** (por persona: crear la
+cuenta en Supabase Auth, que además cifra la clave, y luego la transacción en
+la base). Consecuencia: un Excel de 900 subido desde el panel tardaría ~14 min
+en UNA petición → la cortaría el servidor (Node corta a los 5 min; los hosts de
+producción, antes). En el panel, un archivo de ~300 personas ya está en riesgo.
+**Tarea 9.11:** crear las cuentas con concurrencia limitada (p. ej. 8 a la vez)
+y, mejor, importar en segundo plano con progreso ("340 de 900…"). Medir de
+nuevo después del arreglo (evidencia antes/después para la tesis).
+
+### Hallazgo 9.1-2 — El límite de inicios de sesión de Supabase es POR IP (13-nov-2026)
+
+Sacar 900 tokens desde un solo PC tardó ~29 min (900/900, con pausas por 429),
+aun con el límite subido. Supabase limita los inicios de sesión **por IP**.
+Con usuarios reales cada teléfono tiene su IP, **salvo en el Wi-Fi del
+evento**: ahí cientos de teléfonos salen a internet con la MISMA IP pública y,
+si muchos entran a la vez (p. ej. al abrir el congreso), el límite los
+bloquearía. **Tarea 9.12:** dejar el límite de "Sign-ups and sign-ins" alto en
+producción (no volver a 30) y comprobar que la app muestre un mensaje claro si
+le toca un 429. (La sesión de la app se recuerda: cada persona inicia sesión
+una sola vez, no cada vez que abre la app.)
+
+⚠️ Ajustes TEMPORALES de las pruebas, a revertir al terminar la Fase 9: vida
+del token (JWT expiry) volver a 3600; el límite de sign-ins dejarlo en un valor
+de producción decidido en la 9.12.
+
+### Hallazgo 9.1-3 — Ensayo local: estable pero lento (13-nov-2026)
+
+Ensayo en el PC de Sebastián (backend local, base en Supabase us-east-2):
+
+| Escenario | VUs | Errores | p95 | mín | req/s |
+|---|---|---|---|---|---|
+| A · llegada | 100 | 0 % | 3,1 s | 407 ms | 12,9 |
+| B · charla estrella | 200 | 0 % | 21,4 s | 711 ms | 8,9 |
+| C · pico | 100 | 0 % | 2,8 s | 437 ms | 16,2 |
+
+- **Estable:** 0 % de errores; en B las 200 conexiones en vivo entraron a la sala.
+- **Lento por latencia:** cada ida y vuelta Bogotá→Ohio ≈ 120 ms y cada
+  petición hace ~10 (transacción del `AccesoCongresoGuard` + transacción del
+  servicio, cada una con BEGIN/set_config/consultas/COMMIT). Con el pool de
+  15 conexiones, el techo es ~13 req/s: lo que midió k6.
+- En B la avalancha de refrescos ("avisar y refrescar") **no alcanzó a darse**
+  (181 avisos de ~40.000 posibles): la fila llegó primero. Hay que volver a
+  medirla con el sistema desplegado.
+- **Plan:** 9.7 (desplegar el backend en la región de Supabase) → repetir
+  ensayos → **9.13** optimizaciones (una sola transacción por petición, pool
+  más grande, agrupar avisos en vivo o enviar el resultado en el aviso) →
+  medición oficial con 900. Reportes del ensayo: `prisma/carga/reportes/`.
+
 ### Decisión 47 — Landing page comercial de Nexvio (12-nov-2026, para el próximo semestre)
 
 Salió de la reunión con el cliente del 7-nov. Hace falta una **página pública**

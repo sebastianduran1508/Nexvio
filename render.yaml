@@ -1,0 +1,38 @@
+# ==========================================================================
+# Fase 9 · 9.7 — Despliegue del BACKEND en Render (Blueprint).
+#
+# - Región OHIO: la misma de la base de datos de Supabase (us-east-2). Cada
+#   ida y vuelta a la base baja de ~120 ms (desde Bogotá) a ~1-2 ms.
+#   (Hallazgo 9.1-3 del HANDOFF.)
+# - Plan FREE: se duerme tras 15 min sin uso y tarda ~1 min en despertar.
+#   Para la medición oficial de carga (900) se sube temporalmente a un plan pago.
+# - Monorepo pnpm: se instala SOLO el backend y sus dependencias.
+# - Las variables con `sync: false` son SECRETAS: se escriben en el panel de
+#   Render, nunca aquí.
+# ==========================================================================
+services:
+  - type: web
+    name: nexvio-backend
+    runtime: node
+    region: ohio
+    plan: free
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile --filter backend... &&
+      pnpm --filter backend exec prisma generate &&
+      pnpm --filter backend build
+    startCommand: pnpm --filter backend start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false

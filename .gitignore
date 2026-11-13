@@ -24,3 +24,6 @@ Thumbs.db
 
 # Credenciales de las cuentas de PRUEBA (desarrollo local, nunca a git)
 .credenciales-dev.md
+
+# Archivos que guarda la app de escritorio de Claude (no son del proyecto)
+Claude outputs/
