@@ -16,8 +16,11 @@ services:
     runtime: node
     region: ohio
     plan: free
+    # 9.7: pnpm se instala con npm y NO con `corepack enable`: el corepack que
+    # trae Node 22.13 no reconoce las llaves de firma nuevas del registro de npm
+    # ("Cannot find matching keyid") y falla. Misma versión del packageManager.
     buildCommand: >-
-      corepack enable &&
+      npm install -g pnpm@11.17.0 &&
       pnpm install --frozen-lockfile --filter backend... &&
       pnpm --filter backend exec prisma generate &&
       pnpm --filter backend build
