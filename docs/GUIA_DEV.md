@@ -20,7 +20,8 @@
 > superadmin (§ 21) · Excel y login por usuario (§ 22) · feria (§ 23) · agenda
 > (§ 24) · patrocinadores y personalización (§ 25) · notificaciones y Ayuda
 > (§ 26) · app completa y Ley 1581 (§ 27) · idiomas (§ 28) · ajustes del
-> cliente (§ 29).
+> cliente (§ 29) · development build y push (§ 30) · carga y despliegue
+> (§ 31). **Todo lo de pruebas, en detalle: `PRUEBAS_NEXVIO.md`.**
 
 ---
 
@@ -3392,3 +3393,71 @@ ofrece Expo Go para la SDK más reciente (58 en nov-2026) y en iOS no se puede
 instalar una versión vieja (en Android sí, con una APK). Como Nexvio está en
 la SDK 54, **un iPhone no puede abrirla con Expo Go**. Para probar en iOS:
 actualizar la SDK o usar la cuenta de Apple. La app se probó solo en Android.
+
+---
+
+## 31. Pruebas de carga y despliegue (Fase 9, en curso)
+
+> **El detalle completo** (estrategia, escenarios, resultados, hallazgos,
+> correcciones y decisiones) está en **`docs/PRUEBAS_NEXVIO.md`**. Aquí va lo
+> necesario para trabajar con el código.
+
+### 31.1. Despliegue (9.7)
+
+| Pieza | Dónde | Cómo se actualiza |
+|---|---|---|
+| Backend | Render, región Ohio (`render.yaml`), plan free → `https://nexvio-backend.onrender.com` | Solo: cada push a `main` lo redespliega |
+| Panel | Vercel → `https://nexvio-rose.vercel.app` (Root `apps/web`) | Solo: cada push a `main` |
+| App | Development build; con `EXPO_PUBLIC_API_URL=https://nexvio-backend.onrender.com` en `apps/mobile/.env` usa el backend desplegado | Para desarrollar contra tu PC, comentar esa línea y reiniciar con `npx expo start --dev-client -c` |
+
+- **Variables del backend en Render:** `DATABASE_URL`, `SUPABASE_URL`,
+  `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `WEB_ORIGIN` (varios
+  orígenes separados por coma), `NODE_VERSION=22.13.0`.
+- **Variables del panel en Vercel:** `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`.
+- **Gotchas:** `start:prod` = `node dist/src/main` (no `dist/main`); pnpm se
+  instala con `npm install -g pnpm@11.17.0` (el `corepack` de Node 22.13 falla
+  con las llaves nuevas de npm); el plan free de Render se duerme a los 15 min
+  y tarda ~1 min en despertar.
+
+### 31.2. Las pruebas de carga (`apps/backend/prisma/carga/`)
+
+```
+carga/
+  _comun.js        utilidades (login con reintento ante 429, api, en paralelo)
+  1_preparar.js    congreso "Carga N" + N asistentes por Excel (lotes de 150)
+  2_tokens.js      inicia sesión con los N antes de medir (reanudable)
+  9_limpiar.js     borra el congreso y los N asistentes
+  k6/_comun.js     criterios (p95 < 1 s, < 1 % errores) y llamadas de la app
+  k6/a_llegada.js  escenario A
+  k6/b_charla_estrella.js  escenario B (Socket.io real; encuesta nueva por corrida)
+  k6/c_pico.js     escenario C
+  datos/           cuentas y tokens de PRUEBA — ignorado por git
+  reportes/        reportes HTML de k6 (evidencia)
+```
+
+**Ajustes temporales en Supabase para las pruebas** (revertir al cerrar la
+Fase 9): vida del token (JWT expiry, en *Authentication → Sessions* o la
+pestaña *Legacy JWT Secret*) en **86400 s** (normal: 3600) y *Rate Limits →
+Sign-ups and sign-ins* alto (p. ej. 2000).
+
+**Socket.io desde k6** (por si hay que tocar el escenario B): el protocolo es
+texto. El servidor manda `0{…}` al abrir → el cliente responde
+`40{"token":"…"}` (conectar con el token) → el servidor confirma con `40…` →
+el cliente manda `420["join_sesion","<id>"]` (evento con ack 0) → la
+respuesta llega como `430[{"ok":true}]`. Los eventos del servidor llegan como
+`42["nombre",{…}]`, y el ping `2` se responde con `3`.
+
+### 31.3. Gotchas de las pruebas (¡para no repetirlos!)
+
+- **Verificar propiedades, no datos puntuales:** `rls_via_app.js` exigía
+  "exactamente 1 congreso" y falló cuando otras pruebas crearon más, aunque el
+  aislamiento funcionaba. Se corrigió para verificar que todo lo que ve cada
+  organización sea suyo.
+- **Mediciones repetibles:** reutilizar la encuesta del escenario B dio 199
+  "409 Ya votaste" (los mismos asistentes ya habían votado). Cada corrida crea
+  una encuesta nueva.
+- **"fetch failed"** en cualquier script = el backend no está encendido (o la
+  URL de `API_URL` está mal).
+- Los argumentos de `e2e_fase5_preguntas.js` son CUATRO: correo y clave del
+  organizador, correo y clave del asistente.

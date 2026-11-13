@@ -11,6 +11,7 @@
 > | **Este resumen** | Visión completa y justificaciones | Primero |
 > | `GUIA_DEV.md` ("GUIA § n") | Cómo funciona cada parte del código, con ejemplos | Por secciones, según el tema |
 > | `HANDOFF.md` | Bitácora: decisiones con fecha, *gotchas*, pendientes | Buscar por fase o por número de decisión |
+> | `PRUEBAS_NEXVIO.md` | **Todo sobre las pruebas**: estrategia, resultados, hallazgos, correcciones | Capítulo de pruebas y Anexo 5 |
 > | `PLAN_DE_RUTA_NEXVIO.md` | El plan original (fases y decisiones previas al código) | Para comparar plan vs. resultado |
 > | `NEXVIO_Vfinal.md` | La tesis aprobada | Lo que hay que actualizar |
 > | `IDENTIDAD_VISUAL.md` | Marca: colores, tipografía, logo | Capítulo de diseño |
@@ -243,8 +244,19 @@ alguna de las primeras, los borran al terminar. Es la condición 2 de la "Defini
 - Cada bloque se probó además **a mano** en el panel y en un Android real
   (Expo Go), y los errores encontrados se corrigieron dentro del bloque.
 
-**Pendiente (Fase 9):** pruebas de carga, revisión de seguridad (p. ej. límite
-de intentos en el login por usuario) y suite unitaria con Jest.
+**Pruebas de carga (Fase 9, en curso — detalle en `PRUEBAS_NEXVIO.md`):**
+meta de **900 asistentes simultáneos** (decisión 48) con k6 y tres escenarios
+(llegada, charla estrella en vivo, pico por notificación); criterios p95 < 1 s
+y < 1 % de errores. Resultados hasta ahora: **0 % de errores en todos los
+ensayos**; tras desplegar el backend junto a la base, la navegación normal
+pasa (p95 0,67 s, antes 3,1 s); el tiempo real y los picos aún no pasan y se
+están optimizando. Hallazgos: importación de Excel lenta con volumen (~940 ms
+por persona), límite de Supabase por IP (riesgo en el Wi-Fi del evento),
+latencia por dos transacciones por petición y la "avalancha de refrescos" del
+tiempo real.
+
+**Pendiente (Fase 9):** optimizaciones y medición oficial de 900, revisión de
+seguridad OWASP (p. ej. límite de intentos en el login por usuario).
 
 ---
 

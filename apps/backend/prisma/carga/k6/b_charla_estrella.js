@@ -32,18 +32,29 @@ export const options = {
   },
 };
 
-/** Antes de empezar: el organizador abre la encuesta y leemos sus opciones. */
+/**
+ * Antes de empezar: el organizador crea una encuesta NUEVA y la abre.
+ * (Ajuste 13-nov: con una sola encuesta, al repetir el escenario los mismos
+ * asistentes ya habían votado y el backend respondía, con razón, 409 "Ya
+ * votaste". Una encuesta por corrida hace que cada medición sea limpia.)
+ */
 export function setup() {
   const h = { headers: { Authorization: `Bearer ${DATOS.orgToken}`, 'Content-Type': 'application/json' } };
-  http.patch(`${API}/encuestas/${DATOS.encuestaId}`, JSON.stringify({ activa: true }), h);
+  const nueva = http.post(
+    `${API}/sesiones/${DATOS.estrellaId}/encuestas`,
+    JSON.stringify({ pregunta: `Encuesta de carga ${new Date().toISOString()}`, opciones: ['Opción A', 'Opción B', 'Opción C', 'Opción D'] }),
+    h,
+  );
+  const encuestaId = nueva.json('id');
+  http.patch(`${API}/encuestas/${encuestaId}`, JSON.stringify({ activa: true }), h);
   const encs = http.get(`${API}/sesiones/${DATOS.estrellaId}/encuestas`, h).json();
-  const enc = (encs || []).find((e) => e.id === DATOS.encuestaId);
-  return { opciones: (enc?.opciones || []).map((o) => o.id) };
+  const enc = (encs || []).find((e) => e.id === encuestaId);
+  return { encuestaId, opciones: (enc?.opciones || []).map((o) => o.id) };
 }
 
 /** Al terminar: la encuesta se cierra. */
-export function teardown() {
-  http.patch(`${API}/encuestas/${DATOS.encuestaId}`, JSON.stringify({ activa: false }), {
+export function teardown(datos) {
+  http.patch(`${API}/encuestas/${datos.encuestaId}`, JSON.stringify({ activa: false }), {
     headers: { Authorization: `Bearer ${DATOS.orgToken}`, 'Content-Type': 'application/json' },
   });
 }
@@ -81,7 +92,7 @@ export default function (datos) {
     // Vota una vez en algún momento de los primeros ~40 s.
     socket.setTimeout(() => {
       const op = datos.opciones[Math.floor(Math.random() * datos.opciones.length)];
-      if (op) post(`/encuestas/${DATOS.encuestaId}/votar`, token, { opcion_id: op }, 'POST /encuestas/:id/votar');
+      if (op) post(`/encuestas/${datos.encuestaId}/votar`, token, { opcion_id: op }, 'POST /encuestas/:id/votar');
     }, 5000 + Math.random() * 35000);
 
     // Uno de cada diez hace una pregunta.

@@ -17,6 +17,9 @@ Documentos de referencia en esta misma carpeta `docs/`:
   pruebas y diferencias con el diseño original, con enlaces a este archivo y a
   la GUIA.
 - `GUIA_DEV.md` — cómo funciona el código, sección por sección.
+- `PRUEBAS_NEXVIO.md` — **todo sobre las pruebas**: estrategia, las 29 e2e,
+  aislamiento, manuales, carga (escenarios, resultados y hallazgos),
+  correcciones y decisiones.
 - `NEXVIO_Vfinal.md` — la tesis aprobada.
 - `diagramas.html` — diagramas C4, ERD y secuencia RLS (hechos por el autor;
   ⚠️ el ERD y el C4 están desactualizados: ver pendientes).
@@ -1571,6 +1574,56 @@ Ensayo en el PC de Sebastián (backend local, base en Supabase us-east-2):
   ensayos → **9.13** optimizaciones (una sola transacción por petición, pool
   más grande, agrupar avisos en vivo o enviar el resultado en el aviso) →
   medición oficial con 900. Reportes del ensayo: `prisma/carga/reportes/`.
+
+### 9.7 — Despliegue ✅ (13-nov-2026)
+
+- **Backend:** Render, región **Ohio** (la misma de Supabase), plan free →
+  `https://nexvio-backend.onrender.com`. Configuración en `render.yaml`
+  (Blueprint). Secretos solo en el panel de Render.
+- **Panel:** Vercel (Hobby, gratis) → `https://nexvio-rose.vercel.app`. Root
+  Directory `apps/web`; Install Command propio (abajo).
+- `WEB_ORIGIN` (Render) = `https://nexvio-rose.vercel.app,http://localhost:3001`
+  (CORS y Socket.io aceptan varios orígenes separados por coma).
+- **Gotchas:** (1) `start:prod` apuntaba a `dist/main` y el build deja
+  `dist/src/main` (nunca se notó porque en local se usa `start:dev`);
+  (2) `corepack enable` falla en Node 22.13 ("Cannot find matching keyid":
+  llaves nuevas de npm) → se instala pnpm con `npm install -g pnpm@11.17.0`
+  en Render y en Vercel; (3) el plan free de Render se duerme a los 15 min
+  (~1 min en despertar): para la medición oficial de 900 se sube a un plan
+  pago unos días.
+- ⚠️ Las claves de la base quedaron visibles en un pantallazo (13-nov): **se
+  rotaron** las de `postgres` y `nexvio_app` (`.env` local y Render al día).
+
+### Hallazgo 9.1-4 — Ensayo contra Render (free, Ohio) (13-nov-2026)
+
+| Escenario | VUs | Errores | p95 local → Render | Criterio |
+|---|---|---|---|---|
+| A · llegada | 100 | 0 % | 3,1 s → **0,67 s** (prom. 0,28 s) | ✅ |
+| B · charla estrella* | 200 | 0 % | 21,4 s → **16,4 s** (unirse a la sala ~5 s) | ✗ |
+| C · pico | 100 | 0 % | 2,8 s → **1,5 s** | ✗ (cerca) |
+
+\* B corrido de nuevo con una encuesta NUEVA por corrida: la primera vez dio
+199 "409 Ya votaste" porque se reusaron la encuesta y los asistentes del
+ensayo local (error del script, no del sistema; ya corregido).
+Conclusión: estar junto a la base resolvió la navegación normal (A). Lo que
+falta es el **tiempo real** (B) y los **picos** (C): CPU mínima del plan free +
+dos transacciones por petición + la avalancha de refrescos (626–773 avisos ya
+en 200 usuarios).
+
+### Plan ordenado del resto de la Fase 9 (13-nov-2026)
+1. **9.13** Rendimiento: una transacción por petición, avisos en vivo
+   agrupados, pool → re-medir B y C en Render free (antes/después).
+2. **9.11** Importación de Excel rápida (concurrencia / en segundo plano).
+3. **9.4 + 9.5** Correcciones: panel en vivo como superadmin; avisos atascados.
+4. **9.3 + 9.12** Seguridad del login: límite de intentos + límite de
+   Supabase para el Wi-Fi del evento y mensaje claro en la app.
+5. **9.6** Política de datos para el staff.
+6. **9.2** Revisión OWASP Top 10 (con el código ya corregido).
+7. **9.1** Medición oficial con 900 (Render pago unos días).
+8. **9.8** Build `preview` de la app (funciona sin la PC).
+9. **9.9** Todas las pruebas finales + revertir ajustes temporales (JWT
+   expiry, plan de Render) + limpiar los datos de carga + GUIA § 31.
+10. *(opcional)* 9.10 pendientes menores.
 
 ### Decisión 47 — Landing page comercial de Nexvio (12-nov-2026, para el próximo semestre)
 
