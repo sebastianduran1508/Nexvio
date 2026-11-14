@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SupabaseAdminService } from '../auth/supabase-admin.service';
 import { DatosLegalesDto } from './dto/legal.dto';
+import { olvidarInscripcionesDe } from '../acceso/cache-acceso'; // 9.13.a
 
 const CAMPOS_LEGALES = [
   'legal_razon_social', 'legal_nit', 'legal_direccion', 'legal_ciudad',
@@ -152,6 +153,7 @@ export class LegalService {
       // 8.7.d: si era un speaker con cuenta, su ficha deja de apuntar a él.
       await tx.ponente.updateMany({ where: { usuario_id: titularId }, data: { usuario_id: null } });
       await tx.inscripcion.deleteMany({ where: { usuario_id: titularId } });
+      olvidarInscripcionesDe(titularId); // 9.13.a
 
       await tx.usuario.update({
         where: { id: titularId },

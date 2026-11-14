@@ -20,6 +20,8 @@ const SEG_EN_SALA = Number(__ENV.SEG || 150);
 
 const conectados = new Counter('salas_unidas');
 const avisosRecibidos = new Counter('avisos_recibidos');
+// 9.13.b: avisos que ya traían los resultados (la app NO vuelve a pedir nada).
+const avisosConResultados = new Counter('avisos_con_resultados');
 const tiempoUnirse = new Trend('tiempo_unirse_sala', true);
 
 export const options = {
@@ -84,8 +86,13 @@ export default function (datos) {
       if (m.startsWith('42')) {
         // evento del servidor → la app vuelve a pedir lo que cambió
         avisosRecibidos.add(1);
-        if (m.includes('encuestas:cambio')) get(`/sesiones/${sala}/encuestas`, token, 'refresco encuestas');
-        else if (m.includes('preguntas:cambio')) get(`/sesiones/${sala}/preguntas`, token, 'refresco preguntas');
+        if (m.includes('encuestas:cambio')) {
+          // 9.13.b: como la app nueva, si el aviso trae los resultados no se pide nada.
+          if (m.includes('"encuestas":')) avisosConResultados.add(1);
+          else get(`/sesiones/${sala}/encuestas`, token, 'refresco encuestas');
+        } else if (m.includes('preguntas:cambio')) {
+          get(`/sesiones/${sala}/preguntas`, token, 'refresco preguntas');
+        }
       }
     });
 

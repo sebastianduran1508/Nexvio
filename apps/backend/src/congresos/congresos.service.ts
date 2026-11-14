@@ -11,6 +11,7 @@ import { SPONSORS_DE_CHARLA } from './sesiones.service';
 import { CrearCongresoDto } from './dto/crear-congreso.dto';
 import { ActualizarCongresoDto } from './dto/actualizar-congreso.dto';
 import { aInstante, diaEnZona } from './zona-horaria.util';
+import { olvidarCongreso } from '../acceso/cache-acceso'; // 9.13.a
 
 /**
  * Lógica de negocio de los congresos.
@@ -253,6 +254,7 @@ export class CongresosService {
       await tx.ponente.deleteMany({ where: { congreso_id: id } });
       // Fase 4: tambien las inscripciones cuelgan del congreso.
       await tx.inscripcion.deleteMany({ where: { congreso_id: id } });
+      olvidarCongreso(id); // 9.13.a
       // Fase 6: el networking (intereses/conexiones/mensajes) cuelga del congreso.
       const intereses = await tx.interesNetworking.findMany({
         where: { congreso_id: id },

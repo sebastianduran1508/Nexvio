@@ -14,6 +14,7 @@ import {
   passwordTemporal,
   esCorreoSintetico,
 } from './username.util';
+import { olvidarInscripcionesDe } from '../acceso/cache-acceso'; // 9.13.a
 
 /**
  * Una fila del listado de acceso: quién es, con qué usuario entra y —solo si
@@ -414,6 +415,7 @@ export class AsistentesService {
       if (!inscripcion) throw new NotFoundException('Inscripción no encontrada');
 
       await tx.inscripcion.delete({ where: { id: inscripcionId } });
+      olvidarInscripcionesDe(inscripcion.usuario_id); // 9.13.a
 
       const restantes = await tx.inscripcion.count({
         where: { usuario_id: inscripcion.usuario_id },

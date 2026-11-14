@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
+import { congresoDeRecuerdo, inscritoRecuerdo } from './cache-acceso';
 
 /**
  * "SOLO SU CONGRESO" (Bloque 8.7.b) — el portero de los asistentes.
@@ -60,37 +61,43 @@ export class AccesoCongresoGuard implements CanActivate {
     const valor: string | undefined = req.params?.[regla.param];
     if (!valor || !UUID.test(valor)) throw new NotFoundException('No encontrado');
 
-    const congresoId = await this.congresoDe(user.orgId, regla.por, valor);
-    if (congresoId && (await this.estaInscrito(user.orgId, user.sub, congresoId))) {
-      return true;
-    }
+    if (await this.puedeEntrar(user.orgId, user.sub, regla.por, valor)) return true;
     throw new NotFoundException('No encontrado');
   }
 
-  /** A qué congreso pertenece lo que se pide (null si no existe en el tenant). */
-  async congresoDe(orgId: string | undefined, por: AccesoPor, id: string) {
-    if (por === 'congreso') return id;
+  /**
+   * 9.13.a: primero mira la MEMORIA (cache-acceso.ts); lo que falte lo pregunta
+   * a la base en UNA sola transacción (antes eran dos, una por pregunta).
+   */
+  async puedeEntrar(orgId: string | undefined, usuarioId: string, por: AccesoPor, id: string) {
+    let congresoId = por === 'congreso' ? id : congresoDeRecuerdo.leer(`${por}:${id}`);
+    if (congresoId && inscritoRecuerdo.leer(`${usuarioId}:${congresoId}`)) return true;
+
     return this.prisma.runInTenant(orgId, async (tx) => {
-      if (por === 'sesion') {
-        const s = await tx.sesion.findFirst({ where: { id }, select: { congreso_id: true } });
-        return s?.congreso_id ?? null;
+      if (!congresoId) {
+        congresoId = (await this.buscarCongreso(tx, por, id)) ?? undefined;
+        if (!congresoId) return false;
+        congresoDeRecuerdo.guardar(`${por}:${id}`, congresoId);
       }
-      const e = await tx.encuesta.findFirst({
-        where: { id },
-        select: { sesion: { select: { congreso_id: true } } },
+      const ins = await tx.inscripcion.findFirst({
+        where: { congreso_id: congresoId, usuario_id: usuarioId, estado: 'confirmada' },
+        select: { id: true },
       });
-      return e?.sesion.congreso_id ?? null;
+      if (ins) inscritoRecuerdo.guardar(`${usuarioId}:${congresoId}`, true);
+      return !!ins;
     });
   }
 
-  /** ¿Tiene una inscripción CONFIRMADA en ese congreso? */
-  async estaInscrito(orgId: string | undefined, usuarioId: string, congresoId: string) {
-    const ins = await this.prisma.runInTenant(orgId, (tx) =>
-      tx.inscripcion.findFirst({
-        where: { congreso_id: congresoId, usuario_id: usuarioId, estado: 'confirmada' },
-        select: { id: true },
-      }),
-    );
-    return !!ins;
+  /** Charla/encuesta → congreso, dentro de una transacción ya abierta. */
+  private async buscarCongreso(tx: any, por: AccesoPor, id: string): Promise<string | null> {
+    if (por === 'sesion') {
+      const s = await tx.sesion.findFirst({ where: { id }, select: { congreso_id: true } });
+      return s?.congreso_id ?? null;
+    }
+    const e = await tx.encuesta.findFirst({
+      where: { id },
+      select: { sesion: { select: { congreso_id: true } } },
+    });
+    return e?.sesion.congreso_id ?? null;
   }
 }

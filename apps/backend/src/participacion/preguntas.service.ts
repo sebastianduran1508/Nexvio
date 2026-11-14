@@ -46,7 +46,7 @@ export class PreguntasService {
     });
 
     // Aviso en vivo (fuera de la transaccion: ya esta confirmada).
-    this.realtime.preguntasCambiaron(sesionId);
+    this.realtime.preguntasCambiaron(sesionId, usuarioId); // 9.13.b: solo al autor y al staff
     return pregunta;
   }
 
@@ -103,7 +103,7 @@ export class PreguntasService {
       });
     });
 
-    this.realtime.preguntasCambiaron(pregunta.sesion_id);
+    this.realtime.preguntasCambiaron(pregunta.sesion_id, pregunta.usuario_id); // 9.13.b
     return normalizar(pregunta);
   }
 }

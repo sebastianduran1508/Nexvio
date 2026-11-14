@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { olvidarInscripcionesDe } from '../acceso/cache-acceso'; // 9.13.a
 
 /**
  * Logica del Modulo Inscripciones (Fase 4). Enlaza a un asistente (usuario)
@@ -96,6 +97,7 @@ export class InscripcionesService {
         where: { id: inscripcionId },
         data: { estado: 'cancelada' },
       });
+      olvidarInscripcionesDe(usuarioId); // 9.13.a: el portero lo olvida al instante
       return { cancelada: true };
     });
   }

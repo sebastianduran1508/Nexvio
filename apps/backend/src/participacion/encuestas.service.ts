@@ -18,6 +18,9 @@ const ROLES_STAFF = ['admin', 'organizador', 'coordinador'];
  * Tras crear/abrir-cerrar/votar, avisamos a la sala de la sesion por Socket.io
  * para que los resultados se muevan en vivo (patron "avisar y refrescar").
  */
+/** 9.13.b: ventana para juntar los avisos de encuestas de una charla. */
+const AGRUPAR_AVISOS_MS = 1000;
+
 @Injectable()
 export class EncuestasService {
   constructor(
@@ -66,6 +69,48 @@ export class EncuestasService {
     };
   }
 
+  /**
+   * AVISO EN VIVO AGRUPADO (Fase 9 · 9.13.b).
+   *
+   * Antes: cada voto avisaba a TODA la sala y cada teléfono volvía a pedir los
+   * resultados. Con 700 personas votando en 30 s eran ~490.000 pedidos (la
+   * "avalancha de refrescos" de la prueba de carga).
+   *
+   * Ahora:
+   *  1. Como mucho UN aviso por segundo por charla: los votos que lleguen en
+   *     ese segundo se juntan en uno solo.
+   *  2. El aviso lleva los RESULTADOS de las encuestas activas (sin el voto de
+   *     nadie en particular): la app actualiza las barras sin pedir nada. Cada
+   *     quien conserva SU voto, que ya conoce (se lo devolvió `votar`).
+   *
+   * Ejemplo: 700 votos en 30 s → ~30 avisos con resultados y ~30 consultas a
+   * la base, en vez de 700 avisos y 490.000 peticiones.
+   */
+  private readonly avisosPendientes = new Map<string, ReturnType<typeof setTimeout>>();
+
+  private avisar(orgId: string, sesionId: string) {
+    if (this.avisosPendientes.has(sesionId)) return; // ya hay uno en camino: este voto viaja en él
+    const reloj = setTimeout(() => {
+      this.avisosPendientes.delete(sesionId);
+      this.prisma
+        .runInTenant(orgId, async (tx) => {
+          const activas = await tx.encuesta.findMany({
+            where: { sesion_id: sesionId, activa: true },
+            orderBy: { creado_en: 'asc' },
+            select: { id: true },
+          });
+          return Promise.all(activas.map((e: any) => this.resultado(tx, e.id)));
+        })
+        .then((lista) => {
+          // Sin "miVoto": es igual para todos; cada app conserva el suyo.
+          const generales = lista.map(({ miVoto, ...r }: any) => r);
+          this.realtime.encuestasCambiaron(sesionId, generales);
+        })
+        .catch(() => this.realtime.encuestasCambiaron(sesionId)); // sin datos: que refresquen
+    }, AGRUPAR_AVISOS_MS);
+    this.avisosPendientes.set(sesionId, reloj);
+  }
+
   /** Crear una encuesta (cerrada por defecto) con sus opciones. */
   async crear(orgId: string, sesionId: string, dto: CrearEncuestaDto) {
     const res = await this.prisma.runInTenant(orgId, async (tx) => {
@@ -85,7 +130,7 @@ export class EncuestasService {
       return this.resultado(tx, encuesta.id);
     });
 
-    this.realtime.encuestasCambiaron(sesionId);
+    this.avisar(orgId, sesionId); // 9.13.b: agrupado y con los resultados
     return res;
   }
 
@@ -114,7 +159,7 @@ export class EncuestasService {
       return { res: await this.resultado(tx, id), sesionId: encuesta.sesion_id };
     });
 
-    this.realtime.encuestasCambiaron(sesionId);
+    this.avisar(orgId, sesionId); // 9.13.b: agrupado y con los resultados
     return res;
   }
 
@@ -149,7 +194,7 @@ export class EncuestasService {
       };
     });
 
-    this.realtime.encuestasCambiaron(sesionId);
+    this.avisar(orgId, sesionId); // 9.13.b: agrupado y con los resultados
     return res;
   }
 

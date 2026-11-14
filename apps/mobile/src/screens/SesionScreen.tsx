@@ -83,8 +83,23 @@ export default function SesionScreen({ route, navigation }: Props) {
       }
       socket = s;
       s.emit('join_sesion', sesionId);
-      s.on('preguntas:cambio', cargarPreguntas);
-      s.on('encuestas:cambio', cargarEncuestas);
+      // 9.13.b: el aviso de preguntas ya solo llega si cambió una pregunta MÍA
+      // (son privadas); igual se comprueba que sea de esta charla.
+      s.on('preguntas:cambio', (p?: { sesionId?: string }) => {
+        if (!p?.sesionId || p.sesionId === sesionId) cargarPreguntas();
+      });
+      // 9.13.b: el aviso de encuestas trae los RESULTADOS: se usan tal cual, sin
+      // volver a pedirlos (con 700 personas votando, eso evita una avalancha de
+      // peticiones). Cada quien conserva su propio voto (miVoto). Si un aviso
+      // llega sin resultados (servidor viejo o error), se piden como antes.
+      s.on('encuestas:cambio', (p?: { sesionId?: string; encuestas?: EncuestaResultado[] }) => {
+        if (p?.sesionId && p.sesionId !== sesionId) return;
+        if (!p?.encuestas) return void cargarEncuestas();
+        const nuevas = p.encuestas;
+        setEncuestas((antes) =>
+          nuevas.map((e) => ({ ...e, miVoto: antes.find((a) => a.id === e.id)?.miVoto ?? null })),
+        );
+      });
     });
 
     return () => {
@@ -112,9 +127,10 @@ export default function SesionScreen({ route, navigation }: Props) {
 
   async function votar(encuestaId: string, opcionId: string) {
     try {
-      await api('POST', `/encuestas/${encuestaId}/votar`, { opcion_id: opcionId });
-      // El aviso del socket refresca; refrescamos ya por si acaso.
-      cargarEncuestas();
+      // 9.13.b: la respuesta del voto YA trae los resultados y mi voto: se usan
+      // directamente (antes se volvía a pedir toda la lista).
+      const r = await api<EncuestaResultado>('POST', `/encuestas/${encuestaId}/votar`, { opcion_id: opcionId });
+      setEncuestas((antes) => antes.map((e) => (e.id === r.id ? r : e)));
     } catch (e: any) {
       avisoError(tr('comun.error'), e.message ?? tr('sesion.noVotar'));
     }
