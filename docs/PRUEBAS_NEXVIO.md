@@ -382,11 +382,43 @@ nueva hace que todos refresquen su lista aunque no les cambie nada.
 sala) y/o mandar los resultados dentro del aviso para que nadie tenga que
 volver a pedirlos; los avisos de preguntas, solo a quien le interesa.
 
-### 5.10. Qué falta en las pruebas de carga
+### 5.10. Optimizaciones 9.13 y su medición (13-nov-2026)
 
-1. **9.13 · Optimizaciones:** una sola transacción por petición, avisos
-   agrupados, ajustar las conexiones a la base → re-medir B y C en Render
-   gratis (comparación antes/después).
+**Qué se cambió (código):**
+
+| Cambio | Antes | Después |
+|---|---|---|
+| **Portero con memoria** (`acceso/cache-acceso.ts`) | Cada petición de un asistente a una charla abría hasta **3 transacciones** (2 del portero + 1 del servicio) | Las respuestas del portero se recuerdan (charla→congreso 10 min; "está inscrito" 30 s, solo los "sí"); lo que falte va en **1** transacción. Al salir de un congreso (quitarlo, suprimir, borrar el congreso) la memoria se borra **al instante** |
+| **Avisos de preguntas dirigidos** | Cada pregunta avisaba a **toda la sala** (700 refrescos por pregunta) | Solo al **autor** (sala personal `usuario:<id>`) y al **staff** (`sesion:<id>:staff`): las preguntas son privadas |
+| **Avisos de encuestas agrupados y con resultados** | Cada voto avisaba a toda la sala y **cada teléfono volvía a pedir** los resultados | Máximo **1 aviso por segundo** por charla y **con los resultados adentro**: la app actualiza las barras sin pedir nada; al votar usa la respuesta del servidor |
+
+Pruebas de regresión en verde tras el cambio: 8.7.b (portero), 8.7.c
+(suprimir corta el acceso), 8.10 y las de tiempo real y encuestas de la Fase 5.
+
+**Medición en Render (plan gratis):**
+
+| Escenario | Antes de 9.13 | Después de 9.13 | Criterio |
+|---|---|---|---|
+| **C · pico (100)** | p95 1,5 s | **p95 0,53 s**, 0 % errores | ✅ **Pasa** |
+| **B · charla (200)** | p95 16,4 s, 1.247 peticiones | **0 % errores**, 4.622 avisos en vivo (**4.600 con resultados**: nadie tuvo que volver a pedirlos), **648 peticiones** (la mitad, con mucha más actividad); p95 12,2 s | ✗ (latencia) |
+
+**Lectura del B:**
+- ✅ **La avalancha de refrescos quedó resuelta**: el trabajo que recibe el
+  backend ya no crece con el número de personas en la sala.
+- ✗ **La latencia que queda es de CPU del plan gratis.** Con ~10 peticiones/s
+  las respuestas tardan segundos: el plan free de Render da una fracción
+  mínima de un procesador para atender a la vez 200 conexiones en vivo,
+  verificar la firma de cada token y procesar cada petición. No es un
+  problema de la base (el pool ya no se satura) ni del diseño. **Se valida en
+  la medición oficial con un plan pago.**
+- Una corrida intermedia dio **27 % de errores** justo después de publicar el
+  cambio; repetida con el diagnóstico de códigos de error activado, dio
+  **0 %**. No se reprodujo; lo más probable es que coincidiera con el cambio
+  de instancia del despliegue. Queda anotado.
+
+### 5.11. Qué falta en las pruebas de carga
+
+1. ~~9.13 · Optimizaciones~~ ✅ (§ 5.10).
 2. **9.11 · Importación rápida** → re-medir.
 3. **Medición oficial con 900** con Render en un plan pago unos días (el
    gratis tiene muy poco procesador: mediría los límites del plan, no a
@@ -466,6 +498,7 @@ Render. Lección: no compartir pantallazos con archivos de secretos abiertos.
 | Pruebas de aislamiento | Capturas del SQL Editor (pasos 2–4) y de `rls_via_app.js` |
 | Reportes HTML de k6 (ensayo local) | `apps/backend/prisma/carga/reportes/ensayo_a.html`, `ensayo_b.html`, `ensayo_c.html` |
 | Reportes HTML de k6 (Render) | `reportes/render_a.html`, `render_b.html` (con el error del script), `render_b2.html` (limpio), `render_c.html` |
+| Reportes HTML de k6 (después de 9.13) | `reportes/render_b3.html` (corrida con 27 % de errores no reproducida), `render_b4.html` (0 % errores), `render_c2.html` (C pasa) |
 | Historial del repositorio | GitHub: commits por bloque (`feat(8.x)…`, `test(9.1)…`) |
 | Notificación push en teléfono real | Prueba manual del 8.9 (captura recomendada) |
 | Acta de validación del cliente | Reunión del 7-nov-2026 (decisiones 38–41) |

@@ -1610,8 +1610,16 @@ falta es el **tiempo real** (B) y los **picos** (C): CPU mínima del plan free +
 dos transacciones por petición + la avalancha de refrescos (626–773 avisos ya
 en 200 usuarios).
 
+### 9.13 ✅ Rendimiento (13-nov-2026)
+Portero con memoria + una transacción; avisos de preguntas solo al autor y al
+staff; avisos de encuestas agrupados (1/s) con los resultados. En Render free:
+**C pasa (p95 0,53 s)**; B con 0 % errores y sin avalancha (4.600 avisos con
+resultados), latencia restante por CPU del plan gratis → se valida en la
+medición oficial. Detalle: `PRUEBAS_NEXVIO.md` § 5.10. El panel como
+superadmin sigue sin actualizarse solo (confirmado: es la 9.4).
+
 ### Plan ordenado del resto de la Fase 9 (13-nov-2026)
-1. **9.13** Rendimiento: una transacción por petición, avisos en vivo
+1. ✅ **9.13** Rendimiento: una transacción por petición, avisos en vivo
    agrupados, pool → re-medir B y C en Render free (antes/después).
 2. **9.11** Importación de Excel rápida (concurrencia / en segundo plano).
 3. **9.4 + 9.5** Correcciones: panel en vivo como superadmin; avisos atascados.

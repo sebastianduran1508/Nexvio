@@ -20,12 +20,26 @@ export const CRITERIOS = {
   http_req_failed: ['rate<0.01'], // menos del 1 % de errores
 };
 
+/**
+ * Diagnóstico (13-nov): cuando una petición falla, muestra en la terminal su
+ * código y el inicio de la respuesta (1 de cada 5, para no inundarla). Así se
+ * distingue un error del sistema (404, 409…) de uno de la infraestructura
+ * (502/503 del hosting, 0 = no hubo respuesta / tiempo agotado).
+ */
+function informarFallo(nombre, r) {
+  if (r.status >= 200 && r.status < 300) return;
+  if (Math.random() < 0.2) {
+    console.warn(`FALLO ${nombre} → ${r.status} ${r.error || ''} ${String(r.body || '').slice(0, 120)}`);
+  }
+}
+
 export function get(ruta, token, nombre) {
   const r = http.get(`${API}${ruta}`, {
     headers: { Authorization: `Bearer ${token}`, 'X-Idioma': 'es' },
     tags: { name: nombre || ruta },
   });
   check(r, { [`${nombre || ruta} → 200`]: (x) => x.status === 200 });
+  informarFallo(nombre || ruta, r);
   return r;
 }
 
@@ -35,6 +49,7 @@ export function post(ruta, token, cuerpo, nombre) {
     tags: { name: nombre || ruta },
   });
   check(r, { [`${nombre || ruta} → 2xx`]: (x) => x.status >= 200 && x.status < 300 });
+  informarFallo(nombre || ruta, r);
   return r;
 }
 
